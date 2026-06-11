@@ -1,0 +1,23 @@
+{
+  "name": "taj_saas",
+  "private": true,
+  "scripts": {
+    "build": "turbo build",
+    "dev": "turbo dev",
+    "lint": "turbo lint",
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
+  },
+  "devDependencies": {
+    "turbo": "latest"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "@better-auth/infra": "^0.2.14",
+    "@neondatabase/serverless": "^1.1.0",
+    "better-auth": "^1.6.16",
+    "drizzle-orm": "^0.45.2"
+  }
+}

@@ -1,0 +1,11 @@
+// Customer App — Sentry Server Config
+import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+
+  // Performance monitoring di server
+  tracesSampleRate: 1.0,
+
+  debug: process.env.NODE_ENV === "development",
+});
