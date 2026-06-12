@@ -13,7 +13,7 @@
   "engines": {
     "node": ">=18"
   },
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.4",
   "dependencies": {
     "@better-auth/infra": "^0.2.14",
     "@neondatabase/serverless": "^1.1.0",
