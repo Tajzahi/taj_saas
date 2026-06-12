@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
@@ -7,17 +7,10 @@ import { Button } from "@/components/ui/Button";
 import { productionPlan } from "@/data/mockData";
 import { formatPercent } from "@/utils/format";
 
-const yieldChart = productionPlan.map(p => ({
-  name: p.menu.length > 18 ? p.menu.slice(0, 18) + "â€¦" : p.menu,
-  target: p.targetQty,
-  produced: p.producedQty,
-  yield: p.yield,
-}));
-
 const statusConfig = {
-  "on-track": { label: "On Track", variant: "success" as const, icon: "âœ…" },
-  "behind": { label: "Terlambat", variant: "danger" as const, icon: "ðŸ”´" },
-  "ahead": { label: "Lebih", variant: "info" as const, icon: "ðŸ”µ" },
+  "on-track": { label: "On Track", variant: "success" as const, icon: "✅" },
+  "behind": { label: "Terlambat", variant: "danger" as const, icon: "🔴" },
+  "ahead": { label: "Lebih", variant: "info" as const, icon: "🔵" },
 };
 
 function ProdTooltip({ active, payload, label }: any) {
@@ -38,14 +31,27 @@ function ProdTooltip({ active, payload, label }: any) {
   return null;
 }
 
-export default function Produksi() {
+export default function Produksi({
+  initialProductionPlan = [],
+}: {
+  initialProductionPlan?: any[];
+}) {
   const [date] = useState("22 Desember 2024");
   const [selectedCabang, setSelectedCabang] = useState("Semua");
 
-  const onTrack = productionPlan.filter(p => p.status === "on-track").length;
-  const behind = productionPlan.filter(p => p.status === "behind").length;
-  const ahead = productionPlan.filter(p => p.status === "ahead").length;
-  const avgYield = productionPlan.reduce((s, p) => s + p.yield, 0) / productionPlan.length;
+  const plan = initialProductionPlan.length > 0 ? initialProductionPlan : productionPlan;
+
+  const yieldChart = plan.map(p => ({
+    name: p.menu.length > 18 ? p.menu.slice(0, 18) + "…" : p.menu,
+    target: p.targetQty,
+    produced: p.producedQty,
+    yield: p.yield,
+  }));
+
+  const onTrack = plan.filter(p => p.status === "on-track").length;
+  const behind = plan.filter(p => p.status === "behind").length;
+  const ahead = plan.filter(p => p.status === "ahead").length;
+  const avgYield = plan.length > 0 ? plan.reduce((s, p) => s + p.yield, 0) / plan.length : 100;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -128,7 +134,7 @@ export default function Produksi() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-              {productionPlan.map((item) => {
+              {plan.map((item) => {
                 const cfg = statusConfig[item.status as keyof typeof statusConfig];
                 return (
                   <tr key={item.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">

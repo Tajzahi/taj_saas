@@ -2,7 +2,7 @@
 
 **Versi:** 1.0  
 **Tanggal:** 9 Juni 2026  
-**Tujuan Dokumen:** Satu file panduan utama untuk memulai coding dari nol dengan pendekatan **multi-tenant dari hari pertama**. A6 Nyuss hanya sebagai **kaca pembanding** (referensi desain, data contoh menu/varian/topping, alur bisnis, dan testing). Sistem ini langsung dirancang untuk distribusi ke banyak UMKM F&B.
+**Tujuan Dokumen:** Satu file panduan utama untuk memulai coding dari nol dengan pendekatan **multi-tenant dari hari pertama**. taj_saas hanya sebagai **kaca pembanding** (referensi desain, data contoh menu/varian/topping, alur bisnis, dan testing). Sistem ini langsung dirancang untuk distribusi ke banyak UMKM F&B.
 
 **Komitmen Waktu Kamu:** ~20 jam/hari efektif (full day kecuali 4 jam istirahat/tidur).
 
@@ -53,7 +53,7 @@
 
 **Ya, ikuti keinginanmu:**  
 Bangun **multi-tenant dari hari pertama**.  
-A6 Nyuss hanya sebagai **kaca pembanding** (referensi desain UI/UX, data menu contoh, varian, topping, alur bisnis, dan testing).  
+taj_saas hanya sebagai **kaca pembanding** (referensi desain UI/UX, data menu contoh, varian, topping, alur bisnis, dan testing).  
 
 Bukan sebagai tenant utama. Begitu sistem stabil, kamu bisa langsung distribusikan ke UMKM lain.
 

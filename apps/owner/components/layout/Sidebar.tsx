@@ -1,6 +1,9 @@
 "use client";
 
-import { navItems, pageTitles, type PageId } from "@/types/nav";
+import { navItems, type PageId } from "@/types/nav";
+import { useTenant } from "@taj-saas/shared";
+import { authClient } from "../../../../lib/auth-client";
+import { useRouter } from "next/navigation";
 
 interface SidebarProps {
   activePage: PageId;
@@ -10,6 +13,21 @@ interface SidebarProps {
 }
 
 export function Sidebar({ activePage, onNavigate, collapsed, onToggle }: SidebarProps) {
+  const { tenant } = useTenant();
+  const { data: session } = authClient.useSession();
+  const router = useRouter();
+
+  const userInitials = session?.user?.name
+    ? session.user.name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+    : "OW";
+
+  const userName = session?.user?.name || "Owner";
+
+  async function handleLogout() {
+    await authClient.signOut();
+    router.push("/api/auth/signin"); // fallback redirect
+  }
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -37,12 +55,12 @@ export function Sidebar({ activePage, onNavigate, collapsed, onToggle }: Sidebar
           className={`flex items-center px-4 gap-3 flex-shrink-0 ${collapsed ? "lg:justify-center" : ""}`}
         >
           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-orange-500 flex items-center justify-center text-white text-sm font-bold shadow-md flex-shrink-0">
-            T
+            {tenant?.name?.[0] || "T"}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p style={{ color: "var(--color-text-primary)" }} className="text-sm font-bold truncate leading-tight">
-                Taj SaaS
+                {tenant?.name || "Taj SaaS"}
               </p>
               <p style={{ color: "var(--color-text-muted)" }} className="text-xs truncate">
                 Owner Dashboard
@@ -71,10 +89,10 @@ export function Sidebar({ activePage, onNavigate, collapsed, onToggle }: Sidebar
               <span className="text-lg">🥞</span>
               <div className="min-w-0">
                 <p className="text-xs font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>
-                  A6 Nyuss Martabak
+                  {tenant?.name || "Martabak Terbul"}
                 </p>
-                <p className="text-xs" style={{ color: "var(--color-primary)" }}>
-                  Pro Plan · 3 Cabang
+                <p className="text-xs capitalize" style={{ color: "var(--color-primary)" }}>
+                  {tenant?.packageType || "startup"} Plan
                 </p>
               </div>
             </div>
@@ -126,24 +144,33 @@ export function Sidebar({ activePage, onNavigate, collapsed, onToggle }: Sidebar
           })}
         </nav>
 
-        {/* Bottom User */}
+        {/* Bottom User / Logout */}
         {!collapsed && (
-          <div className="px-3 py-3 flex-shrink-0" style={{ borderTop: "1px solid var(--color-border)" }}>
+          <div className="px-3 py-3 flex-shrink-0 flex flex-col gap-2" style={{ borderTop: "1px solid var(--color-border)" }}>
             <div
-              className="flex items-center gap-3 p-2.5 rounded-xl cursor-pointer transition-colors hover:bg-white/5"
+              className="flex items-center gap-3 p-2.5 rounded-xl transition-colors hover:bg-white/5"
             >
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-red-500 to-orange-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
-                TZ
+                {userInitials}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>
-                  Taj Zahi El Huda
+                  {userName}
                 </p>
                 <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>
                   Owner
                 </p>
               </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="w-full text-xs font-semibold py-2 px-3 rounded-lg text-red-600 hover:bg-red-50/50 dark:hover:bg-red-950/10 transition-colors text-left flex items-center gap-2"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Keluar
+            </button>
           </div>
         )}
       </aside>

@@ -5,7 +5,7 @@ import { Star, MapPin, Clock, CheckCircle, ArrowRight, ChevronRight, Award, Truc
 import { menuItems as staticMenuItems, popularMenuSlugs, MenuItem } from '@/data/menu';
 import MenuCard from '@/components/MenuCard';
 import { useEffect, useState } from 'react';
-import { getStoreSettings, getMenuItems, DbStoreSettings } from '@/lib/supabase/menuService';
+import { getStoreSettings, getMenuItems, DbStoreSettings } from '@/lib/db/menuService';
 
 const testimonials = [
   { name: 'Budi S.', rating: 5, text: 'Udah langganan sejak 2010! Rasanya konsisten, martabak coklatnya paling enak se-Surabaya. Wajib coba!', location: 'Gubeng, Surabaya' },
@@ -29,7 +29,7 @@ const orderSteps = [
 
 export default function Home() {
   const [settings, setSettings] = useState<DbStoreSettings>({
-    id: 1,
+    id: '1',
     store_name: 'Martabak Terbul A6 Nyuss',
     is_open: true,
     whatsapp_number: '6287811123482',
@@ -51,7 +51,7 @@ export default function Home() {
         setSettings(fetchedSettings);
         setItems(fetchedItems);
       } catch (err) {
-        console.error('Gagal mengambil data dari Supabase, menggunakan statis:', err);
+        console.error('Gagal mengambil data dari database, menggunakan statis:', err);
       }
     }
     loadData();

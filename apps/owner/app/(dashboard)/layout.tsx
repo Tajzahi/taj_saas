@@ -1,82 +1,31 @@
-"use client";
+import { headers } from "next/headers";
+import { db, schema } from "@taj-saas/db";
+import { eq } from "drizzle-orm";
+import { TenantProvider } from "@taj-saas/shared";
+import DashboardContainer from "./DashboardContainer";
 
-import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
-import type { PageId } from "@/types/nav";
-
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const headersList = await headers();
+  const tenantSlug = headersList.get("x-tenant-slug") || "a6-nyuss";
 
-  // Map pathname to PageId
-  let activePage: PageId = "cockpit";
-  if (pathname === "/cabang") activePage = "cabang";
-  else if (pathname === "/menu") activePage = "menu";
-  else if (pathname === "/persediaan") activePage = "persediaan";
-  else if (pathname === "/keuangan") activePage = "keuangan";
-  else if (pathname === "/produksi") activePage = "produksi";
-  else if (pathname === "/penjualan") activePage = "penjualan";
-  else if (pathname === "/sdm") activePage = "sdm";
-  else if (pathname === "/persetujuan") activePage = "persetujuan";
-  else if (pathname === "/ai") activePage = "ai";
-  else if (pathname === "/pengaturan") activePage = "pengaturan";
+  // Fetch tenant info
+  const tenantResult = await db
+    .select()
+    .from(schema.tenants)
+    .where(eq(schema.tenants.slug, tenantSlug))
+    .limit(1);
 
-  // Mobile: auto collapse sidebar on small screens
-  useEffect(() => {
-    const handler = () => {
-      if (window.innerWidth < 1024) {
-        setSidebarCollapsed(true);
-      }
-    };
-    handler();
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
-
-  function handleNavigate(page: PageId) {
-    if (window.innerWidth < 1024) {
-      setSidebarCollapsed(true);
-    }
-    if (page === "cockpit") {
-      router.push("/");
-    } else {
-      router.push(`/${page}`);
-    }
-  }
-
-  const sidebarWidth = sidebarCollapsed ? 72 : 260;
+  const tenant = tenantResult[0] || null;
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-bg)" }}>
-      {/* Sidebar */}
-      <Sidebar
-        activePage={activePage}
-        onNavigate={handleNavigate}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-
-      {/* Topbar */}
-      <Topbar
-        activePage={activePage}
-        onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-        sidebarCollapsed={sidebarCollapsed}
-      />
-
-      {/* Main Content */}
-      <main
-        className="transition-all duration-300 pt-16 min-h-screen"
-        style={{ marginLeft: `${sidebarWidth}px` }}
-      >
-        <div className="p-4 md:p-6 max-w-[1600px]">{children}</div>
-      </main>
-    </div>
+    <TenantProvider initialTenant={tenant as any}>
+      <DashboardContainer initialTenant={tenant as any}>
+        {children}
+      </DashboardContainer>
+    </TenantProvider>
   );
 }

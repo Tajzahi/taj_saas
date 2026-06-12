@@ -3,7 +3,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Search, SlidersHorizontal, Egg, Moon, Layers, Utensils } from 'lucide-react';
 import { menuItems as staticMenuItems, categories as staticCategories, MenuCategory, MenuItem, popularMenuSlugs } from '@/data/menu';
 import MenuCard from '@/components/MenuCard';
-import { getCategories, getMenuItems } from '@/lib/supabase/menuService';
+import { getCategories, getMenuItems } from '@/lib/db/menuService';
 
 type SortOption = 'default' | 'rekomendasi' | 'price-asc' | 'price-desc' | 'terlaris';
 
@@ -29,7 +29,7 @@ export default function Menu() {
   const [menuItemsState, setMenuItemsState] = useState<MenuItem[]>(staticMenuItems);
   const [categoriesState, setCategoriesState] = useState<{ id: MenuCategory; label: string; icon: string }[]>(staticCategories);
 
-  // Load filter state from sessionStorage on mount & fetch Supabase data
+  // Load filter state from sessionStorage on mount & fetch database data
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedCategory = sessionStorage.getItem('last_menu_category');
@@ -55,7 +55,7 @@ export default function Menu() {
         setCategoriesState(fetchedCategories);
         setMenuItemsState(fetchedItems);
       } catch (err) {
-        console.error('Gagal memuat data menu dari Supabase:', err);
+        console.error('Gagal memuat data menu dari database:', err);
       }
     }
     loadData();

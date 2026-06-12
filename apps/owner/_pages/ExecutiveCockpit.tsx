@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState } from "react";
 import {
@@ -13,6 +13,8 @@ import {
   menuList, revenueByCabang, hourlyHeatmap, aiInsights, criticalAlerts, cabangList
 } from "@/data/mockData";
 import { formatRupiah, formatPercent, formatChange, formatNumber, getHeatmapColor } from "@/utils/format";
+import { authClient } from "../../../lib/auth-client";
+import { useTenant } from "@taj-saas/shared";
 
 type Period = "7d" | "30d" | "90d" | "ytd";
 
@@ -226,17 +228,42 @@ function SalesHeatmap() {
 // ============================================================
 // MAIN COMPONENT
 // ============================================================
-export default function ExecutiveCockpit() {
+export default function ExecutiveCockpit({
+  initialStats,
+  initialBranches = []
+}: {
+  initialStats?: { branchesCount: number; menuItemsCount: number; ordersCount: number };
+  initialBranches?: any[];
+}) {
+  const { data: session } = authClient.useSession();
+  const { tenant } = useTenant();
   const [period, setPeriod] = useState<Period>("7d");
   const chartData = periodData[period];
 
+  const userName = session?.user?.name || "Bapak/Ibu";
+
+  const branches = (initialBranches.length > 0 ? initialBranches : cabangList).map((b, i) => ({
+    id: b.id,
+    name: b.name,
+    city: b.city,
+    status: b.status || "active",
+    revenue: b.revenue || (25000000 + (i * 5000000)),
+    orders: b.orders || (600 + (i * 150)),
+    avgOrder: b.avgOrder || 35000,
+    foodCost: b.foodCost || 28.5,
+    laborCost: b.laborCost || 18.0,
+    rating: b.rating || 4.7,
+    lastSync: b.lastSync || "2 menit lalu",
+    kasir: b.kasir || 2,
+  }));
+
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* â”€â”€ Header Row â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/* ── Header Row ─────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-            Selamat pagi, Pak Bambang ðŸ‘‹
+            Selamat pagi, {userName} 👋
           </h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
             Senin, 23 Desember 2024 Â· Data diperbarui 2 menit lalu
@@ -378,7 +405,7 @@ export default function ExecutiveCockpit() {
         <div className="col-span-1 xl:col-span-1">
           <KpiCard
             label={kpiSummary.activeCabang.label}
-            value={`${kpiSummary.activeCabang.value}/5`}
+            value={`${branches.filter(b => b.status === "active").length}/${branches.length}`}
             change={kpiSummary.activeCabang.change}
             period={kpiSummary.activeCabang.period}
             isPositiveGood={true}
@@ -615,7 +642,7 @@ export default function ExecutiveCockpit() {
               <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
             </div>
             <div className="space-y-2.5">
-              {cabangList.map((cabang) => (
+              {branches.map((cabang) => (
                 <div key={cabang.id} className="flex items-center justify-between py-1.5">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`w-2 h-2 rounded-full flex-shrink-0 ${cabang.status === "active" ? "bg-emerald-500" : "bg-amber-500"}`} />

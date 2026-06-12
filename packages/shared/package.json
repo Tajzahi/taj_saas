@@ -5,6 +5,15 @@
   "main": "./index.ts",
   "types": "./index.ts",
   "dependencies": {
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "@taj-saas/db": "workspace:*"
+  },
+  "peerDependencies": {
+    "next": ">=13.0.0",
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19"
   }
 }

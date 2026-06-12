@@ -59,7 +59,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
     return () => clearInterval(clockInterval);
   }, []);
 
-  // Load and Subscribe to Supabase Database on mount
+  // Load and Subscribe to Database on mount
   useEffect(() => {
     fetchStoreSettings();
     fetchOrders();

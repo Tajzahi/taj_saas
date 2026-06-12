@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
@@ -20,11 +20,21 @@ const priorityConfig: Record<string, { label: string; variant: "danger" | "warni
   low: { label: "Rendah", variant: "neutral" },
 };
 
-export default function Persetujuan() {
+export default function Persetujuan({
+  initialApprovalsList = [],
+}: {
+  initialApprovalsList?: any[];
+}) {
   const [filter, setFilter] = useState("all");
   const [selectedApproval, setSelectedApproval] = useState<string | null>(null);
   const [approvedList, setApprovedList] = useState<string[]>([]);
   const [rejectedList, setRejectedList] = useState<string[]>([]);
+
+  const approvalsList = initialApprovalsList.length > 0 ? initialApprovalsList : [
+    { id: "a1", title: "Pembelian Tepung & Mentega", type: "purchase_order", amount: 1540000, requestedBy: "Andi Pratama", cabang: "BSD", requestedAt: "2 jam lalu", priority: "high", status: "pending" },
+    { id: "a2", title: "Diskon Promo Natal 15%", type: "discount", amount: 0, requestedBy: "Hana Sari", cabang: "Sudirman", requestedAt: "4 jam lalu", priority: "medium", status: "pending" },
+    { id: "a3", title: "Refund Martabak Gosong", type: "refund", amount: 45000, requestedBy: "Joko Widodo", cabang: "Kemang", requestedAt: "5 jam lalu", priority: "low", status: "pending" },
+  ];
 
   const filtered = approvalsList.filter(a => {
     if (filter === "all") return true;

@@ -94,6 +94,7 @@ export async function getMenuItems(): Promise<MenuItem[]> {
     .where(eq(schema.categories.tenantId, tenant.id));
 
   const categoryMap = new Map(dbCategories.map(c => [c.id, c.slug]));
+  const categoryLabelMap = new Map(dbCategories.map(c => [c.id, c.name]));
 
   return dbItems.map(item => ({
     id: item.id,
@@ -103,6 +104,7 @@ export async function getMenuItems(): Promise<MenuItem[]> {
     price: Number(item.price),
     image: item.imageUrl || `/assets/menu/placeholder.jpg`, // fallback
     category: (item.categoryId ? categoryMap.get(item.categoryId) : 'minuman') as MenuCategory,
+    categoryLabel: (item.categoryId ? categoryLabelMap.get(item.categoryId) : 'Minuman') || 'Minuman',
     isAvailable: item.isAvailable,
     badge: item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined
   }));

@@ -8,7 +8,7 @@ import { AlertCircle, ShoppingBag, Truck, Ticket, Banknote, QrCode, UploadCloud,
 import toast from 'react-hot-toast';
 import { useCartStore, useOrderStore, DELIVERY_ZONES } from '@/store/cartStore';
 import { formatPrice } from '@/data/menu';
-import { getStoreSettings } from '@/lib/supabase/menuService';
+import { getStoreSettings } from '@/lib/db/menuService';
 import type { DeliveryMapResult } from '@/components/DeliveryMap';
 
 // Dynamically import the map component (client-side only — no SSR for Leaflet)
@@ -63,7 +63,7 @@ export default function Checkout() {
 
   // Map-derived delivery info (replaces manual zone selection)
   const [mapResult, setMapResult] = useState<DeliveryMapResult | null>(null);
-  const [deliveryZone, setDeliveryZone] = useState(0); // fallback index for Supabase
+  const [deliveryZone, setDeliveryZone] = useState(0); // fallback index
 
   // When map resolves an address (reverse geocoding), fill the textarea
   const handleAddressResolved = useCallback((resolvedAddress: string) => {

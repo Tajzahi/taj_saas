@@ -1,5 +1,22 @@
 import { create } from 'zustand';
 import { menuItems as staticMenuItems, toppingOptions } from '../data/menu';
+import toast from 'react-hot-toast';
+import {
+  getOrdersAction,
+  updateOrderStatusAction,
+  verifyPaymentStatusAction,
+  getActiveShiftAction,
+  openShiftAction,
+  closeShiftAction,
+  getMenuItemsAction,
+  toggleMenuItemAvailabilityAction,
+  getToppingsAction,
+  toggleToppingAvailabilityAction,
+  getStoreLogsAction,
+  toggleStoreAction,
+  getStoreSettingsAction,
+  writeAuditLogAction,
+} from '../app/actions';
 
 export interface OrderItem {
   id: string;
@@ -50,7 +67,7 @@ export interface ToppingItem {
 }
 
 export interface StoreLog {
-  id: number;
+  id: string;
   action: 'open' | 'closed';
   operatorName: string | null;
   operatorId: string | null;
@@ -60,7 +77,7 @@ export interface StoreLog {
 }
 
 export interface ShiftLog {
-  id: number;
+  id: string;
   operatorId: string | null;
   operatorName: string;
   openedAt: string;
@@ -109,114 +126,13 @@ interface AdminState {
   closeShift: (actualCash: number, expectedCash: number) => Promise<boolean>;
 }
 
-// Generate some realistic initial mock orders
-const initialMockOrders: AdminOrder[] = [
-  {
-    id: 'mock-order-1',
-    orderCode: 'A6-20260610-1823',
-    customerName: 'Budi Hartono',
-    customerPhone: '081234567890',
-    deliveryType: 'pickup',
-    deliveryAddress: null,
-    deliveryDistance: null,
-    deliveryFee: 0,
-    subtotal: 50000,
-    discount: 0,
-    couponCode: null,
-    totalPrice: 50000,
-    status: 'received',
-    paymentMethod: 'cod',
-    paymentStatus: 'pending',
-    paymentProofUrl: null,
-    notes: 'Minta daun bawang agak banyak ya pak',
-    cancellationReason: null,
-    items: [
-      {
-        id: 'item-1',
-        name: 'Martabak Telur Ayam - 2 Telur',
-        quantity: 2,
-        price: 25000,
-        variant: 'Daging Ayam'
-      }
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 5).toISOString() // 5 mins ago
-  },
-  {
-    id: 'mock-order-2',
-    orderCode: 'A6-20260610-1288',
-    customerName: 'Siti Rahma',
-    customerPhone: '08561234567',
-    deliveryType: 'delivery',
-    deliveryAddress: 'Jl. Pemuda No. 45, Surabaya',
-    deliveryDistance: 3.5,
-    deliveryFee: 13000,
-    subtotal: 45000,
-    discount: 5000,
-    couponCode: 'WEBAPPNEW',
-    totalPrice: 53000,
-    status: 'received',
-    paymentMethod: 'transfer',
-    paymentStatus: 'waiting_verification',
-    paymentProofUrl: 'https://placehold.co/400x600/16a34a/white?text=Bukti+Transfer+MOCK',
-    notes: 'Kupon WEBAPPNEW applied',
-    cancellationReason: null,
-    items: [
-      {
-        id: 'item-2',
-        name: 'Terang Bulan Milo + 1 Topping',
-        quantity: 1,
-        price: 25000,
-        topping: 'Keju'
-      },
-      {
-        id: 'item-3',
-        name: 'Martabak Telur Ayam - 1 Telur',
-        quantity: 1,
-        price: 20000,
-        variant: 'Daging Sapi'
-      }
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString() // 15 mins ago
-  },
-  {
-    id: 'mock-order-3',
-    orderCode: 'A6-20260610-8812',
-    customerName: 'Andi Saputra',
-    customerPhone: '081399887766',
-    deliveryType: 'pickup',
-    deliveryAddress: null,
-    deliveryDistance: null,
-    deliveryFee: 0,
-    subtotal: 40000,
-    discount: 0,
-    couponCode: null,
-    totalPrice: 40000,
-    status: 'ready',
-    paymentMethod: 'cod',
-    paymentStatus: 'pending',
-    paymentProofUrl: null,
-    notes: 'Jangan terlalu asin',
-    cancellationReason: null,
-    items: [
-      {
-        id: 'item-4',
-        name: 'Martabak Telur Bebek - 2 Telur',
-        quantity: 1,
-        price: 40000,
-        variant: 'Daging Ayam'
-      }
-    ],
-    createdAt: new Date(Date.now() - 1000 * 60 * 30).toISOString() // 30 mins ago
-  }
-];
-
 export const useAdminStore = create<AdminState>((set, get) => ({
-  orders: initialMockOrders,
+  orders: [],
   menuItems: [],
   toppings: [],
   storeLogs: [],
   activeShift: null,
-  selectedOrderId: 'mock-order-1',
+  selectedOrderId: null,
   isAlarmPlaying: false,
   isStoreOpen: true,
   newOrderIds: [],
@@ -227,75 +143,53 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   selectOrder: (id) => set({ selectedOrderId: id }),
 
   writeAuditLog: async (action, details, orderId) => {
-    console.log('[Mock Audit Log]:', { action, details, orderId });
+    await writeAuditLogAction(action, details, orderId);
   },
 
   updateOrderStatus: async (id, newStatus, cancellationReason) => {
-    const order = get().orders.find((o) => o.id === id);
-    const shouldAutoPay = newStatus === 'completed' && order && order.paymentMethod === 'cod';
-
-    set((state) => ({
-      orders: state.orders.map((o) =>
-        o.id === id
-          ? {
-              ...o,
-              status: newStatus,
-              cancellationReason: cancellationReason || null,
-              paymentStatus: shouldAutoPay ? 'paid' : o.paymentStatus,
-            }
-          : o
-      ),
-    }));
-
-    // If COD completed, update expected cash in mock active shift
-    const activeShift = get().activeShift;
-    if (shouldAutoPay && activeShift && order) {
-      const newExpectedCash = activeShift.expectedCash + order.totalPrice;
-      set({
-        activeShift: {
-          ...activeShift,
-          expectedCash: newExpectedCash,
-        },
-      });
+    set({ isLoading: true });
+    const res = await updateOrderStatusAction(id, newStatus, cancellationReason);
+    if (res.success) {
+      await get().fetchOrders();
+      await get().fetchActiveShift();
+      toast.success(`Status pesanan diperbarui ke ${newStatus}`);
+    } else {
+      toast.error(res.error || 'Gagal memperbarui status pesanan');
     }
-
-    return true;
+    set({ isLoading: false });
+    return !!res.success;
   },
 
   verifyPaymentStatus: async (id, isPaid) => {
-    const newPaymentStatus = isPaid ? 'paid' : 'failed';
-    const order = get().orders.find((o) => o.id === id);
-
-    set((state) => ({
-      orders: state.orders.map((o) =>
-        o.id === id ? { ...o, paymentStatus: newPaymentStatus } : o
-      ),
-    }));
-
-    // If payment verified (paid), update expected cash in mock active shift for transfers too
-    const activeShift = get().activeShift;
-    if (isPaid && activeShift && order) {
-      const newExpectedCash = activeShift.expectedCash + order.totalPrice;
-      set({
-        activeShift: {
-          ...activeShift,
-          expectedCash: newExpectedCash,
-        },
-      });
+    set({ isLoading: true });
+    const res = await verifyPaymentStatusAction(id, isPaid);
+    if (res.success) {
+      await get().fetchOrders();
+      await get().fetchActiveShift();
+      toast.success(isPaid ? 'Pembayaran lunas terverifikasi' : 'Verifikasi pembayaran ditolak');
+    } else {
+      toast.error(res.error || 'Gagal memverifikasi pembayaran');
     }
-
-    return true;
+    set({ isLoading: false });
+    return !!res.success;
   },
 
   stopAlarm: () => set({ isAlarmPlaying: false }),
   playAlarm: () => set({ isAlarmPlaying: true }),
 
   addNewOrder: (order) => {
-    set((state) => ({
-      orders: [order, ...state.orders],
-      newOrderIds: [...state.newOrderIds, order.id],
-      isAlarmPlaying: order.status === 'received' ? true : state.isAlarmPlaying,
-    }));
+    set((state) => {
+      // Prevent duplicates
+      if (state.orders.some((o) => o.id === order.id)) {
+        return state;
+      }
+      return {
+        orders: [order, ...state.orders],
+        newOrderIds: [...state.newOrderIds, order.id],
+        isAlarmPlaying: order.status === 'received' ? true : state.isAlarmPlaying,
+        selectedOrderId: state.selectedOrderId || order.id,
+      };
+    });
   },
 
   dismissNewOrder: (id) => {
@@ -307,110 +201,122 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   toggleStore: async () => {
     const nextState = !get().isStoreOpen;
-    set({ isStoreOpen: nextState });
+    const res = await toggleStoreAction(nextState);
+    if (res.success) {
+      set({ isStoreOpen: nextState });
+      toast.success(`Gerai di${nextState ? 'buka' : 'tutup'}`);
+    } else {
+      toast.error(res.error || 'Gagal mengubah status gerai');
+    }
   },
 
   toggleStoreWithLog: async (action, selectedDate, operatorName) => {
     const nextIsOpen = action === 'open';
-    const now = new Date();
-    const newLog: StoreLog = {
-      id: Date.now(),
-      action,
-      operatorName,
-      operatorId: 'mock-operator-id',
-      selectedDate,
-      loggedAt: now.toISOString(),
-      notes: `Toko di${action === 'open' ? 'buka' : 'tutup'} oleh ${operatorName} pada ${selectedDate}`,
-    };
-
-    set((state) => ({
-      isStoreOpen: nextIsOpen,
-      storeLogs: [newLog, ...state.storeLogs]
-    }));
-
-    return true;
+    const res = await toggleStoreAction(nextIsOpen);
+    if (res.success) {
+      await writeAuditLogAction(`store_${action}`, `Toko di${action === 'open' ? 'buka' : 'tutup'} oleh ${operatorName} pada ${selectedDate}`);
+      await get().fetchStoreLogs();
+      set({ isStoreOpen: nextIsOpen });
+      toast.success(`Gerai di${action === 'open' ? 'buka' : 'tutup'}`);
+      return true;
+    } else {
+      toast.error(res.error || 'Gagal mengubah status gerai');
+      return false;
+    }
   },
 
   fetchStoreLogs: async (date) => {
-    // Return mock logs
-    if (get().storeLogs.length === 0) {
-      set({
-        storeLogs: [
-          {
-            id: 1,
-            action: 'open',
-            operatorName: 'Budi Kasir',
-            operatorId: 'mock-operator-id',
-            selectedDate: new Date().toISOString().slice(0, 10),
-            loggedAt: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
-            notes: 'Toko dibuka oleh Budi Kasir'
-          }
-        ]
-      });
+    const res = await getStoreLogsAction();
+    if (res.success) {
+      set({ storeLogs: res.storeLogs });
     }
   },
 
   fetchStoreSettings: async () => {
-    // Set default open state
-    set({ isStoreOpen: true });
+    const res = await getStoreSettingsAction();
+    if (res.success && res.isOpen !== undefined) {
+      set({ isStoreOpen: res.isOpen });
+    }
   },
 
   fetchMenuItems: async () => {
-    const formatted: MenuItem[] = staticMenuItems.map((m: any) => ({
-      id: m.id,
-      name: m.name,
-      slug: m.slug,
-      isAvailable: m.badge !== 'habis',
-      price: m.price,
-      categoryId: m.category,
-      categoryName: m.categoryLabel,
-    }));
-
-    set({ menuItems: formatted });
+    const res = await getMenuItemsAction();
+    if (res.success) {
+      set({ menuItems: res.menuItems });
+    }
   },
 
   toggleMenuItemAvailability: async (id, isAvailable) => {
-    set((state) => ({
-      menuItems: state.menuItems.map((m) =>
-        m.id === id ? { ...m, isAvailable } : m
-      ),
-    }));
-    return true;
+    const res = await toggleMenuItemAvailabilityAction(id, isAvailable);
+    if (res.success) {
+      set((state) => ({
+        menuItems: state.menuItems.map((m) =>
+          m.id === id ? { ...m, isAvailable } : m
+        ),
+      }));
+      toast.success('Status ketersediaan menu diperbarui');
+      return true;
+    } else {
+      toast.error(res.error || 'Gagal mengubah ketersediaan menu');
+      return false;
+    }
   },
 
   fetchToppings: async () => {
-    const formatted: ToppingItem[] = toppingOptions.map((t: any) => ({
-      id: t.id,
-      name: t.name,
-      isAvailable: true,
-    }));
-
-    set({ toppings: formatted });
+    const res = await getToppingsAction();
+    if (res.success) {
+      set({ toppings: res.toppings });
+    }
   },
 
   toggleToppingAvailability: async (id, isAvailable) => {
-    set((state) => ({
-      toppings: state.toppings.map((t) =>
-        t.id === id ? { ...t, isAvailable } : t
-      ),
-    }));
-    return true;
+    const res = await toggleToppingAvailabilityAction(id, isAvailable);
+    if (res.success) {
+      set((state) => ({
+        toppings: state.toppings.map((t) =>
+          t.id === id ? { ...t, isAvailable } : t
+        ),
+      }));
+      toast.success('Status ketersediaan topping diperbarui');
+      return true;
+    } else {
+      toast.error(res.error || 'Gagal mengubah ketersediaan topping');
+      return false;
+    }
   },
 
   fetchOrders: async () => {
-    // Orders are already initialized, do nothing
+    set({ isLoading: true });
+    const res = await getOrdersAction();
+    if (res.success) {
+      set({
+        orders: res.orders,
+        selectedOrderId: get().selectedOrderId || (res.orders[0]?.id ?? null),
+      });
+    }
+    set({ isLoading: false });
   },
 
   subscribeToOrders: () => {
     console.log('[Ably Realtime] Subscribed to orders');
     const ablyKey = "CaWXiA.3YmauA:H7LLGQ8DyVxEwdCsCxeHp3ZkOU3tBIUBJ9HuYXrkFOo";
     
+    // Resolve tenantSlug dynamically from hostname on client side
+    let tenantSlug = "a6-nyuss";
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname;
+      const parts = hostname.split('.');
+      if (parts.length >= 3) {
+        tenantSlug = parts[1];
+      }
+    }
+
     // Lazy load Ably client side
     import('ably').then(({ Realtime }) => {
-      const tenantSlug = "a6-nyuss"; // fallback/dev default
       const ably = new Realtime({ key: ablyKey });
       const channel = ably.channels.get(`orders:${tenantSlug}`);
       
+      // Listen for new orders
       channel.subscribe('new-order', (message) => {
         const orderData = message.data.order;
         console.log('[Ably] Realtime order received:', orderData);
@@ -431,7 +337,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           status: orderData.status,
           paymentMethod: orderData.paymentMethod,
           paymentStatus: orderData.paymentStatus,
-          paymentProofUrl: null,
+          paymentProofUrl: orderData.paymentProofUrl || null,
           notes: orderData.notes,
           cancellationReason: null,
           items: orderData.items.map((item: any, idx: number) => ({
@@ -444,10 +350,32 @@ export const useAdminStore = create<AdminState>((set, get) => ({
           createdAt: orderData.createdAt
         };
 
-        // Add order to state
         if (get().activeShift) {
           get().addNewOrder(newOrder);
+          toast.success(`🔔 Pesanan Baru Masuk: ${orderData.orderCode}`, {
+            duration: 5000,
+            style: { background: '#1a0a0a', color: '#fff', borderLeft: '4px solid #E05009' }
+          });
         }
+      });
+
+      // Listen for payment updates (proof uploaded)
+      channel.subscribe('order-updated', async (message) => {
+        console.log('[Ably] Realtime payment update received:', message.data);
+        await get().fetchOrders();
+        toast(`📸 Bukti Pembayaran Diunggah untuk ${message.data.orderCode}`, {
+          icon: '📝',
+          style: { background: '#1a0a0a', color: '#fff' }
+        });
+      });
+
+      // Listen for order cancellations from customer tracking page
+      channel.subscribe('order-cancelled', async (message) => {
+        console.log('[Ably] Realtime cancellation received:', message.data);
+        await get().fetchOrders();
+        toast.error(`❌ Pesanan ${message.data.orderCode} dibatalkan oleh pelanggan.`, {
+          duration: 6000
+        });
       });
 
       set({ subscription: { ably, channel } });
@@ -469,43 +397,44 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   fetchActiveShift: async () => {
-    // Return mock active shift if it was opened
+    const res = await getActiveShiftAction();
+    if (res.success) {
+      set({ activeShift: res.activeShift });
+    }
   },
 
   openShift: async (startingCash, operatorName) => {
-    const newShift: ShiftLog = {
-      id: Date.now(),
-      operatorId: 'mock-operator-id',
-      operatorName,
-      openedAt: new Date().toISOString(),
-      closedAt: null,
-      startingCash,
-      expectedCash: startingCash,
-      actualCash: null,
-      drift: null,
-      status: 'open',
-    };
-
-    set({ activeShift: newShift });
-    return true;
+    const res = await openShiftAction(startingCash, operatorName);
+    if (res.success && res.shift) {
+      set({ activeShift: res.shift });
+      toast.success(`Shift berhasil dibuka oleh ${operatorName}`);
+      return true;
+    } else {
+      toast.error(res.error || 'Gagal membuka shift');
+      return false;
+    }
   },
 
   closeShift: async (actualCash, expectedCash) => {
     const { activeShift } = get();
     if (!activeShift) return false;
 
-    const drift = actualCash - expectedCash;
-
-    set({
-      activeShift: {
-        ...activeShift,
-        status: 'closed',
-        closedAt: new Date().toISOString(),
-        actualCash: actualCash,
-        drift: drift,
-      }
-    });
-
-    return true;
+    const res = await closeShiftAction(activeShift.id, actualCash, expectedCash);
+    if (res.success) {
+      set({
+        activeShift: {
+          ...activeShift,
+          status: 'closed',
+          closedAt: new Date().toISOString(),
+          actualCash: actualCash,
+          drift: actualCash - expectedCash,
+        }
+      });
+      toast.success('Shift berhasil ditutup');
+      return true;
+    } else {
+      toast.error(res.error || 'Gagal menutup shift');
+      return false;
+    }
   },
 }));

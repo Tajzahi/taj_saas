@@ -10,7 +10,6 @@
   },
   "dependencies": {
     "@sentry/nextjs": "^10.57.0",
-    "@supabase/supabase-js": "^2.106.2",
     "@taj-saas/db": "workspace:*",
     "@taj-saas/shared": "workspace:*",
     "ably": "^2.22.1",

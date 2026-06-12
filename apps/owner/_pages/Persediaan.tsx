@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { inventoryItems } from "@/data/mockData";
 import { formatRupiah } from "@/utils/format";
 
-const wasteLog = [
+const defaultWasteLog = [
   { date: "22 Des", item: "Adonan Martabak", qty: 2.3, unit: "kg", reason: "Tidak habis terjual", cost: 27600, cabang: "BSD" },
   { date: "22 Des", item: "Telur Ayam", qty: 12, unit: "butir", reason: "Pecah saat penyimpanan", cost: 26400, cabang: "Kemang" },
   { date: "21 Des", item: "Tepung Terigu", qty: 1.8, unit: "kg", reason: "Kadaluarsa", cost: 21600, cabang: "Depok" },
@@ -16,7 +16,7 @@ const wasteLog = [
   { date: "20 Des", item: "Minyak Goreng", qty: 3, unit: "liter", reason: "Kualitas menurun", cost: 54000, cabang: "Bekasi" },
 ];
 
-const wasteChart = [
+const defaultWasteChart = [
   { date: "17 Des", waste: 125000 },
   { date: "18 Des", waste: 98000 },
   { date: "19 Des", waste: 145000 },
@@ -32,10 +32,28 @@ function StockBadge({ stock, min }: { stock: number; min: number }) {
   return <Badge variant="success">Normal</Badge>;
 }
 
-export default function Persediaan() {
+export default function Persediaan({
+  initialInventoryItems = [],
+  initialWasteLog = [],
+  initialWasteChart = [],
+}: {
+  initialInventoryItems?: any[];
+  initialWasteLog?: any[];
+  initialWasteChart?: any[];
+}) {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [activeTab, setActiveTab] = useState<"stock" | "waste">("stock");
+
+  const inventoryItems = initialInventoryItems.length > 0 ? initialInventoryItems : [
+    { id: "inv1", name: "Tepung Terigu Cakra", category: "Bahan Baku", stock: 45, minStock: 50, unit: "kg", cost: 540000, supplier: "PT Bogasari" },
+    { id: "inv2", name: "Keju Kraft Quick Melt", category: "Topping", stock: 12, minStock: 10, unit: "pcs", cost: 1020000, supplier: "PT Indofood" },
+    { id: "inv3", name: "Telur Ayam", category: "Bahan Baku", stock: 80, minStock: 200, unit: "butir", cost: 176000, supplier: "Distributor Telur Lokal" },
+    { id: "inv4", name: "Minyak Goreng Filma", category: "Bahan Baku", stock: 35, minStock: 20, unit: "liter", cost: 630000, supplier: "PT Filma" },
+  ];
+
+  const wasteLog = initialWasteLog.length > 0 ? initialWasteLog : defaultWasteLog;
+  const wasteChart = initialWasteChart.length > 0 ? initialWasteChart : defaultWasteChart;
 
   const filtered = inventoryItems.filter(item => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());

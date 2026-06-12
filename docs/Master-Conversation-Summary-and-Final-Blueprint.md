@@ -1,5 +1,5 @@
 # Master Conversation Summary & Final Blueprint
-## A6 Nyuss F&B SaaS – Enterprise Professional untuk UMKM (Dibangun dari Nol)
+## taj_saas F&B SaaS – Enterprise Professional untuk UMKM (Dibangun dari Nol)
 
 **Versi:** 1.0 (Kompilasi Lengkap Seluruh Obrolan)  
 **Tanggal:** 9 Juni 2026  

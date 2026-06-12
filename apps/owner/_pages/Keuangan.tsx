@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { pnlData, cabangList } from "@/data/mockData";
 import { formatRupiah, formatPercent } from "@/utils/format";
 
-const reconData = [
+const defaultReconData = [
   { id: "r1", cabang: "BSD", shift: "Pagi", kasir: "Andi", expectedCash: 12400000, actualCash: 12380000, diff: -20000, status: "ok" },
   { id: "r2", cabang: "Sudirman", shift: "Pagi", kasir: "Hana", expectedCash: 9800000, actualCash: 9800000, diff: 0, status: "ok" },
   { id: "r3", cabang: "Kemang", shift: "Pagi", kasir: "Joko", expectedCash: 8200000, actualCash: 8350000, diff: 150000, status: "warning" },
@@ -15,7 +15,7 @@ const reconData = [
   { id: "r5", cabang: "Bekasi", shift: "Pagi", kasir: "-", expectedCash: 0, actualCash: 0, diff: 0, status: "vacant" },
 ];
 
-const cashflowData = [
+const defaultCashflowData = [
   { month: "Jul", masuk: 162000000, keluar: 93960000, net: 68040000 },
   { month: "Agu", masuk: 175000000, keluar: 98875000, net: 76125000 },
   { month: "Sep", masuk: 168000000, keluar: 95928000, net: 72072000 },
@@ -42,13 +42,43 @@ function FinancialTooltip({ active, payload, label }: any) {
   return null;
 }
 
-export default function Keuangan() {
+export default function Keuangan({
+  initialPnLData = [],
+  initialCabangList = [],
+  initialReconData = [],
+  initialCashflowData = [],
+}: {
+  initialPnLData?: any[];
+  initialCabangList?: any[];
+  initialReconData?: any[];
+  initialCashflowData?: any[];
+}) {
   const [activeTab, setActiveTab] = useState<"pnl" | "cashflow" | "rekonsiliasi">("pnl");
   const [selectedMonth, setSelectedMonth] = useState("Des");
 
+  const pnlData = initialPnLData.length > 0 ? initialPnLData : [
+    { month: "Jul", revenue: 162000000, cogs: 51840000, grossProfit: 110160000, opex: 42120000, netProfit: 68040000 },
+    { month: "Agu", revenue: 175000000, cogs: 56000000, grossProfit: 119000000, opex: 42875000, netProfit: 76125000 },
+    { month: "Sep", revenue: 168000000, cogs: 53760000, grossProfit: 114240000, opex: 42168000, netProfit: 72072000 },
+    { month: "Okt", revenue: 182000000, cogs: 58240000, grossProfit: 123760000, opex: 44576000, netProfit: 79184000 },
+    { month: "Nov", revenue: 195000000, cogs: 62400000, grossProfit: 132600000, opex: 46995000, netProfit: 85605000 },
+    { month: "Des", revenue: 185200000, cogs: 59264000, grossProfit: 125936000, opex: 44570000, netProfit: 81366000 },
+  ];
+
+  const cabangList = initialCabangList.length > 0 ? initialCabangList : [
+    { id: "c1", name: "Cabang BSD", revenue: 58000000 },
+    { id: "c2", name: "Cabang Sudirman", revenue: 45000000 },
+    { id: "c3", name: "Cabang Kemang", revenue: 38200000 },
+    { id: "c4", name: "Cabang Depok", revenue: 26000000 },
+    { id: "c5", name: "Cabang Bekasi", revenue: 18000000 },
+  ];
+
+  const reconData = initialReconData.length > 0 ? initialReconData : defaultReconData;
+  const cashflowData = initialCashflowData.length > 0 ? initialCashflowData : defaultCashflowData;
+
   const latestPnL = pnlData[pnlData.length - 1];
-  const grossMarginPct = (latestPnL.grossProfit / latestPnL.revenue) * 100;
-  const netMarginPct = (latestPnL.netProfit / latestPnL.revenue) * 100;
+  const grossMarginPct = latestPnL ? (latestPnL.grossProfit / latestPnL.revenue) * 100 : 0;
+  const netMarginPct = latestPnL ? (latestPnL.netProfit / latestPnL.revenue) * 100 : 0;
 
   return (
     <div className="space-y-6 animate-fade-in">

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { pageTitles, type PageId } from "@/types/nav";
+import { authClient } from "../../../../lib/auth-client";
+import { useRouter } from "next/navigation";
 
 interface TopbarProps {
   activePage: PageId;
@@ -13,6 +15,20 @@ export function Topbar({ activePage, onToggleSidebar, sidebarCollapsed }: Topbar
   const [showNotif, setShowNotif] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
   const pageInfo = pageTitles[activePage];
+  const { data: session } = authClient.useSession();
+  const router = useRouter();
+
+  const userInitials = session?.user?.name
+    ? session.user.name.split(" ").map((n) => n[0]).join("").substring(0, 2).toUpperCase()
+    : "OW";
+
+  const userName = session?.user?.name || "Owner";
+  const userEmail = session?.user?.email || "owner@tajsaas.id";
+
+  async function handleLogout() {
+    await authClient.signOut();
+    router.push("/api/auth/signin");
+  }
 
   return (
     <header
@@ -40,10 +56,10 @@ export function Topbar({ activePage, onToggleSidebar, sidebarCollapsed }: Topbar
       {/* Page Info */}
       <div className="flex-1 min-w-0">
         <h1 className="text-sm font-semibold leading-tight" style={{ color: "var(--color-text-primary)" }}>
-          {pageInfo.title}
+          {pageInfo?.title || "Owner Cockpit"}
         </h1>
         <p className="text-xs hidden sm:block" style={{ color: "var(--color-text-muted)" }}>
-          {pageInfo.subtitle}
+          {pageInfo?.subtitle || ""}
         </p>
       </div>
 
@@ -51,8 +67,11 @@ export function Topbar({ activePage, onToggleSidebar, sidebarCollapsed }: Topbar
       <div className="flex items-center gap-1.5">
 
         {/* AI Chat Button */}
-        <button className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold shadow-sm transition-all"
-          style={{ background: "linear-gradient(135deg, #e53e3e, #f97316)" }}>
+        <button 
+          onClick={() => router.push("/ai")}
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold shadow-sm transition-all cursor-pointer"
+          style={{ background: "linear-gradient(135deg, #e53e3e, #f97316)" }}
+        >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2h-1" />
           </svg>
@@ -108,14 +127,14 @@ export function Topbar({ activePage, onToggleSidebar, sidebarCollapsed }: Topbar
         <div className="relative">
           <button
             onClick={() => { setShowProfile(!showProfile); setShowNotif(false); }}
-            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-white/5 transition-colors"
+            className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer"
           >
             <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
               style={{ background: "linear-gradient(135deg, #e53e3e, #f97316)" }}>
-              TZ
+              {userInitials}
             </div>
             <div className="hidden md:block text-left">
-              <p className="text-xs font-semibold leading-tight" style={{ color: "var(--color-text-primary)" }}>Taj Zahi</p>
+              <p className="text-xs font-semibold leading-tight" style={{ color: "var(--color-text-primary)" }}>{userName}</p>
               <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>Owner</p>
             </div>
           </button>
@@ -123,23 +142,29 @@ export function Topbar({ activePage, onToggleSidebar, sidebarCollapsed }: Topbar
             <div className="absolute right-0 top-12 w-52 rounded-xl shadow-2xl z-50"
               style={{ background: "var(--color-bg-card)", border: "1px solid var(--color-border)" }}>
               <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--color-border)" }}>
-                <p className="text-sm font-semibold" style={{ color: "var(--color-text-primary)" }}>Taj Zahi El Huda</p>
-                <p className="text-xs" style={{ color: "var(--color-text-muted)" }}>owner@tajsaas.id</p>
+                <p className="text-sm font-semibold truncate" style={{ color: "var(--color-text-primary)" }}>{userName}</p>
+                <p className="text-xs truncate" style={{ color: "var(--color-text-muted)" }}>{userEmail}</p>
               </div>
               {[
-                { label: "Profil Saya", icon: "👤" },
-                { label: "Pengaturan", icon: "⚙️" },
-                { label: "Bantuan", icon: "❓" },
+                { label: "Profil Saya", icon: "👤", route: "/pengaturan" },
+                { label: "Pengaturan", icon: "⚙️", route: "/pengaturan" },
               ].map((item, i) => (
-                <button key={i} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5"
-                  style={{ color: "var(--color-text-secondary)" }}>
+                <button 
+                  key={i} 
+                  onClick={() => { setShowProfile(false); router.push(item.route); }}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors hover:bg-white/5 text-left cursor-pointer"
+                  style={{ color: "var(--color-text-secondary)" }}
+                >
                   <span>{item.icon}</span>
                   {item.label}
                 </button>
               ))}
               <div style={{ borderTop: "1px solid var(--color-border)" }}>
-                <button className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors"
-                  style={{ color: "var(--color-danger)" }}>
+                <button 
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors text-left cursor-pointer"
+                  style={{ color: "var(--color-danger)" }}
+                >
                   <span>🚪</span>
                   Keluar
                 </button>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { shiftData, cabangList } from "@/data/mockData";
 import { formatRupiah, formatPercent } from "@/utils/format";
 
-const employees = [
+const defaultEmployees = [
   { id: "e1", name: "Andi Pratama", role: "Kasir", cabang: "BSD", shift: "Pagi", salary: 3200000, hours: 8, status: "active" },
   { id: "e2", name: "Budi Santoso", role: "Produksi", cabang: "BSD", shift: "Pagi", salary: 2800000, hours: 8, status: "active" },
   { id: "e3", name: "Cici Rahayu", role: "Pelayan", cabang: "BSD", shift: "Pagi", salary: 2600000, hours: 8, status: "active" },
@@ -18,12 +18,6 @@ const employees = [
   { id: "e8", name: "Lia Amelia", role: "Pelayan", cabang: "Kemang", shift: "Pagi", salary: 2600000, hours: 8, status: "active" },
   { id: "e9", name: "Mira Putri", role: "Kasir", cabang: "Depok", shift: "Pagi", salary: 3200000, hours: 8, status: "warning" },
 ];
-
-const laborCostChart = cabangList.map(c => ({
-  name: c.name.replace("Cabang ", ""),
-  laborCost: c.laborCost,
-  target: 18,
-}));
 
 function LaborTooltip({ active, payload, label }: any) {
   if (active && payload && payload.length) {
@@ -43,8 +37,34 @@ function LaborTooltip({ active, payload, label }: any) {
   return null;
 }
 
-export default function SDM() {
+export default function SDM({
+  initialEmployees = [],
+  initialShiftData = [],
+  initialCabangList = [],
+}: {
+  initialEmployees?: any[];
+  initialShiftData?: any[];
+  initialCabangList?: any[];
+}) {
   const [activeTab, setActiveTab] = useState<"shift" | "karyawan" | "biaya">("shift");
+
+  const employees = initialEmployees.length > 0 ? initialEmployees : defaultEmployees;
+  const shiftData = initialShiftData.length > 0 ? initialShiftData : [
+    { id: "s1", cabang: "Cabang BSD", shift: "Pagi", staff: ["Andi", "Budi", "Cici"], kasir: "Andi", status: "active", sales: 12400000 },
+    { id: "s2", cabang: "Cabang Sudirman", shift: "Pagi", staff: ["Hana", "Ivan"], kasir: "Hana", status: "active", sales: 9800000 },
+    { id: "s3", cabang: "Cabang Kemang", shift: "Pagi", staff: ["Joko", "Lia"], kasir: "Joko", status: "active", sales: 8200000 },
+  ];
+  const cabangList = initialCabangList.length > 0 ? initialCabangList : [
+    { id: "c1", name: "Cabang BSD", revenue: 58000000, laborCost: 15.2 },
+    { id: "c2", name: "Cabang Sudirman", revenue: 45000000, laborCost: 16.8 },
+    { id: "c3", name: "Cabang Kemang", revenue: 38200000, laborCost: 18.5 },
+  ];
+
+  const laborCostChart = cabangList.map(c => ({
+    name: c.name.replace("Cabang ", ""),
+    laborCost: c.laborCost,
+    target: 18,
+  }));
 
   const totalEmployees = employees.length;
   const activeShifts = shiftData.filter(s => s.status === "active").length;
@@ -157,9 +177,9 @@ export default function SDM() {
                     <p className="text-xs text-slate-500 mb-1">Tim ({shift.staff.length} orang)</p>
                     {shift.staff.length > 0 ? (
                       <div className="flex items-center gap-1 flex-wrap">
-                        {shift.staff.map((s, i) => (
+                        {shift.staff.map((s: any, i: number) => (
                           <span key={i} className={`text-xs px-2 py-0.5 rounded-full ${s === shift.kasir ? "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400 font-semibold" : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"}`}>
-                            {s === shift.kasir ? "ðŸ’¼ " : ""}{s}
+                            {s === shift.kasir ? "💼 " : ""}{s}
                           </span>
                         ))}
                       </div>

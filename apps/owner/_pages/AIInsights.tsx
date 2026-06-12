@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -33,13 +33,22 @@ function ForecastTooltip({ active, payload, label }: any) {
   return null;
 }
 
-export default function AIInsights() {
+export default function AIInsights({
+  initialAiInsights = [],
+  initialForecastData = [],
+}: {
+  initialAiInsights?: any[];
+  initialForecastData?: any[];
+}) {
   const [chatInput, setChatInput] = useState("");
   const [messages, setMessages] = useState(chatMessages);
   const [isTyping, setIsTyping] = useState(false);
   const [priceIncrease, setPriceIncrease] = useState(0);
   const [costReduction, setCostReduction] = useState(0);
   const [volumeChange, setVolumeChange] = useState(0);
+
+  const activeInsights = initialAiInsights.length > 0 ? initialAiInsights : aiInsights;
+  const forecastDataList = initialForecastData.length > 0 ? initialForecastData : forecastData;
 
   const baseRevenue = 185200000;
   const baseCost = 54834000;
@@ -85,7 +94,7 @@ export default function AIInsights() {
       <div>
         <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3">ðŸ“Š Insight Terbaru</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {aiInsights.map((insight) => {
+          {activeInsights.map((insight) => {
             const colors: Record<string, string> = {
               opportunity: "border-l-emerald-400",
               warning: "border-l-amber-400",
@@ -136,7 +145,7 @@ export default function AIInsights() {
             <Badge variant="brand" size="sm">ðŸ¤– AI Forecast</Badge>
           </div>
           <ResponsiveContainer width="100%" height={240}>
-            <AreaChart data={forecastData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
+            <AreaChart data={forecastDataList} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
               <defs>
                 <linearGradient id="forecastGrad" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.2} />

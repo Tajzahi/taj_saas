@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { Badge } from "@/components/ui/Badge";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { tenantData } from "@/data/mockData";
 
-const auditLog = [
+const defaultAuditLog = [
   { id: "al1", user: "Bambang Wijaya", action: "Menyetujui PO #2841", module: "Persetujuan", timestamp: "22 Des 2024, 10:15", ip: "192.168.1.101" },
   { id: "al2", user: "Andi (BSD)", action: "Update harga menu Martabak Spesial", module: "Menu", timestamp: "22 Des 2024, 09:42", ip: "192.168.2.15" },
   { id: "al3", user: "Sari (Kemang)", action: "Input waste log adonan 2.1kg", module: "Persediaan", timestamp: "22 Des 2024, 09:10", ip: "192.168.3.8" },
@@ -15,7 +15,7 @@ const auditLog = [
   { id: "al6", user: "Budi (BSD)", action: "Cetak laporan shift sore", module: "Keuangan", timestamp: "21 Des 2024, 16:00", ip: "192.168.2.22" },
 ];
 
-const users = [
+const defaultUsers = [
   { id: "u1", name: "Bambang Wijaya", email: "bambang@masbambang.id", role: "Owner", cabang: "Semua", status: "active" },
   { id: "u2", name: "Andi Pratama", email: "andi@masbambang.id", role: "Manajer Cabang", cabang: "BSD", status: "active" },
   { id: "u3", name: "Sari Dewi", email: "sari@masbambang.id", role: "Kasir", cabang: "Kemang", status: "active" },
@@ -27,11 +27,24 @@ const brandColors = [
   "#f97316", "#ef4444", "#8b5cf6", "#3b82f6", "#22c55e", "#06b6d4", "#eab308", "#ec4899"
 ];
 
-export default function Pengaturan() {
+export default function Pengaturan({
+  initialTenantData = null,
+  initialAuditLog = [],
+  initialUsers = [],
+}: {
+  initialTenantData?: any;
+  initialAuditLog?: any[];
+  initialUsers?: any[];
+}) {
   const [activeTab, setActiveTab] = useState<"branding" | "users" | "payment" | "audit">("branding");
-  const [primaryColor, setPrimaryColor] = useState(tenantData.primaryColor);
-  const [secondaryColor, setSecondaryColor] = useState(tenantData.secondaryColor);
-  const [businessName, setBusinessName] = useState(tenantData.brandName);
+  
+  const activeTenant = initialTenantData || tenantData;
+  const auditLog = initialAuditLog.length > 0 ? initialAuditLog : defaultAuditLog;
+  const users = initialUsers.length > 0 ? initialUsers : defaultUsers;
+
+  const [primaryColor, setPrimaryColor] = useState(activeTenant.primaryColor || "#f97316");
+  const [secondaryColor, setSecondaryColor] = useState(activeTenant.secondaryColor || "#ef4444");
+  const [businessName, setBusinessName] = useState(activeTenant.brandName || activeTenant.name || "Taj SaaS");
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -77,7 +90,7 @@ export default function Pengaturan() {
               <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Logo Bisnis</label>
               <div className="mt-2 flex items-center gap-4">
                 <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center text-3xl shadow-md">
-                  {tenantData.logo}
+                  {activeTenant.branding?.logoUrl || activeTenant.logo || "🥞"}
                 </div>
                 <div className="flex-1">
                   <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-4 text-center hover:border-orange-300 dark:hover:border-orange-700 transition-colors cursor-pointer">
@@ -154,7 +167,7 @@ export default function Pengaturan() {
               <div className="px-4 py-3 text-white" style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}>
                 <div className="flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center text-base">
-                    {tenantData.logo}
+                    {activeTenant.branding?.logoUrl || activeTenant.logo || "🥞"}
                   </div>
                   <div>
                     <p className="text-sm font-bold">{businessName}</p>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from "recharts";
@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { cabangList, revenueByCabang } from "@/data/mockData";
 import { formatRupiah, formatPercent } from "@/utils/format";
+import { createBranchAction } from "@/app/actions/branches";
+import { useTenant } from "@taj-saas/shared";
+import toast from "react-hot-toast";
 
 const METRIC_COLORS = ["#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"];
 
@@ -28,15 +31,77 @@ function CompareTooltip({ active, payload, label }: any) {
   return null;
 }
 
-export default function Cabang() {
+export default function Cabang({ initialBranches = [] }: { initialBranches?: any[] }) {
+  const { tenant } = useTenant();
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"cards" | "table">("cards");
   const [showAdd, setShowAdd] = useState(false);
 
-  const filtered = cabangList.filter(c =>
+  // Form states
+  const [form, setForm] = useState({
+    name: "",
+    city: "",
+    address: "",
+    phone: "",
+    picName: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  // Merge database branches with placeholder metrics if they don't have them
+  const branches = (initialBranches.length > 0 ? initialBranches : cabangList).map((b, i) => ({
+    id: b.id,
+    name: b.name,
+    city: b.city,
+    status: b.status || "active",
+    revenue: b.revenue || (25000000 + (i * 5000000)),
+    orders: b.orders || (600 + (i * 150)),
+    avgOrder: b.avgOrder || 35000,
+    foodCost: b.foodCost || 28.5,
+    laborCost: b.laborCost || 18.0,
+    rating: b.rating || 4.7,
+    lastSync: b.lastSync || "2 menit lalu",
+    kasir: b.kasir || 2,
+    address: b.address,
+    phone: b.phone,
+    picName: b.picName,
+  }));
+
+  const filtered = branches.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.city.toLowerCase().includes(search.toLowerCase())
   );
+
+  async function handleAddBranch() {
+    if (!tenant?.id) {
+      toast.error("Tenant session not found!");
+      return;
+    }
+    if (!form.name || !form.city) {
+      toast.error("Nama Cabang dan Kota wajib diisi!");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const res = await createBranchAction({
+        tenantId: tenant.id,
+        ...form,
+      });
+
+      if (res.success) {
+        toast.success("Cabang baru berhasil ditambahkan!");
+        setShowAdd(false);
+        setForm({ name: "", city: "", address: "", phone: "", picName: "" });
+        window.location.reload();
+      } else {
+        toast.error("Gagal menambahkan cabang: " + res.error);
+      }
+    } catch (err: any) {
+      toast.error("Error: " + err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -45,7 +110,7 @@ export default function Cabang() {
         <div>
           <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">Manajemen Cabang</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-            {cabangList.filter(c => c.status === "active").length} aktif Â· {cabangList.filter(c => c.status === "maintenance").length} maintenance dari {cabangList.length} cabang
+            {branches.filter(c => c.status === "active").length} aktif · {branches.filter(c => c.status === "maintenance").length} maintenance dari {branches.length} cabang
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -101,7 +166,7 @@ export default function Cabang() {
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center text-white text-lg shadow-sm">
-                    ðŸª
+                    🏢
                   </div>
                   <div>
                     <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{cabang.name}</p>
@@ -109,7 +174,7 @@ export default function Cabang() {
                   </div>
                 </div>
                 <Badge variant={cabang.status === "active" ? "success" : "warning"}>
-                  {cabang.status === "active" ? "â— Aktif" : "âš  Maintenance"}
+                  {cabang.status === "active" ? "● Aktif" : "⚠ Maintenance"}
                 </Badge>
               </div>
 
@@ -131,7 +196,7 @@ export default function Cabang() {
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
                   <p className="text-xs text-slate-500 mb-1">Rating</p>
-                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">â­ {cabang.rating}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">⭐ {cabang.rating}</p>
                 </div>
               </div>
 
@@ -159,9 +224,9 @@ export default function Cabang() {
 
               {/* Footer */}
               <div className="flex items-center justify-between mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-                <span className="text-xs text-slate-400">{cabang.kasir} kasir aktif Â· {cabang.lastSync}</span>
+                <span className="text-xs text-slate-400">{cabang.kasir} kasir aktif · {cabang.lastSync}</span>
                 <button className="text-xs text-orange-600 dark:text-orange-400 font-semibold hover:underline group-hover:text-orange-700">
-                  Lihat Detail â†’
+                  Lihat Detail →
                 </button>
               </div>
             </div>
@@ -170,7 +235,7 @@ export default function Cabang() {
           {/* Add Branch Card */}
           <button
             onClick={() => setShowAdd(true)}
-            className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-5 flex flex-col items-center justify-center gap-3 hover:border-orange-300 dark:hover:border-orange-700 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-all group min-h-[200px]"
+            className="bg-slate-50 dark:bg-slate-900/50 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700 p-5 flex flex-col items-center justify-center gap-3 hover:border-orange-300 dark:hover:border-orange-700 hover:bg-orange-50/50 dark:hover:bg-orange-950/10 transition-all group min-h-[200px] cursor-pointer"
           >
             <div className="w-12 h-12 rounded-xl bg-slate-200 dark:bg-slate-800 group-hover:bg-orange-100 dark:group-hover:bg-orange-950/30 flex items-center justify-center transition-colors">
               <svg className="w-6 h-6 text-slate-400 group-hover:text-orange-500 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -202,7 +267,7 @@ export default function Cabang() {
                   <tr key={cabang.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-base">ðŸª</span>
+                        <span className="text-base">🏢</span>
                         <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{cabang.name}</p>
                       </div>
                     </td>
@@ -221,7 +286,7 @@ export default function Cabang() {
                     <td className="px-4 py-3">
                       <span className={`text-sm font-semibold ${cabang.laborCost > 20 ? "text-amber-600" : "text-emerald-600"}`}>{formatPercent(cabang.laborCost)}</span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">â­ {cabang.rating}</td>
+                    <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">⭐ {cabang.rating}</td>
                     <td className="px-4 py-3 text-xs text-slate-400">{cabang.lastSync}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
@@ -253,7 +318,7 @@ export default function Cabang() {
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Perbandingan Performa Cabang</h3>
             <p className="text-xs text-slate-500 mt-0.5">Revenue vs Target bulan ini</p>
           </div>
-          <Badge variant="info" size="sm">Desember 2024</Badge>
+          <Badge variant="info" size="sm">Juni 2026</Badge>
         </div>
         <ResponsiveContainer width="100%" height={240}>
           <BarChart data={revenueByCabang} margin={{ top: 4, right: 4, left: 0, bottom: 0 }}>
@@ -278,22 +343,24 @@ export default function Cabang() {
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6 animate-slide-up" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Tambah Cabang Baru</h3>
-              <button onClick={() => setShowAdd(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+              <button onClick={() => setShowAdd(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer">
                 <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
             <div className="space-y-4">
-              <Input label="Nama Cabang" placeholder="Cabang Menteng" />
-              <Input label="Kota" placeholder="Jakarta" />
-              <Input label="Alamat" placeholder="Jl. Menteng Raya No. 12..." />
-              <Input label="No. Telepon" placeholder="+62 21 xxxx xxxx" />
-              <Input label="Nama PIC" placeholder="Nama manajer cabang" />
+              <Input label="Nama Cabang" placeholder="Cabang Menteng" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} />
+              <Input label="Kota" placeholder="Jakarta" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} />
+              <Input label="Alamat" placeholder="Jl. Menteng Raya No. 12..." value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} />
+              <Input label="No. Telepon" placeholder="+62 21 xxxx xxxx" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} />
+              <Input label="Nama PIC" placeholder="Nama manajer cabang" value={form.picName} onChange={e => setForm({ ...form, picName: e.target.value })} />
             </div>
             <div className="flex gap-3 mt-6">
               <Button variant="outline" className="flex-1" onClick={() => setShowAdd(false)}>Batal</Button>
-              <Button variant="primary" className="flex-1" onClick={() => setShowAdd(false)}>Simpan Cabang</Button>
+              <Button variant="primary" className="flex-1" onClick={handleAddBranch} disabled={submitting}>
+                {submitting ? "Menyimpan..." : "Simpan Cabang"}
+              </Button>
             </div>
           </div>
         </div>
@@ -301,6 +368,3 @@ export default function Cabang() {
     </div>
   );
 }
-
-
-

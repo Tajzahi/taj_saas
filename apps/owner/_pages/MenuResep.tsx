@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/Input";
 import { menuList } from "@/data/mockData";
 import { formatRupiah, formatPercent } from "@/utils/format";
 
-const bom: Record<string, { ingredient: string; qty: number; unit: string; cost: number }[]> = {
+const defaultBom: Record<string, { ingredient: string; qty: number; unit: string; cost: number }[]> = {
   "m1": [
     { ingredient: "Tepung Terigu Cakra", qty: 150, unit: "gr", cost: 1800 },
     { ingredient: "Telur Ayam", qty: 3, unit: "butir", cost: 6600 },
@@ -25,18 +25,6 @@ const bom: Record<string, { ingredient: string; qty: number; unit: string; cost:
     { ingredient: "Susu Kental Manis", qty: 30, unit: "ml", cost: 750 },
   ],
 };
-
-const engineeringData = menuList.map(m => ({
-  name: m.name,
-  x: m.soldToday,
-  y: m.margin,
-  revenue: m.revenue,
-  status: m.status,
-  category: m.category,
-}));
-
-const avgSold = engineeringData.reduce((sum, m) => sum + m.x, 0) / engineeringData.length;
-const avgMargin = engineeringData.reduce((sum, m) => sum + m.y, 0) / engineeringData.length;
 
 const statusColors: Record<string, string> = {
   star: "#22c55e",
@@ -60,21 +48,59 @@ function EngineeringTooltip({ active, payload }: any) {
   return null;
 }
 
-export default function MenuResep() {
+export default function MenuResep({
+  initialMenuItems = [],
+  initialCategories = [],
+  initialBom = {}
+}: {
+  initialMenuItems?: any[];
+  initialCategories?: string[];
+  initialBom?: Record<string, any[]>;
+}) {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [selectedMenu, setSelectedMenu] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "engineering">("list");
 
-  const categories = ["all", ...Array.from(new Set(menuList.map(m => m.category)))];
+  const activeMenuItems = initialMenuItems.length > 0 ? initialMenuItems : menuList.map(m => ({
+    id: m.id,
+    name: m.name,
+    category: m.category,
+    price: m.price,
+    cost: m.cost,
+    margin: m.margin,
+    soldToday: m.soldToday,
+    status: m.status,
+    stock: m.stock,
+  }));
 
-  const filtered = menuList.filter(m => {
+  const bom = Object.keys(initialBom).length > 0 ? initialBom : defaultBom;
+
+  const engineeringData = activeMenuItems.map(m => ({
+    name: m.name,
+    x: m.soldToday,
+    y: m.margin,
+    revenue: m.soldToday * m.price,
+    status: m.status,
+    category: m.category,
+  }));
+
+  const avgSold = engineeringData.length > 0
+    ? engineeringData.reduce((sum, m) => sum + m.x, 0) / engineeringData.length
+    : 0;
+  const avgMargin = engineeringData.length > 0
+    ? engineeringData.reduce((sum, m) => sum + m.y, 0) / engineeringData.length
+    : 0;
+
+  const categories = ["all", ...(initialCategories.length > 0 ? initialCategories : Array.from(new Set(menuList.map(m => m.category))))];
+
+  const filtered = activeMenuItems.filter(m => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = categoryFilter === "all" || m.category === categoryFilter;
     return matchSearch && matchCat;
   });
 
-  const selectedItem = menuList.find(m => m.id === selectedMenu);
+  const selectedItem = activeMenuItems.find(m => m.id === selectedMenu);
 
   return (
     <div className="space-y-6 animate-fade-in">

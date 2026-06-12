@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import {
@@ -79,8 +79,40 @@ function ChannelTooltip({ active, payload }: any) {
   return null;
 }
 
-export default function Penjualan() {
+export default function Penjualan({
+  initialMenuList = [],
+  initialSalesByChannel = [],
+  initialSalesByTime = [],
+}: {
+  initialMenuList?: any[];
+  initialSalesByChannel?: any[];
+  initialSalesByTime?: any[];
+}) {
   const [period, setPeriod] = useState<"hari" | "minggu" | "bulan">("minggu");
+
+  const salesByChannel = initialSalesByChannel.length > 0 ? initialSalesByChannel : [
+    { channel: "Dine-in", value: 35, revenue: 64820000 },
+    { channel: "GoFood", value: 28, revenue: 51856000 },
+    { channel: "GrabFood", value: 22, revenue: 40744000 },
+    { channel: "ShopeeFood", value: 15, revenue: 27780000 },
+  ];
+
+  const salesByTime = initialSalesByTime.length > 0 ? initialSalesByTime : [
+    { time: "10:00", orders: 120 },
+    { time: "12:00", orders: 480 },
+    { time: "14:00", orders: 320 },
+    { time: "16:00", orders: 280 },
+    { time: "18:00", orders: 650 },
+    { time: "20:00", orders: 580 },
+    { time: "22:00", orders: 190 },
+  ];
+
+  const menuList = initialMenuList.length > 0 ? initialMenuList : [
+    { id: "m1", name: "Martabak Telur Spesial", revenue: 48000000 },
+    { id: "m2", name: "Martabak Terbul Manis", revenue: 42000000 },
+    { id: "m3", name: "Roti Bakar Bandung", revenue: 28000000 },
+    { id: "m4", name: "Indomie Nyemek Kekinian", revenue: 21000000 },
+  ];
 
   const totalRevenue = salesByChannel.reduce((s, c) => s + c.revenue, 0);
 

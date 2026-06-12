@@ -94,10 +94,17 @@ export default function Tracking() {
 
     setUploading(true);
     try {
-      // Simulate network latency
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
       const publicUrl = 'https://placehold.co/400x600/16a34a/white?text=Bukti+Transfer+MOCK';
+      
+      const res = await fetch(`/api/orders/${order.orderCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentProofUrl: publicUrl }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Gagal mengunggah bukti ke database');
+      }
       
       // Update local state
       setOrder((prev) => {
@@ -167,7 +174,17 @@ export default function Tracking() {
     setShowCancelModal(false);
     setCancelling(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      const res = await fetch(`/api/orders/${order.orderCode}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled' }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || 'Gagal membatalkan pesanan di server');
+      }
+
       useOrderStore.getState().updateOrderStatus(order.orderCode, 'cancelled');
       setOrder((prev) => {
         if (!prev) return null;
@@ -187,67 +204,17 @@ export default function Tracking() {
 
   const fetchOrderFromDb = async (code: string): Promise<Order | null> => {
     try {
-      // Try to get from local Zustand history first
-      const localOrder = useOrderStore.getState().getOrderByCode(code);
-      if (localOrder) return localOrder;
-
-      // Otherwise, generate a realistic mock order on the fly for demonstration
-      return {
-        orderCode: code,
-        customerName: 'Pelanggan Demo',
-        customerPhone: '081234567890',
-        orderType: 'delivery',
-        deliveryAddress: 'Jl. Pemuda No. 123, Surabaya',
-        addressNote: 'Pagar putih sebelah warung',
-        deliveryFee: 10000,
-        subtotal: 45000,
-        total: 55000,
-        status: 'received',
-        createdAt: new Date().toISOString(),
-        estimatedTime: 40,
-        items: [
-          {
-            cartId: 'item-1',
-            menuItem: {
-              id: 'menu-1',
-              slug: 'martabak-telur-ayam-2-telur-25k',
-              name: 'Martabak Telur Ayam - 2 Telur',
-              category: 'martabak-telur-ayam',
-              categoryLabel: 'Martabak Telur Ayam',
-              price: 25000,
-              image: '',
-              description: '',
-            },
-            selectedVariants: [],
-            quantity: 1,
-            note: '',
-            totalPrice: 25000,
-          },
-          {
-            cartId: 'item-2',
-            menuItem: {
-              id: 'menu-2',
-              slug: 'terang-bulan-2-variant-topping',
-              name: 'Terang Bulan 2 Variant Topping',
-              category: 'terang-bulan',
-              categoryLabel: 'Terang Bulan',
-              price: 20000,
-              image: '',
-              description: '',
-            },
-            selectedVariants: [],
-            quantity: 1,
-            note: '',
-            totalPrice: 20000,
-          }
-        ],
-        paymentMethod: 'transfer',
-        generalNote: '',
-        paymentStatus: 'pending',
-      } as any;
+      const res = await fetch(`/api/orders/${code}`);
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error('Gagal mengambil data pesanan dari database');
+      }
+      const data = await res.json();
+      return data;
     } catch (err) {
       console.error('Error fetching order:', err);
-      return null;
+      // Fallback to local store for offline/unseeded dev compatibility
+      return useOrderStore.getState().getOrderByCode(code) || null;
     }
   };
 

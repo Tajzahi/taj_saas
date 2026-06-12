@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { GoogleGenAI, Type } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
+import { db, schema } from '@taj-saas/db';
+import { eq } from 'drizzle-orm';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -73,23 +75,49 @@ function sanitizePrompt(raw: unknown): { valid: boolean; prompt: string; reason?
   return { valid: true, prompt: sanitized };
 }
 
-// Helper to query order status directly (Mocked)
-async function getOrderStatusFromSupabase(orderCode: string) {
+// Helper to query order status directly from database
+async function getOrderStatus(orderCode: string) {
   try {
     const trimmedCode = orderCode.trim().toUpperCase();
     
-    // Simulate order status response
+    // Query order from database
+    const ordersResult = await db.select()
+      .from(schema.orders)
+      .where(eq(schema.orders.orderCode, trimmedCode))
+      .limit(1);
+      
+    const order = ordersResult[0];
+    if (!order) {
+      return { success: false, error: 'Pesanan tidak ditemukan.' };
+    }
+    
+    // Query order items
+    const itemsResult = await db.select()
+      .from(schema.orderItems)
+      .where(eq(schema.orderItems.orderId, order.id));
+      
+    const itemsStr = itemsResult.map(item => `${item.menuItemName} x${item.quantity}`).join(', ');
+    
+    // Map status code to friendly text
+    const statusMap: Record<string, string> = {
+      received: 'Pesanan Diterima (belum diproses)',
+      processing: 'Sedang Diproses (sedang dimasak)',
+      ready: 'Siap Diambil / Diantar',
+      completed: 'Selesai',
+      cancelled: 'Dibatalkan'
+    };
+    
     return {
       success: true,
-      orderCode: trimmedCode,
-      customerName: 'Budi Pelanggan',
-      status: 'Sedang Diproses (sedang dimasak di dapur)',
-      statusCode: 'processing',
-      deliveryType: 'Pesan Antar (Delivery)',
-      deliveryAddress: 'Jl. Demak No. 100, Surabaya',
-      totalPrice: 45000,
-      items: 'Martabak Telur Ayam - 2 Telur x1',
-      notes: 'Ekstra daun bawang ya bang'
+      orderCode: order.orderCode,
+      customerName: order.customerName,
+      status: statusMap[order.status] || order.status,
+      statusCode: order.status,
+      deliveryType: order.deliveryType === 'delivery' ? 'Pesan Antar (Delivery)' : 'Ambil Sendiri (Pickup)',
+      deliveryAddress: order.deliveryAddress,
+      totalPrice: Number(order.totalPrice),
+      items: itemsStr,
+      notes: order.notes
     };
   } catch (err: any) {
     console.error('Error in chatbot checkOrderStatus:', err);
@@ -97,20 +125,24 @@ async function getOrderStatusFromSupabase(orderCode: string) {
   }
 }
 
-// Helper to search order codes by phone number directly (Mocked)
-async function findOrderCodesByPhoneFromSupabase(customerPhone: string) {
+// Helper to search order codes by phone number directly from database
+async function findOrderCodesByPhone(customerPhone: string) {
   try {
     const trimmedPhone = customerPhone.trim().replace(/\s/g, '');
     
-    const list = [
-      {
-        orderCode: `A6-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-8812`,
-        customerName: 'Pelanggan',
-        date: new Date().toLocaleDateString('id-ID'),
-        total: 55000,
-        status: 'received'
-      }
-    ];
+    // Query orders from database
+    const ordersResult = await db.select()
+      .from(schema.orders)
+      .where(eq(schema.orders.customerPhone, trimmedPhone))
+      .orderBy(schema.orders.createdAt);
+      
+    const list = ordersResult.map(order => ({
+      orderCode: order.orderCode,
+      customerName: order.customerName,
+      date: new Date(order.createdAt).toLocaleDateString('id-ID'),
+      total: Number(order.totalPrice),
+      status: order.status
+    }));
 
     return { success: true, orders: list };
   } catch (err: any) {
@@ -263,8 +295,8 @@ export async function POST(request: Request) {
           return NextResponse.json({ message: 'Maaf, asisten sedang memproses permintaan. Silakan tanyakan kembali.' });
         }
 
-        // Execute Supabase function
-        const orderResult = await getOrderStatusFromSupabase(orderCode);
+        // Execute database query
+        const orderResult = await getOrderStatus(orderCode);
         
         // Send the function response back to Gemini to generate the final response
         const secondResponse = await ai.models.generateContent({
@@ -298,8 +330,8 @@ export async function POST(request: Request) {
           return NextResponse.json({ message: 'Maaf, asisten sedang memproses permintaan. Silakan tanyakan kembali.' });
         }
 
-        // Execute Supabase function
-        const searchResult = await findOrderCodesByPhoneFromSupabase(customerPhone);
+        // Execute database query
+        const searchResult = await findOrderCodesByPhone(customerPhone);
         
         // Send the function response back to Gemini to generate the final response
         const secondResponse = await ai.models.generateContent({

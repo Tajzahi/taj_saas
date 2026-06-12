@@ -1,5 +1,6 @@
 "use client";
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
@@ -8,7 +9,7 @@ import toast from 'react-hot-toast';
 import { getMenuBySlug, getRelatedMenus, formatPrice, MenuItem } from '@/data/menu';
 import { useCartStore, CartItemVariant } from '@/store/cartStore';
 import MenuCard from '@/components/MenuCard';
-import { getMenuItems } from '@/lib/supabase/menuService';
+import { getMenuItems } from '@/lib/db/menuService';
 
 export default function MenuDetail() {
   const { slug } = useParams<{ slug: string }>();
@@ -35,7 +36,7 @@ export default function MenuDetail() {
           if (staticFound) setItem(staticFound);
         }
       } catch (err) {
-        console.error('Gagal mengambil item menu dari Supabase:', err);
+        console.error('Gagal mengambil item menu dari database:', err);
         const staticFound = getMenuBySlug(slug);
         if (staticFound) setItem(staticFound);
       } finally {
@@ -143,10 +144,13 @@ export default function MenuDetail() {
         <div className="bg-white rounded-3xl overflow-hidden shadow-xl mb-8">
           {/* Image */}
           <div className="relative h-64 sm:h-80 md:h-96 bg-gray-100">
-            <img
-              src={item.image}
+            <Image
+              src={item.image || '/assets/menu/placeholder.jpg'}
               alt={item.name}
-              className={`w-full h-full object-cover ${isHabis ? 'grayscale' : ''}`}
+              fill
+              sizes="(max-width: 768px) 100vw, 896px"
+              priority
+              className={`object-cover ${isHabis ? 'grayscale' : ''}`}
             />
             {item.badge && (
               <span className={`absolute top-4 left-4 text-sm font-bold px-3 py-1.5 rounded-full ${badgeConfig[item.badge].cls}`}>

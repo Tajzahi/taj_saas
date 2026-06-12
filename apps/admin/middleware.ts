@@ -1,40 +1,21 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { parseTenantFromHostname } from '@taj-saas/shared';
+import { resolveTenantMiddleware } from '@taj-saas/shared';
 
-export function middleware(request: NextRequest) {
-  const hostname = request.headers.get('host') || '';
-  const { slug, appType, isLocalhost } = parseTenantFromHostname(hostname);
+export async function middleware(request: NextRequest) {
+  const result = await resolveTenantMiddleware(request as any, 'admin');
 
-  // Development helpers: redirect to correct ports if subdomains hit admin app
-  if (isLocalhost) {
-    if (appType === 'customer') {
-      const url = request.nextUrl.clone();
-      url.port = '3000';
-      return NextResponse.redirect(url);
-    }
-    if (appType === 'owner') {
-      const url = request.nextUrl.clone();
-      url.port = '3002';
-      return NextResponse.redirect(url);
-    }
+  if ('redirect' in result) {
+    return result.redirect;
   }
 
-  // Clone headers and set tenant context
-  const requestHeaders = new Headers(request.headers);
-  if (slug) {
-    requestHeaders.set('x-tenant-slug', slug);
+  if ('error' in result) {
+    return new NextResponse(result.error, { status: result.status });
   }
 
-  // Continue request with injected header
-  return NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
+  return result.next;
 }
 
-// Only run on standard page/api routes, ignore static files
 export const config = {
   matcher: [
     '/((?!api/auth|_next/static|_next/image|favicon.ico|assets|.*\\..*).*)',

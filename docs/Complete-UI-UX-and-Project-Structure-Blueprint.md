@@ -5,7 +5,7 @@
 **Tanggal:** 9 Juni 2026  
 **Tujuan:**  
 Dokumen ini adalah **panduan utama dan paling detail** untuk memulai proyek dari nol.  
-A6 Nyuss hanya digunakan sebagai **kaca pembanding** (referensi desain, data contoh, dan validasi fitur).  
+taj_saas hanya digunakan sebagai **kaca pembanding** (referensi desain, data contoh, dan validasi fitur).  
 Semua sistem dibangun sebagai **Multi-Tenant SaaS** dari hari pertama agar langsung siap didistribusikan ke UMKM lain.
 
 **Komitmen Waktu Kamu:** ~20 jam/hari efektif (full day kecuali 4 jam istirahat/tidur).
@@ -16,7 +16,6 @@ Semua sistem dibangun sebagai **Multi-Tenant SaaS** dari hari pertama agar langs
 
 ### Keputusan Final (Sesuai Klarifikasi Terakhirmu)
 - **Multi-tenant dari hari pertama** (bukan single-tenant dulu).
-- A6 Nyuss = **hanya referensi/kaca pembanding**, bukan tenant utama.
 - Bangun **3 aplikasi terpisah** dalam satu monorepo:
   1. Customer App (untuk pelanggan)
   2. Admin/Karyawan App (gabungan Kasir + Dapur)

@@ -74,3 +74,6 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
 
   return { slug, appType, isLocalhost };
 }
+
+export * from './tenant';
+export * from './tenant-context';

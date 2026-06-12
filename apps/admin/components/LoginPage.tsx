@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, LogIn, ChefHat, AlertTriangle } from 'lucide-react';
 import { useAdminStore } from '../store/adminStore';
+import { authClient } from "../../../lib/auth-client";
 
 interface LoginPageProps {
   onLogin: (username: string, password: string) => void;
@@ -32,13 +33,43 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         return;
       }
 
-      // Simulate network latency for mock login
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Convert username to email format if not already
+      let email = username.trim();
+      if (!email.includes('@')) {
+        email = `${email}@taj.saas`;
+      }
 
-      // Open new shift for operator locally
+      // Better Auth Sign In
+      const loginRes = await authClient.signIn.email({
+        email,
+        password,
+      });
+
+      if (loginRes.error) {
+        // Fallback: If user not found, automatically register them as a cashier (Self-onboarding for Dev)
+        if (
+          loginRes.error.code === "USER_NOT_FOUND" ||
+          loginRes.error.message?.toLowerCase().includes("not found") ||
+          loginRes.error.message?.toLowerCase().includes("credentials")
+        ) {
+          const signUpRes = await authClient.signUp.email({
+            email,
+            password,
+            name: username.trim(),
+          });
+          
+          if (signUpRes.error) {
+            throw new Error(signUpRes.error.message || "Gagal melakukan registrasi kasir baru.");
+          }
+        } else {
+          throw new Error(loginRes.error.message || "Gagal masuk.");
+        }
+      }
+
+      // Open new shift in Neon Database
       const success = await useAdminStore.getState().openShift(cashAmount, username.trim());
       if (!success) {
-        setError('Gagal memulai shift baru.');
+        setError('Gagal memulai shift baru di database.');
         setIsLoading(false);
         return;
       }

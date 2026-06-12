@@ -1,5 +1,6 @@
 "use client";
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 
 import { ShoppingCart, Plus } from 'lucide-react';
@@ -45,10 +46,12 @@ export default function MenuCard({ item, showDetail = true }: MenuCardProps) {
       >
         {/* Image */}
         <div className="relative overflow-hidden h-44 sm:h-48 bg-gray-100">
-          <img
-            src={item.image}
+          <Image
+            src={item.image || '/assets/menu/placeholder.jpg'}
             alt={item.name}
-            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+            fill
+            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+            className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
               isHabis ? 'grayscale' : ''
             }`}
             loading="lazy"
