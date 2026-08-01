@@ -7,6 +7,8 @@ import { authClient } from "@/lib/authClient";
 import toast from "react-hot-toast";
 import { Eye, EyeOff } from "lucide-react";
 
+import { registerOwnerAction } from "@/app/actions/authActions";
+
 export default function RegisterPage() {
   const router = useRouter();
   const [name, setName] = useState("");
@@ -18,7 +20,7 @@ export default function RegisterPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password) {
+    if (!name || !businessName || !email || !password) {
       toast.error("Harap isi semua kolom pendaftaran.");
       return;
     }
@@ -30,19 +32,33 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const { data, error } = await authClient.signUp.email({
+      // 1. Create Tenant (Store) & Owner User in DB
+      const res = await registerOwnerAction({
+        name,
+        businessName,
         email,
         password,
-        name,
       });
 
-      if (error) {
-        toast.error(error.message || "Gagal mendaftarkan akun. Coba lagi.");
+      if (!res.success) {
+        toast.error(res.error || "Gagal mendaftarkan toko dan akun.");
         return;
       }
 
-      toast.success("Pendaftaran bisnis berhasil! Silakan login.");
-      router.push("/login");
+      // 2. Instant client-side login session creation
+      const loginRes = await authClient.signIn.email({
+        email,
+        password,
+      });
+
+      if (loginRes.error) {
+        toast.success("Pendaftaran bisnis berhasil! Silakan login.");
+        window.location.href = "/login";
+        return;
+      }
+
+      toast.success(`Selamat datang! Toko ${res.data?.tenantName || ""} berhasil terdaftar.`);
+      window.location.href = "/";
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat pendaftaran.");
     } finally {

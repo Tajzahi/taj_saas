@@ -1,0 +1,12 @@
+[build]
+  command = "pnpm --filter @taj-saas/admin build"
+  publish = "apps/admin/.next"
+  ignore = "git diff --quiet $NETLIFY_PREVIOUS_COMMIT $NETLIFY_COMMIT_REF -- apps/admin/ packages/ lib/ turbo.json package.json netlify.toml"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_FLAGS = "--no-frozen-lockfile"
+  SECRETS_SCAN_ENABLED = "false"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
