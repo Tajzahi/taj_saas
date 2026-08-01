@@ -31,8 +31,7 @@ export default function LoginPage() {
       }
 
       toast.success("Login berhasil!");
-      router.push("/");
-      router.refresh();
+      window.location.href = "/";
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat login.");
       setLoading(false);

@@ -88,9 +88,11 @@ export const auth = betterAuth({
   },
   advanced: {
     generateId: () => crypto.randomUUID(),
-    crossSubDomainCookies: {
-      enabled: true,
-      domain: process.env.COOKIE_DOMAIN || ".localhost"
-    }
+    ...(process.env.COOKIE_DOMAIN ? {
+      crossSubDomainCookies: {
+        enabled: true,
+        domain: process.env.COOKIE_DOMAIN
+      }
+    } : {})
   }
 });
