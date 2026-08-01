@@ -75,13 +75,23 @@ export async function resolveTenantMiddleware(
 
   // Resolve tenant from database
   try {
-    const tenantResult = await db
+    let tenantResult = await db
       .select()
       .from(schema.tenants)
       .where(eq(schema.tenants.slug, slug))
       .limit(1);
 
-    const tenant = tenantResult[0];
+    let tenant = tenantResult[0];
+
+    // Fallback to default tenant if not found by specific slug
+    if (!tenant) {
+      const fallbackResult = await db
+        .select()
+        .from(schema.tenants)
+        .where(eq(schema.tenants.slug, 'taj-saas'))
+        .limit(1);
+      tenant = fallbackResult[0];
+    }
 
     if (!tenant) {
       return { error: 'Tenant not found', status: 404 };

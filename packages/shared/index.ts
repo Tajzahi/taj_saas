@@ -58,6 +58,15 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
         appType = 'customer';
       }
     }
+  } else if (host.endsWith('.netlify.app')) {
+    slug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
+    if (host.includes('admin')) {
+      appType = 'admin';
+    } else if (host.includes('owner') || host.includes('tajsaas')) {
+      appType = 'owner';
+    } else {
+      appType = 'customer';
+    }
   } else {
     // Production custom domains
     // e.g. admin.martabakpakde.com or martabakpakde.com
