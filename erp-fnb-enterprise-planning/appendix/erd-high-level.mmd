@@ -1,0 +1,27 @@
+erDiagram
+    TENANT ||--o{ OUTLET : owns
+    TENANT ||--o{ USER : has
+    USER }o--o{ ROLE : assigned
+    ROLE }o--o{ PERMISSION : grants
+    OUTLET ||--o{ SHIFT : has
+    OUTLET ||--o{ ORDER : receives
+    CUSTOMER ||--o{ ORDER : places
+    ORDER ||--o{ ORDER_ITEM : contains
+    ORDER ||--o{ PAYMENT : paid_by
+    MENU_ITEM ||--o{ ORDER_ITEM : sold_as
+    MENU_ITEM ||--o{ RECIPE : has
+    RECIPE ||--o{ RECIPE_LINE : contains
+    ITEM ||--o{ RECIPE_LINE : ingredient
+    ITEM ||--o{ STOCK_BALANCE : has
+    ITEM ||--o{ INVENTORY_MOVEMENT : moves
+    OUTLET ||--o{ STOCK_BALANCE : stores
+    OUTLET ||--o{ INVENTORY_MOVEMENT : records
+    SUPPLIER ||--o{ PURCHASE_ORDER : receives
+    PURCHASE_ORDER ||--o{ GOODS_RECEIPT : fulfilled_by
+    GOODS_RECEIPT ||--o{ INVENTORY_MOVEMENT : creates
+    STOCK_TRANSFER ||--o{ INVENTORY_MOVEMENT : creates
+    STOCK_OPNAME ||--o{ STOCK_OPNAME_LINE : contains
+    STOCK_OPNAME_LINE }o--|| ITEM : counts
+    WASTE_RECORD }o--|| ITEM : wastes
+    USER ||--o{ AUDIT_LOG : performs
+    APPROVAL_REQUEST }o--|| USER : requested_by

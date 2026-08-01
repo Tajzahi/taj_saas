@@ -1,4 +1,6 @@
 export async function register() {
+  if (process.env.NODE_ENV !== "production") return;
+
   if (process.env.NEXT_RUNTIME === "nodejs") {
     await import("./sentry.server.config");
   }
@@ -12,6 +14,8 @@ export const onRequestError = async (
   request: any,
   context: any
 ) => {
+  if (process.env.NODE_ENV !== "production") return;
+
   const { captureRequestError } = await import("@sentry/nextjs");
   captureRequestError(err, request as any, context as any);
 };

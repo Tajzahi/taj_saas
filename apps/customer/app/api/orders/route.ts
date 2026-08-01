@@ -5,18 +5,7 @@ import Ably from 'ably';
 
 const VALID_DELIVERY_FEES = new Set([0, 10000, 15000, 20000]);
 
-interface PromoConfig {
-  type: 'percent' | 'fixed';
-  value: number;
-  minOrder: number;
-  targetCategory: string; // Category slug or 'all'
-}
-
-const PROMO_CODES: Record<string, PromoConfig> = {
-  ANNIV25:    { type: 'percent', value: 25, minOrder: 50000, targetCategory: 'terang-bulan' },
-  WEBAPPNEW:  { type: 'fixed',   value: 5000, minOrder: 40000, targetCategory: 'all' },
-  SATURDAY15: { type: 'percent', value: 15, minOrder: 0,     targetCategory: 'terang-bulan' },
-};
+import { and } from 'drizzle-orm';
 
 export interface OrderItemPayload {
   menuItemSlug: string;
@@ -31,7 +20,7 @@ export interface CreateOrderRequest {
   items: OrderItemPayload[];
   customerName: string;
   customerPhone: string;
-  orderType: 'pickup' | 'delivery';
+  orderType: 'dine_in' | 'takeaway' | 'delivery';
   deliveryAddress?: string;
   deliveryFee: number;
   promoCode?: string;
@@ -51,7 +40,10 @@ export async function POST(request: Request): Promise<NextResponse> {
     const { items, customerName, customerPhone, orderType, deliveryAddress, deliveryFee, promoCode, paymentMethod } = body;
 
     // Get tenant from headers
-    const tenantSlug = request.headers.get('x-tenant-slug') || 'a6-nyuss';
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    if (!tenantSlug) {
+      return NextResponse.json({ error: 'Request tidak valid.' }, { status: 400 });
+    }
     
     // Find tenant
     const tenantResult = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, tenantSlug)).limit(1);
@@ -70,7 +62,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (!customerPhone?.trim() || !/^(08|\+62)\d{8,12}$/.test(customerPhone.replace(/\s/g, ''))) {
       return NextResponse.json({ error: 'Nomor HP tidak valid.' }, { status: 400 });
     }
-    if (!['pickup', 'delivery'].includes(orderType)) {
+    if (!['dine_in', 'takeaway', 'delivery'].includes(orderType)) {
       return NextResponse.json({ error: 'Tipe order tidak valid.' }, { status: 400 });
     }
     if (orderType === 'delivery' && !deliveryAddress?.trim()) {
@@ -80,7 +72,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: 'Metode pembayaran tidak valid.' }, { status: 400 });
     }
 
-    const claimedFee = orderType === 'pickup' ? 0 : deliveryFee;
+    const claimedFee = orderType === 'delivery' ? deliveryFee : 0;
     if (!VALID_DELIVERY_FEES.has(claimedFee)) {
       return NextResponse.json(
         { error: `Ongkos kirim tidak valid: Rp${claimedFee}. Hubungi admin jika ada masalah.` },
@@ -152,22 +144,33 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     if (promoCode) {
       const cleanCode = promoCode.trim().toUpperCase().slice(0, 30);
-      const promo = PROMO_CODES[cleanCode];
+      const promoResult = await db.select().from(schema.promos).where(
+        and(
+          eq(schema.promos.tenantId, tenant.id),
+          eq(schema.promos.code, cleanCode),
+          eq(schema.promos.isActive, true)
+        )
+      ).limit(1);
+      
+      const promo = promoResult[0];
 
-      if (promo && subtotal >= promo.minOrder) {
+      if (promo && subtotal >= Number(promo.minOrder)) {
+        const promoValue = Number(promo.value);
         if (promo.targetCategory === 'all') {
           promoDiscount = promo.type === 'fixed'
-            ? promo.value
-            : Math.round(subtotal * (promo.value / 100));
+            ? promoValue
+            : Math.round(subtotal * (promoValue / 100));
         } else {
           const categoryTotal = validatedItems
             .filter((i) => i.categorySlug === promo.targetCategory)
             .reduce((sum, i) => sum + i.totalPrice, 0);
 
-          const base = categoryTotal || subtotal;
+          const base = categoryTotal || subtotal; // Wait, if categoryTotal is 0, we don't give discount if targetCategory doesn't match? 
+          // Actually, if categoryTotal is 0, base should be 0, not subtotal.
+          const discountBase = categoryTotal; 
           promoDiscount = promo.type === 'fixed'
-            ? Math.min(promo.value, base)
-            : Math.round(base * (promo.value / 100));
+            ? Math.min(promoValue, discountBase)
+            : Math.round(discountBase * (promoValue / 100));
         }
       }
     }
@@ -175,37 +178,34 @@ export async function POST(request: Request): Promise<NextResponse> {
     const total = Math.max(0, subtotal + claimedFee - promoDiscount);
     const orderCode = generateOrderCode();
 
-    // 1. Save to Database using Transaction
-    const orderResult = await db.transaction(async (tx) => {
-      const [newOrder] = await tx.insert(schema.orders).values({
-        tenantId: tenant.id,
-        orderCode,
-        customerName,
-        customerPhone,
-        deliveryType: orderType,
-        deliveryAddress: deliveryAddress || null,
-        subtotal: String(subtotal),
-        totalPrice: String(total),
-        status: 'received',
-        paymentMethod,
-        paymentStatus: 'pending',
-        notes: items.map(i => i.note).filter(Boolean).join(' | ') || null,
-      }).returning();
+    // 1. Save to Database (Sequential insert, since neon-http doesn't support db.transaction)
+    const [newOrder] = await db.insert(schema.orders).values({
+      tenantId: tenant.id,
+      orderCode,
+      customerName,
+      customerPhone,
+      deliveryType: orderType,
+      deliveryAddress: deliveryAddress || null,
+      subtotal: String(subtotal),
+      totalPrice: String(total),
+      status: 'received',
+      paymentMethod,
+      paymentStatus: 'pending',
+      notes: items.map(i => i.note).filter(Boolean).join(' | ') || null,
+    }).returning();
 
-      const orderItemValues = validatedItems.map(item => ({
-        orderId: newOrder.id,
-        menuItemId: item.menuItemId,
-        menuItemName: item.menuItemName,
-        variantName: item.variantName,
-        quantity: item.quantity,
-        unitPrice: String(item.unitPrice),
-        totalPrice: String(item.totalPrice),
-      }));
+    const orderItemValues = validatedItems.map(item => ({
+      orderId: newOrder.id,
+      menuItemId: item.menuItemId,
+      menuItemName: item.menuItemName,
+      variantName: item.variantName,
+      quantity: item.quantity,
+      unitPrice: String(item.unitPrice),
+      totalPrice: String(item.totalPrice),
+    }));
 
-      await tx.insert(schema.orderItems).values(orderItemValues);
-
-      return newOrder;
-    });
+    await db.insert(schema.orderItems).values(orderItemValues);
+    const orderResult = newOrder;
 
     // 2. Publish Realtime Message to Ably (Serverless REST)
     const ablyKey = process.env.ABLY_API_KEY;

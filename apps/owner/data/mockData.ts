@@ -18,11 +18,8 @@ export const tenantData = {
 // CABANG DATA
 // ============================================================
 export const cabangList = [
-  { id: "c1", name: "Cabang Sudirman", city: "Jakarta", status: "active", kasir: 3, revenue: 45200000, orders: 1240, avgOrder: 36450, foodCost: 28.4, laborCost: 18.2, rating: 4.8, lastSync: "2 menit lalu" },
-  { id: "c2", name: "Cabang Kemang", city: "Jakarta", status: "active", kasir: 2, revenue: 38700000, orders: 980, avgOrder: 39490, foodCost: 29.1, laborCost: 19.5, rating: 4.7, lastSync: "5 menit lalu" },
-  { id: "c3", name: "Cabang BSD", city: "Tangerang", status: "active", kasir: 4, revenue: 52100000, orders: 1560, avgOrder: 33400, foodCost: 27.8, laborCost: 17.9, rating: 4.9, lastSync: "1 menit lalu" },
-  { id: "c4", name: "Cabang Depok", city: "Depok", status: "active", kasir: 2, revenue: 29800000, orders: 820, avgOrder: 36340, foodCost: 30.2, laborCost: 20.1, rating: 4.5, lastSync: "8 menit lalu" },
-  { id: "c5", name: "Cabang Bekasi", city: "Bekasi", status: "maintenance", kasir: 2, revenue: 19400000, orders: 540, avgOrder: 35920, foodCost: 31.5, laborCost: 21.3, rating: 4.3, lastSync: "15 menit lalu" },
+  { id: "c1", name: "Cabang Demak", city: "Surabaya", status: "active", kasir: 1, revenue: 0, orders: 0, avgOrder: 0, foodCost: 28.4, laborCost: 18.2, rating: 4.8, lastSync: "1 menit lalu" },
+  { id: "c2", name: "Cabang Pasar Kembang", city: "Surabaya", status: "active", kasir: 1, revenue: 0, orders: 0, avgOrder: 0, foodCost: 29.1, laborCost: 19.5, rating: 4.7, lastSync: "3 menit lalu" },
 ];
 
 // ============================================================
@@ -82,11 +79,8 @@ export const menuList = [
 // REVENUE BY CABANG
 // ============================================================
 export const revenueByCabang = [
-  { name: "BSD", revenue: 52100000, target: 50000000, orders: 1560 },
-  { name: "Sudirman", revenue: 45200000, target: 45000000, orders: 1240 },
-  { name: "Kemang", revenue: 38700000, target: 40000000, orders: 980 },
-  { name: "Depok", revenue: 29800000, target: 30000000, orders: 820 },
-  { name: "Bekasi", revenue: 19400000, target: 25000000, orders: 540 },
+  { name: "Demak", revenue: 0, target: 50000000, orders: 0 },
+  { name: "Pasar Kembang", revenue: 0, target: 45000000, orders: 0 },
 ];
 
 // ============================================================
@@ -214,11 +208,11 @@ export const approvalsList = [
 // PRODUCTION DATA
 // ============================================================
 export const productionPlan = [
-  { id: "p1", menu: "Martabak Telur Spesial", targetQty: 180, producedQty: 165, yield: 91.7, variance: -8.3, status: "on-track", aiSuggested: 180 },
-  { id: "p2", menu: "Terang Bulan Keju Meses", targetQty: 150, producedQty: 148, yield: 98.7, variance: -1.3, status: "on-track", aiSuggested: 150 },
-  { id: "p3", menu: "Gorengan Mix", targetQty: 250, producedQty: 212, yield: 84.8, variance: -15.2, status: "behind", aiSuggested: 280 },
-  { id: "p4", menu: "Martabak Keju Susu", targetQty: 120, producedQty: 125, yield: 104.2, variance: 4.2, status: "ahead", aiSuggested: 120 },
-  { id: "p5", menu: "Es Teh Manis (per batch)", targetQty: 400, producedQty: 398, yield: 99.5, variance: -0.5, status: "on-track", aiSuggested: 420 },
+  { id: "p1", menu: "Martabak Telur Spesial", targetQty: 180, producedQty: 165, yield: 91.7, variance: -8.3, status: "on-track", aiSuggested: 180, cabang: "Cabang BSD" },
+  { id: "p2", menu: "Terang Bulan Keju Meses", targetQty: 150, producedQty: 148, yield: 98.7, variance: -1.3, status: "on-track", aiSuggested: 150, cabang: "Cabang Kemang" },
+  { id: "p3", menu: "Gorengan Mix", targetQty: 250, producedQty: 212, yield: 84.8, variance: -15.2, status: "behind", aiSuggested: 280, cabang: "Cabang Depok" },
+  { id: "p4", menu: "Martabak Keju Susu", targetQty: 120, producedQty: 125, yield: 104.2, variance: 4.2, status: "ahead", aiSuggested: 120, cabang: "Cabang Sudirman" },
+  { id: "p5", menu: "Es Teh Manis (per batch)", targetQty: 400, producedQty: 398, yield: 99.5, variance: -0.5, status: "on-track", aiSuggested: 420, cabang: "Cabang BSD" },
 ];
 
 // ============================================================
@@ -272,11 +266,11 @@ export const forecastData = [
 // ============================================================
 export const kpiSummary = {
   totalRevenue: { value: 185200000, change: 8.4, label: "Total Pendapatan", period: "bulan ini" },
-  grossMargin: { value: 70.4, change: 1.2, label: "Gross Margin", period: "bulan ini" },
-  foodCost: { value: 29.6, change: -0.8, label: "Food Cost %", period: "bulan ini" },
-  laborCost: { value: 19.2, change: -0.3, label: "Labor Cost %", period: "bulan ini" },
-  wastePercent: { value: 3.8, change: -0.5, label: "Waste %", period: "bulan ini" },
-  totalOrders: { value: 5140, change: 12.3, label: "Total Order", period: "bulan ini" },
-  aov: { value: 36040, change: 3.2, label: "Avg Order Value", period: "bulan ini" },
+  grossMargin: { value: 70.4, change: 1.2, label: "persentase laba kotor", period: "bulan ini" },
+  foodCost: { value: 29.6, change: -0.8, label: "Modal Bahan Baku", period: "bulan ini" },
+  laborCost: { value: 19.2, change: -0.3, label: "Gaji Pegawai", period: "bulan ini" },
+  wastePercent: { value: 3.8, change: -0.5, label: "Bahan Terbuang", period: "bulan ini" },
+  totalOrders: { value: 5140, change: 12.3, label: "total pesanan", period: "bulan ini" },
+  aov: { value: 36040, change: 3.2, label: "Rata-rata Belanja Pelanggan", period: "bulan ini" },
   activeCabang: { value: 4, change: 0, label: "Cabang Aktif", period: "dari 5 cabang" },
 };

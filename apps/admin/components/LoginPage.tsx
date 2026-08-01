@@ -19,19 +19,15 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
     e.preventDefault();
     setError('');
     if (!username || !password) {
-      setError('Username dan password wajib diisi.');
+      setError('Username / Email dan password wajib diisi.');
       return;
     }
     setIsLoading(true);
 
     try {
-      // Parse starting cash
-      const cashAmount = Number(startingCash.replace(/\./g, '').replace(/,/g, '.'));
-      if (isNaN(cashAmount) || cashAmount < 0) {
-        setError('Masukkan Uang Modal Awal laci yang valid.');
-        setIsLoading(false);
-        return;
-      }
+      // Parse starting cash gracefully (default to 0 if left blank)
+      const cleanCash = startingCash ? startingCash.replace(/\./g, '').replace(/,/g, '.') : '0';
+      const cashAmount = Math.max(0, Number(cleanCash) || 0);
 
       // Convert username to email format if not already
       let email = username.trim();
@@ -46,38 +42,16 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       });
 
       if (loginRes.error) {
-        // Fallback: If user not found, automatically register them as a cashier (Self-onboarding for Dev)
-        if (
-          loginRes.error.code === "USER_NOT_FOUND" ||
-          loginRes.error.message?.toLowerCase().includes("not found") ||
-          loginRes.error.message?.toLowerCase().includes("credentials")
-        ) {
-          const signUpRes = await authClient.signUp.email({
-            email,
-            password,
-            name: username.trim(),
-          });
-          
-          if (signUpRes.error) {
-            throw new Error(signUpRes.error.message || "Gagal melakukan registrasi kasir baru.");
-          }
-        } else {
-          throw new Error(loginRes.error.message || "Gagal masuk.");
-        }
+        throw new Error(loginRes.error.message || 'Email atau password kasir salah.');
       }
 
-      // Open new shift in Neon Database
-      const success = await useAdminStore.getState().openShift(cashAmount, username.trim());
-      if (!success) {
-        setError('Gagal memulai shift baru di database.');
-        setIsLoading(false);
-        return;
-      }
+      // Open new shift in Neon Database (if no active shift exists)
+      await useAdminStore.getState().openShift(cashAmount, username.trim());
 
       onLogin(username, password);
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Gagal masuk. Coba lagi.');
+      setError(err.message || 'Gagal masuk. Periksa email dan password Anda.');
     } finally {
       setIsLoading(false);
     }
@@ -148,8 +122,11 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
                   />
                   <button
                     type="button"
+                    onMouseDown={(e) => e.preventDefault()}
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 p-1.5 text-gray-400 hover:text-gray-700 transition-colors focus:outline-none cursor-pointer"
+                    tabIndex={-1}
+                    aria-label="Toggle password visibility"
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>

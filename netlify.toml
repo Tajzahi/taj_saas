@@ -1,0 +1,13 @@
+[build]
+  command = "pnpm --filter @taj-saas/owner build"
+  publish = "apps/owner/.next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_FLAGS = "--no-frozen-lockfile"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[site]
+  name = "taj-saas-owner"

@@ -1,0 +1,26 @@
+Module,Customer Web,Karyawan Web,Owner/Admin Web,Priority
+Auth/Login,Login/OTP,Staff login/PIN,Admin login/RBAC,P0
+Outlet Selection,Select outlet/QR,Assigned outlet,Manage outlet,P0
+Menu Catalog,View menu,POS menu grid,Manage menu/category,P0
+Variant/Add-on,Select,Select,Manage,P0
+Cart/Checkout,Cart checkout,POS cart,Monitor orders,P0
+Payment,Pay/confirm,Receive payment,Reconciliation,P0
+Order Tracking,Track status,Manage status,Monitor/report,P0
+Kitchen Board,View status,Process order,Monitor SLA,P0
+Shift Closing,,Open/close shift,Shift report/approval,P0
+Recipe/BOM,,Deduction effect,Manage recipe/food cost,P0
+Inventory,,View/input limited,Full inventory ledger,P0
+Stock Opname,,Input physical stock,Approve/report,P0
+Waste,,Input waste,Approve/report,P0
+Purchasing,,Receiving/request,PR/PO/GRN/Supplier,P1
+Transfer Stock,,Receive/request,Approve/ship/receive,P1
+Promo/Voucher,Use voucher,Apply promo,Manage promo rules,P1
+Loyalty,Point/history,Lookup member,Manage loyalty,P1
+Finance,,Shift cash,COGS/P&L/Expense,P1
+Production,,Receive output,Central kitchen production,P2
+QC/Food Safety,,Input checks,Inspection/batch/recall,P2
+HR/Staff,,View shift,Manage staff/schedule,P2
+Asset Maintenance,,Report issue,Manage asset/service,P2
+Audit Log,,Logged actions,View audit,P0
+Approval Workflow,Request-related,Request approval,Approve/reject,P1
+Reporting,Order history,Shift/outlet report,Full BI/dashboard,P0

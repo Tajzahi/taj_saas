@@ -42,7 +42,7 @@ export const pageTitles: Record<PageId, { title: string; subtitle: string }> = {
   produksi: { title: "Produksi", subtitle: "Rencana harian dan laporan yield" },
   penjualan: { title: "Penjualan & Analitik", subtitle: "Analisis penjualan mendalam" },
   sdm: { title: "SDM & Shift", subtitle: "Manajemen karyawan dan jadwal" },
-  persetujuan: { title: "Persetujuan", subtitle: "PO, diskon, refund menunggu approval" },
+  persetujuan: { title: "Persetujuan", subtitle: "PO, diskon, refund menunggu persetujuan" },
   ai: { title: "AI Insights", subtitle: "Prediksi cerdas dan rekomendasi AI" },
   pengaturan: { title: "Pengaturan", subtitle: "Konfigurasi tenant dan sistem" },
 };

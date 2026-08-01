@@ -220,10 +220,14 @@ export default function OrderCard({ order, isSelected, isNew, isKDSMode: _isKDSM
           )}
           <span className={`text-[11px] font-bold ${isKDSMode ? 'text-gray-700' : paymentInfo.className}`}>
             {isKDSMode
-              ? (order.deliveryType === 'pickup' ? 'Ambil Sendiri' : 'Pesan Antar')
-              : (order.deliveryType === 'pickup'
-                  ? (order.paymentMethod === 'cod' ? 'Tunai' : 'QRIS')
-                  : (order.paymentMethod === 'cod' ? 'Tunai COD' : 'QRIS'))}
+              ? (order.deliveryType === 'dine_in' ? 'Dine-in' : order.deliveryType === 'takeaway' ? 'Takeaway' : order.deliveryType === 'delivery' ? 'Delivery' : 'Pickup')
+              : (order.deliveryType === 'dine_in'
+                  ? 'Dine-in'
+                  : order.deliveryType === 'takeaway'
+                  ? 'Takeaway'
+                  : order.deliveryType === 'delivery'
+                  ? 'Delivery App'
+                  : 'Pickup / Kasir')}
           </span>
           {!isKDSMode && order.paymentMethod === 'transfer' && (
             <span className={`text-[11px] ${paymentInfo.className}`}>· {paymentInfo.label}</span>

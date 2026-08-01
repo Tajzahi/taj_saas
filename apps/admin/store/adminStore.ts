@@ -17,6 +17,7 @@ import {
   getStoreSettingsAction,
   writeAuditLogAction,
 } from '../app/actions';
+import { parseTenantFromHostname } from '@taj-saas/shared';
 
 export interface OrderItem {
   id: string;
@@ -32,7 +33,7 @@ export interface AdminOrder {
   orderCode: string;
   customerName: string;
   customerPhone: string;
-  deliveryType: 'pickup' | 'delivery';
+  deliveryType: 'dine_in' | 'takeaway' | 'pickup' | 'delivery';
   deliveryAddress: string | null;
   deliveryDistance: number | null;
   deliveryFee: number;
@@ -299,86 +300,97 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   subscribeToOrders: () => {
     console.log('[Ably Realtime] Subscribed to orders');
-    const ablyKey = "CaWXiA.3YmauA:H7LLGQ8DyVxEwdCsCxeHp3ZkOU3tBIUBJ9HuYXrkFOo";
+    const ablyKey = process.env.NEXT_PUBLIC_ABLY_API_KEY;
+    if (!ablyKey) {
+      console.warn('[Ably Realtime] NEXT_PUBLIC_ABLY_API_KEY tidak ditemukan. Mode real-time dimatikan.');
+      set({ connectionStatus: 'disconnected' });
+      return;
+    }
     
-    // Resolve tenantSlug dynamically from hostname on client side
-    let tenantSlug = "a6-nyuss";
+    // Resolve tenantSlug dynamically from hostname on client side (using shared helper)
+    let tenantSlug = "taj-saas";
     if (typeof window !== 'undefined') {
-      const hostname = window.location.hostname;
-      const parts = hostname.split('.');
-      if (parts.length >= 3) {
-        tenantSlug = parts[1];
+      const hostname = window.location.host; // location.host includes port (important for localhost development)
+      const { slug } = parseTenantFromHostname(hostname);
+      if (slug) {
+        tenantSlug = slug;
       }
     }
 
     // Lazy load Ably client side
     import('ably').then(({ Realtime }) => {
-      const ably = new Realtime({ key: ablyKey });
-      const channel = ably.channels.get(`orders:${tenantSlug}`);
+      try {
+        const ably = new Realtime({ key: ablyKey });
+        const channel = ably.channels.get(`orders:${tenantSlug}`);
+        set({ connectionStatus: 'connected' });
       
-      // Listen for new orders
-      channel.subscribe('new-order', (message) => {
-        const orderData = message.data.order;
-        console.log('[Ably] Realtime order received:', orderData);
+        // Listen for new orders
+        channel.subscribe('new-order', (message) => {
+          const orderData = message.data.order;
+          console.log('[Ably] Realtime order received:', orderData);
 
-        const newOrder: AdminOrder = {
-          id: orderData.id,
-          orderCode: orderData.orderCode,
-          customerName: orderData.customerName,
-          customerPhone: orderData.customerPhone,
-          deliveryType: orderData.deliveryType,
-          deliveryAddress: orderData.deliveryAddress,
-          deliveryDistance: null,
-          deliveryFee: Number(orderData.deliveryFee || 0),
-          subtotal: Number(orderData.subtotal),
-          discount: 0,
-          couponCode: null,
-          totalPrice: Number(orderData.totalPrice),
-          status: orderData.status,
-          paymentMethod: orderData.paymentMethod,
-          paymentStatus: orderData.paymentStatus,
-          paymentProofUrl: orderData.paymentProofUrl || null,
-          notes: orderData.notes,
-          cancellationReason: null,
-          items: orderData.items.map((item: any, idx: number) => ({
-            id: item.menuItemId || `item-${idx}`,
-            name: item.menuItemName,
-            quantity: item.quantity,
-            price: Number(item.unitPrice),
-            variant: item.variantName || undefined
-          })),
-          createdAt: orderData.createdAt
-        };
+          const newOrder: AdminOrder = {
+            id: orderData.id,
+            orderCode: orderData.orderCode,
+            customerName: orderData.customerName,
+            customerPhone: orderData.customerPhone,
+            deliveryType: orderData.deliveryType,
+            deliveryAddress: orderData.deliveryAddress,
+            deliveryDistance: null,
+            deliveryFee: Number(orderData.deliveryFee || 0),
+            subtotal: Number(orderData.subtotal),
+            discount: 0,
+            couponCode: null,
+            totalPrice: Number(orderData.totalPrice),
+            status: orderData.status,
+            paymentMethod: orderData.paymentMethod,
+            paymentStatus: orderData.paymentStatus,
+            paymentProofUrl: orderData.paymentProofUrl || null,
+            notes: orderData.notes,
+            cancellationReason: null,
+            items: orderData.items.map((item: any, idx: number) => ({
+              id: item.menuItemId || `item-${idx}`,
+              name: item.menuItemName,
+              quantity: item.quantity,
+              price: Number(item.unitPrice),
+              variant: item.variantName || undefined
+            })),
+            createdAt: orderData.createdAt
+          };
 
-        if (get().activeShift) {
-          get().addNewOrder(newOrder);
-          toast.success(`🔔 Pesanan Baru Masuk: ${orderData.orderCode}`, {
-            duration: 5000,
-            style: { background: '#1a0a0a', color: '#fff', borderLeft: '4px solid #E05009' }
+          if (get().activeShift) {
+            get().addNewOrder(newOrder);
+            toast.success(`🔔 Pesanan Baru Masuk: ${orderData.orderCode}`, {
+              duration: 5000,
+              style: { background: '#1a0a0a', color: '#fff', borderLeft: '4px solid #E05009' }
+            });
+          }
+        });
+
+        // Listen for payment updates (proof uploaded)
+        channel.subscribe('order-updated', async (message) => {
+          console.log('[Ably] Realtime payment update received:', message.data);
+          await get().fetchOrders();
+          toast(`📸 Bukti Pembayaran Diunggah untuk ${message.data.orderCode}`, {
+            icon: '📝',
+            style: { background: '#1a0a0a', color: '#fff' }
           });
-        }
-      });
-
-      // Listen for payment updates (proof uploaded)
-      channel.subscribe('order-updated', async (message) => {
-        console.log('[Ably] Realtime payment update received:', message.data);
-        await get().fetchOrders();
-        toast(`📸 Bukti Pembayaran Diunggah untuk ${message.data.orderCode}`, {
-          icon: '📝',
-          style: { background: '#1a0a0a', color: '#fff' }
         });
-      });
 
-      // Listen for order cancellations from customer tracking page
-      channel.subscribe('order-cancelled', async (message) => {
-        console.log('[Ably] Realtime cancellation received:', message.data);
-        await get().fetchOrders();
-        toast.error(`❌ Pesanan ${message.data.orderCode} dibatalkan oleh pelanggan.`, {
-          duration: 6000
+        // Listen for order cancellations from customer tracking page
+        channel.subscribe('order-cancelled', async (message) => {
+          console.log('[Ably] Realtime cancellation received:', message.data);
+          await get().fetchOrders();
+          toast.error(`❌ Pesanan ${message.data.orderCode} dibatalkan oleh pelanggan.`, {
+            duration: 6000
+          });
         });
-      });
 
-      set({ subscription: { ably, channel } });
+        set({ subscription: { ably, channel } });
+      } catch (err) {
+        console.error('[Ably Realtime] Initialization failed:', err);
+        set({ connectionStatus: 'disconnected' });
+      }
     });
   },
 

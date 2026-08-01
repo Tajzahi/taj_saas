@@ -39,18 +39,20 @@ export default function Checkout() {
   const { setCurrentOrder } = useOrderStore();
   const [mounted, setMounted] = useState(false);
   const [isStoreOpen, setIsStoreOpen] = useState(true);
+  const [storeSettingsState, setStoreSettingsState] = useState<any>(null);
   useEffect(() => {
     setMounted(true);
     getStoreSettings()
       .then((settings) => {
         setIsStoreOpen(settings.is_open);
+        setStoreSettingsState(settings);
       })
       .catch((err) => {
         console.error('Error fetching store settings:', err);
       });
   }, []);
 
-  const [orderType, setOrderType] = useState<'pickup' | 'delivery'>('pickup');
+  const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('takeaway');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
@@ -104,16 +106,41 @@ export default function Checkout() {
     }
     setUploading(true);
     try {
-      // Simulate delay for uploading proof
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      toast.success('Bukti transfer berhasil diunggah! Menunggu verifikasi admin.');
-      clearCart();
-      setShowQrisModal(false);
-      router.push(`/tracking/${orderCode}`);
+      const reader = new FileReader();
+      reader.readAsDataURL(uploadFile);
+      reader.onload = async () => {
+        try {
+          const base64Data = reader.result;
+          const res = await fetch('/api/upload-proof', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              fileBase64: base64Data,
+              fileName: uploadFile.name,
+              fileType: uploadFile.type,
+              orderCode
+            })
+          });
+          const result = await res.json();
+          if (!res.ok || !result.success) {
+            throw new Error(result.error || 'Gagal mengunggah bukti');
+          }
+          toast.success('Bukti transfer berhasil diunggah! Menunggu verifikasi admin.');
+          clearCart();
+          setShowQrisModal(false);
+          router.push(`/tracking/${orderCode}`);
+        } catch (err: any) {
+          toast.error(`Gagal mengunggah bukti: ${err.message || 'Terjadi kesalahan'}`);
+          setUploading(false);
+        }
+      };
+      reader.onerror = () => {
+        toast.error('Gagal membaca file gambar.');
+        setUploading(false);
+      };
     } catch (err: any) {
       console.error('Error uploading payment proof:', err);
       toast.error(`Gagal mengunggah bukti: ${err.message || 'Terjadi kesalahan'}`);
-    } finally {
       setUploading(false);
     }
   };
@@ -255,7 +282,7 @@ export default function Checkout() {
         total: serverTotal,
         status: 'received' as const,
         createdAt: new Date().toISOString(),
-        estimatedTime: orderType === 'pickup' ? 20 : 40,
+        estimatedTime: orderType === 'delivery' ? 40 : 20,
         promoCode: promoCode || undefined,
         promoDiscount: result.promoDiscount || undefined,
       };
@@ -329,22 +356,23 @@ export default function Checkout() {
           {/* Order Type */}
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <h3 className="font-bold text-gray-800 mb-4">Tipe Pesanan</h3>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-2">
               {[
-                { val: 'pickup', icon: <ShoppingBag className="w-5 h-5 text-purple-600" />, label: 'Pickup', desc: 'Ambil sendiri di toko' },
-                { val: 'delivery', icon: <Truck className="w-5 h-5 text-blue-600" />, label: 'Delivery', desc: 'Diantar ke alamat' },
+                { val: 'dine_in', icon: <ShoppingBag className="w-5 h-5 text-emerald-600" />, label: 'Dine-in', desc: 'Makan di tempat' },
+                { val: 'takeaway', icon: <ShoppingBag className="w-5 h-5 text-purple-600" />, label: 'Takeaway', desc: 'Bungkus / Pick up' },
+                { val: 'delivery', icon: <Truck className="w-5 h-5 text-blue-600" />, label: 'Delivery', desc: 'Diantar ke rumah' },
               ].map((opt) => (
                 <button
                   key={opt.val}
                   type="button"
-                  onClick={() => setOrderType(opt.val as 'pickup' | 'delivery')}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
+                  onClick={() => setOrderType(opt.val as 'dine_in' | 'takeaway' | 'delivery')}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${
                     orderType === opt.val ? 'border-[#8E0E0E] bg-[#8E0E0E]/5' : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <div className="mb-2">{opt.icon}</div>
-                  <p className="font-semibold text-gray-900 text-sm">{opt.label}</p>
-                  <p className="text-xs text-gray-500">{opt.desc}</p>
+                  <div className="mb-1.5">{opt.icon}</div>
+                  <p className="font-semibold text-gray-900 text-xs sm:text-sm">{opt.label}</p>
+                  <p className="text-[10px] text-gray-500">{opt.desc}</p>
                 </button>
               ))}
             </div>
@@ -470,7 +498,7 @@ export default function Checkout() {
                   </span>
                 </div>
               )}
-              {orderType === 'pickup' && (
+              {orderType !== 'delivery' && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Ongkir</span>
                   <span className="font-semibold text-green-600">GRATIS</span>
@@ -543,7 +571,7 @@ export default function Checkout() {
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <h3 className="font-bold text-gray-800 mb-4">Metode Pembayaran</h3>
             <div className="space-y-2">
-              {(orderType === 'pickup'
+              {(orderType !== 'delivery'
                 ? [
                     { val: 'cod', icon: <Banknote className="w-5 h-5 text-green-600" />, label: 'Tunai', desc: 'Bayar tunai di gerai saat mengambil pesanan' },
                     { val: 'transfer', icon: <QrCode className="w-5 h-5 text-blue-600" />, label: 'QRIS', desc: 'Scan & bayar QRIS di gerai saat mengambil pesanan' },
@@ -657,8 +685,20 @@ export default function Checkout() {
                 <p className="text-xs text-stone-500 font-mono mt-0.5">Kode Order: {createdOrderCode}</p>
               </div>
               <div className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center justify-center border border-gray-100 shadow-inner">
-                <img src="/qris.png" alt="QRIS A6 Nyuss" draggable="false" className="w-48 h-48 object-contain rounded-lg border bg-white shadow-sm" />
-                <p className="text-xs font-bold text-gray-500 mt-2 uppercase tracking-wide">A6 NYUSS MARTABAK</p>
+                <img
+                  src={storeSettingsState?.qris_image_url || '/qris.png'}
+                  alt="QRIS Pembayaran Toko"
+                  draggable="false"
+                  className="w-48 h-48 object-contain rounded-lg border bg-white shadow-sm"
+                />
+                <p className="text-xs font-bold text-gray-700 mt-2 uppercase tracking-wide text-center">
+                  {storeSettingsState?.store_name || 'A6 NYUSS MARTABAK'}
+                </p>
+                {storeSettingsState?.bank_info && (
+                  <p className="text-[11px] font-semibold text-blue-700 mt-1 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">
+                    {storeSettingsState.bank_info}
+                  </p>
+                )}
               </div>
               <div className="bg-amber-50 rounded-xl p-3 border border-amber-100 text-xs text-amber-800 space-y-1">
                 <p className="font-bold flex items-center gap-1.5">

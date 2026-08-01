@@ -10,7 +10,10 @@ export async function GET(
 ): Promise<NextResponse> {
   try {
     const { code } = await params;
-    const tenantSlug = request.headers.get('x-tenant-slug') || 'a6-nyuss';
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    if (!tenantSlug) {
+      return NextResponse.json({ error: 'Request tidak valid.' }, { status: 400 });
+    }
 
     // Find tenant
     const tenantResult = await db
@@ -96,7 +99,10 @@ export async function PUT(
     const body = await request.json();
     const { paymentProofUrl, status } = body;
 
-    const tenantSlug = request.headers.get('x-tenant-slug') || 'a6-nyuss';
+    const tenantSlug = request.headers.get('x-tenant-slug');
+    if (!tenantSlug) {
+      return NextResponse.json({ error: 'Request tidak valid.' }, { status: 400 });
+    }
 
     // Find tenant
     const tenantResult = await db

@@ -37,7 +37,10 @@ export default function Home() {
     minimum_order_amount: 0,
     store_address: 'Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179\nDepan Mess DITPOLARIUD POLDA JATIM SURABAYA.',
     google_maps_url: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid',
-    opening_hours: 'Setiap Hari: 17:00 – 01:00'
+    opening_hours: 'Setiap Hari: 17:00 – 01:00',
+    qris_image_url: '/qris.png',
+    bank_info: 'BCA 123-456-7890 a/n Martabak A6 Nyuss',
+    hero_banner_url: '',
   });
   const [items, setItems] = useState<MenuItem[]>([]);
 

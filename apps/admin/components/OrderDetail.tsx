@@ -330,15 +330,23 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                 </span>
                 <span
                   className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                    order.deliveryType === 'delivery'
+                    order.deliveryType === 'dine_in'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : order.deliveryType === 'takeaway'
+                      ? 'bg-amber-100 text-amber-700'
+                      : order.deliveryType === 'delivery'
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-purple-100 text-purple-700'
                   }`}
                 >
-                  {order.deliveryType === 'delivery' ? (
-                    <><Truck className="w-3 h-3" /> Delivery</>
+                  {order.deliveryType === 'dine_in' ? (
+                    <><ShoppingBag className="w-3 h-3" /> Dine-in</>
+                  ) : order.deliveryType === 'takeaway' ? (
+                    <><ShoppingBag className="w-3 h-3" /> Takeaway</>
+                  ) : order.deliveryType === 'delivery' ? (
+                    <><Truck className="w-3 h-3" /> Delivery App</>
                   ) : (
-                    <><ShoppingBag className="w-3 h-3" /> Pickup</>
+                    <><ShoppingBag className="w-3 h-3" /> Pickup / Kasir Direct</>
                   )}
                 </span>
               </div>

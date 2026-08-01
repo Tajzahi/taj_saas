@@ -1,22 +1,43 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 
-// Helper to get tenant context from headers
+// Helper to get tenant context safely with automatic fallback
 async function getTenantContext() {
   const headersList = await headers();
-  const tenantId = headersList.get("x-tenant-id");
-  const tenantSlug = headersList.get("x-tenant-slug");
+  let tenantId = headersList.get("x-tenant-id");
+  let tenantSlug = headersList.get("x-tenant-slug");
+
   if (!tenantId) {
-    throw new Error("Tenant ID tidak ditemukan di headers.");
+    const slug = tenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG || "taj-saas";
+    const [tenant] = await db
+      .select()
+      .from(schema.tenants)
+      .where(eq(schema.tenants.slug, slug))
+      .limit(1);
+
+    if (tenant) {
+      tenantId = tenant.id;
+      tenantSlug = tenant.slug;
+    } else {
+      const [firstTenant] = await db.select().from(schema.tenants).limit(1);
+      if (firstTenant) {
+        tenantId = firstTenant.id;
+        tenantSlug = firstTenant.slug;
+      }
+    }
+  }
+
+  if (!tenantId) {
+    throw new Error("Tenant ID tidak ditemukan.");
   }
   return { tenantId, tenantSlug };
 }
 
-// Fetch all orders for current tenant
+// Fetch all orders for current tenant (Optimized single batch query)
 export async function getOrdersAction() {
   try {
     const { tenantId } = await getTenantContext();
@@ -27,45 +48,61 @@ export async function getOrdersAction() {
       .where(eq(schema.orders.tenantId, tenantId))
       .orderBy(desc(schema.orders.createdAt));
 
-    const ordersWithItems = await Promise.all(
-      dbOrders.map(async (order) => {
-        const dbItems = await db
-          .select()
-          .from(schema.orderItems)
-          .where(eq(schema.orderItems.orderId, order.id));
+    if (dbOrders.length === 0) {
+      return { success: true, orders: [] };
+    }
 
-        const items = dbItems.map((item) => ({
-          id: item.id,
-          name: item.menuItemName,
-          quantity: item.quantity,
-          price: Number(item.unitPrice),
-          variant: item.variantName || undefined,
-        }));
+    const orderIds = dbOrders.map((o) => o.id);
+    const allItems = await db
+      .select()
+      .from(schema.orderItems)
+      .where(inArray(schema.orderItems.orderId, orderIds));
 
-        return {
-          id: order.id,
-          orderCode: order.orderCode,
-          customerName: order.customerName,
-          customerPhone: order.customerPhone,
-          deliveryType: order.deliveryType as "pickup" | "delivery",
-          deliveryAddress: order.deliveryAddress,
-          deliveryDistance: null,
-          deliveryFee: Number(order.totalPrice) - Number(order.subtotal), // derived
-          subtotal: Number(order.subtotal),
-          discount: 0,
-          couponCode: null,
-          totalPrice: Number(order.totalPrice),
-          status: order.status as any,
-          paymentMethod: order.paymentMethod as "cod" | "transfer",
-          paymentStatus: order.paymentStatus as any,
-          paymentProofUrl: order.paymentProofUrl,
-          notes: order.notes,
-          cancellationReason: null, // can be extracted from audit logs if needed
-          items,
-          createdAt: order.createdAt.toISOString(),
-        };
-      })
-    );
+    // Group items by orderId in memory
+    const itemsMap = new Map<string, typeof allItems>();
+    for (const item of allItems) {
+      const existing = itemsMap.get(item.orderId) || [];
+      existing.push(item);
+      itemsMap.set(item.orderId, existing);
+    }
+
+    const ordersWithItems = dbOrders.map((order) => {
+      const dbItems = itemsMap.get(order.id) || [];
+      const items = dbItems.map((item) => ({
+        id: item.id,
+        name: item.menuItemName,
+        quantity: item.quantity,
+        price: Number(item.unitPrice),
+        variant: item.variantName || undefined,
+      }));
+
+      // Calculate delivery fee safely (only if delivery type is 'delivery' and non-negative)
+      const calculatedFee = Number(order.totalPrice) - Number(order.subtotal);
+      const deliveryFee = order.deliveryType === "delivery" ? Math.max(0, calculatedFee) : 0;
+
+      return {
+        id: order.id,
+        orderCode: order.orderCode,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        deliveryType: (order.deliveryType || "pickup") as "dine_in" | "takeaway" | "pickup" | "delivery",
+        deliveryAddress: order.deliveryAddress,
+        deliveryDistance: null,
+        deliveryFee,
+        subtotal: Number(order.subtotal),
+        discount: 0,
+        couponCode: null,
+        totalPrice: Number(order.totalPrice),
+        status: order.status as any,
+        paymentMethod: order.paymentMethod as "cod" | "transfer",
+        paymentStatus: order.paymentStatus as any,
+        paymentProofUrl: order.paymentProofUrl,
+        notes: order.notes,
+        cancellationReason: null,
+        items,
+        createdAt: order.createdAt.toISOString(),
+      };
+    });
 
     return { success: true, orders: ordersWithItems };
   } catch (err: any) {
@@ -97,47 +134,46 @@ export async function updateOrderStatusAction(
     const shouldAutoPay = newStatus === "completed" && order.paymentMethod === "cod";
     const paymentStatus = shouldAutoPay ? "paid" : order.paymentStatus;
 
-    await db.transaction(async (tx) => {
-      await tx
-        .update(schema.orders)
-        .set({
-          status: newStatus,
-          paymentStatus,
-        })
-        .where(eq(schema.orders.id, orderId));
+    // Perform sequential insertions/updates instead of db.transaction since neon-http doesn't support transaction blocks
+    await db
+      .update(schema.orders)
+      .set({
+        status: newStatus,
+        paymentStatus,
+      })
+      .where(eq(schema.orders.id, orderId));
 
-      await tx.insert(schema.auditLogs).values({
-        tenantId,
-        action: `update_status_${newStatus}`,
-        entityType: "orders",
-        entityId: orderId,
-        details: {
-          previousStatus: order.status,
-          cancellationReason: cancellationReason || null,
-        },
-      });
-
-      // If COD completed, log this transaction into the shift
-      if (shouldAutoPay) {
-        const activeShifts = await tx
-          .select()
-          .from(schema.shifts)
-          .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
-          .limit(1);
-
-        const activeShift = activeShifts[0];
-        if (activeShift) {
-          // Log inside shiftLogs
-          await tx.insert(schema.shiftLogs).values({
-            tenantId,
-            shiftId: activeShift.id,
-            action: "cash_in",
-            amount: order.totalPrice,
-            notes: `Pembayaran COD pesanan ${order.orderCode}`,
-          });
-        }
-      }
+    await db.insert(schema.auditLogs).values({
+      tenantId,
+      action: `update_status_${newStatus}`,
+      entityType: "orders",
+      entityId: orderId,
+      details: {
+        previousStatus: order.status,
+        cancellationReason: cancellationReason || null,
+      },
     });
+
+    // If COD completed, log this transaction into the shift
+    if (shouldAutoPay) {
+      const activeShifts = await db
+        .select()
+        .from(schema.shifts)
+        .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
+        .limit(1);
+
+      const activeShift = activeShifts[0];
+      if (activeShift) {
+        // Log inside shiftLogs
+        await db.insert(schema.shiftLogs).values({
+          tenantId,
+          shiftId: activeShift.id,
+          action: "cash_in",
+          amount: order.totalPrice,
+          notes: `Pembayaran COD pesanan ${order.orderCode}`,
+        });
+      }
+    }
 
     revalidatePath("/");
     return { success: true };
@@ -165,44 +201,43 @@ export async function verifyPaymentStatusAction(orderId: string, isPaid: boolean
 
     const newPaymentStatus = isPaid ? "paid" : "failed";
 
-    await db.transaction(async (tx) => {
-      await tx
-        .update(schema.orders)
-        .set({
-          paymentStatus: newPaymentStatus,
-        })
-        .where(eq(schema.orders.id, orderId));
+    // Perform sequential insertions/updates instead of db.transaction since neon-http doesn't support transaction blocks
+    await db
+      .update(schema.orders)
+      .set({
+        paymentStatus: newPaymentStatus,
+      })
+      .where(eq(schema.orders.id, orderId));
 
-      await tx.insert(schema.auditLogs).values({
-        tenantId,
-        action: `verify_payment_${newPaymentStatus}`,
-        entityType: "orders",
-        entityId: orderId,
-        details: {
-          previousPaymentStatus: order.paymentStatus,
-        },
-      });
-
-      // If payment is verified (paid), log as transfer cash-in (for shift calculations if relevant)
-      if (isPaid) {
-        const activeShifts = await tx
-          .select()
-          .from(schema.shifts)
-          .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
-          .limit(1);
-
-        const activeShift = activeShifts[0];
-        if (activeShift) {
-          await tx.insert(schema.shiftLogs).values({
-            tenantId,
-            shiftId: activeShift.id,
-            action: "cash_in",
-            amount: order.totalPrice,
-            notes: `Pembayaran QRIS pesanan ${order.orderCode} terverifikasi`,
-          });
-        }
-      }
+    await db.insert(schema.auditLogs).values({
+      tenantId,
+      action: `verify_payment_${newPaymentStatus}`,
+      entityType: "orders",
+      entityId: orderId,
+      details: {
+        previousPaymentStatus: order.paymentStatus,
+      },
     });
+
+    // If payment is verified (paid), log as transfer cash-in (for shift calculations if relevant)
+    if (isPaid) {
+      const activeShifts = await db
+        .select()
+        .from(schema.shifts)
+        .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
+        .limit(1);
+
+      const activeShift = activeShifts[0];
+      if (activeShift) {
+        await db.insert(schema.shiftLogs).values({
+          tenantId,
+          shiftId: activeShift.id,
+          action: "cash_in",
+          amount: order.totalPrice,
+          notes: `Pembayaran QRIS pesanan ${order.orderCode} terverifikasi`,
+        });
+      }
+    }
 
     revalidatePath("/");
     return { success: true };
@@ -329,24 +364,23 @@ export async function closeShiftAction(shiftId: string, actualCash: number, expe
     const { tenantId } = await getTenantContext();
     const drift = actualCash - expectedCash;
 
-    await db.transaction(async (tx) => {
-      await tx
-        .update(schema.shifts)
-        .set({
-          status: "closed",
-          closedAt: new Date(),
-          actualCash: String(actualCash),
-          drift: String(drift),
-        })
-        .where(eq(schema.shifts.id, shiftId));
+    // Perform sequential insertions/updates instead of db.transaction since neon-http doesn't support transaction blocks
+    await db
+      .update(schema.shifts)
+      .set({
+        status: "closed",
+        closedAt: new Date(),
+        actualCash: String(actualCash),
+        drift: String(drift),
+      })
+      .where(eq(schema.shifts.id, shiftId));
 
-      await tx.insert(schema.shiftLogs).values({
-        tenantId,
-        shiftId,
-        action: "close",
-        amount: String(actualCash),
-        notes: `Shift ditutup. Uang Fisik: Rp ${actualCash}, Harapan: Rp ${expectedCash}, Selisih: Rp ${drift}`,
-      });
+    await db.insert(schema.shiftLogs).values({
+      tenantId,
+      shiftId,
+      action: "close",
+      amount: String(actualCash),
+      notes: `Shift ditutup. Uang Fisik: Rp ${actualCash}, Harapan: Rp ${expectedCash}, Selisih: Rp ${drift}`,
     });
 
     revalidatePath("/");
@@ -496,15 +530,31 @@ export async function getStoreLogsAction() {
   }
 }
 
-// Toggle store open status
+// Toggle store open status (operational open/close for daily orders)
 export async function toggleStoreAction(isOpen: boolean) {
   try {
     const { tenantId } = await getTenantContext();
 
-    await db
-      .update(schema.tenants)
-      .set({ isActive: isOpen })
-      .where(eq(schema.tenants.id, tenantId));
+    const tenantResult = await db
+      .select()
+      .from(schema.tenants)
+      .where(eq(schema.tenants.id, tenantId))
+      .limit(1);
+
+    const tenant = tenantResult[0];
+    if (tenant) {
+      const currentBranding = (tenant.branding as any) || {};
+      await db
+        .update(schema.tenants)
+        .set({
+          isActive: true, // Keep SaaS subscription active
+          branding: {
+            ...currentBranding,
+            storeOpen: isOpen,
+          },
+        })
+        .where(eq(schema.tenants.id, tenantId));
+    }
 
     revalidatePath("/");
     return { success: true };
@@ -530,9 +580,10 @@ export async function getStoreSettingsAction() {
       return { success: false, error: "Tenant tidak ditemukan." };
     }
 
+    const branding = (tenant.branding as any) || {};
     return {
       success: true,
-      isOpen: tenant.isActive ?? true,
+      isOpen: branding.storeOpen ?? true,
       name: tenant.name,
       branding: tenant.branding,
     };
@@ -559,5 +610,61 @@ export async function writeAuditLogAction(action: string, details: string, order
   } catch (err: any) {
     console.error("Error in writeAuditLogAction:", err);
     return { success: false, error: err.message };
+  }
+}
+
+// Create Offline POS Order in Database
+export async function createOfflineOrderAction(data: {
+  customerName: string;
+  orderType: 'dine_in' | 'takeaway' | 'pickup' | 'delivery';
+  tableNo?: string;
+  items: { id: string; name: string; price: number; qty: number }[];
+  totalPrice: number;
+  paymentMethod: 'cod' | 'transfer';
+  paymentProofUrl?: string | null;
+  notes?: string;
+}) {
+  try {
+    const { tenantId } = await getTenantContext();
+
+    const orderCode = `OFF-${Math.floor(1000 + Math.random() * 9000)}`;
+    const subtotal = data.items.reduce((s, i) => s + i.price * i.qty, 0);
+
+    const [newOrder] = await db
+      .insert(schema.orders)
+      .values({
+        tenantId,
+        orderCode,
+        customerName: data.customerName,
+        customerPhone: data.tableNo ? `Meja ${data.tableNo}` : (data.orderType === 'dine_in' ? 'Dine-In' : data.orderType === 'takeaway' ? 'Takeaway' : data.orderType === 'delivery' ? 'Delivery' : 'Pickup'),
+        deliveryType: data.orderType,
+        subtotal: subtotal.toString(),
+        totalPrice: data.totalPrice.toString(),
+        status: 'completed', // Direct completed POS order
+        paymentMethod: data.paymentMethod === 'cod' ? 'cod' : 'transfer',
+        paymentStatus: 'paid', // Direct paid
+        paymentProofUrl: data.paymentProofUrl || null,
+        notes: data.notes || (data.orderType === 'dine_in' ? `Dine-In${data.tableNo ? ' Meja ' + data.tableNo : ''}` : data.orderType.toUpperCase()),
+      })
+      .returning();
+
+    if (newOrder && data.items.length > 0) {
+      await db.insert(schema.orderItems).values(
+        data.items.map((item) => ({
+          orderId: newOrder.id,
+          menuItemId: item.id.length === 36 ? item.id : null,
+          menuItemName: item.name,
+          quantity: item.qty,
+          unitPrice: item.price.toString(),
+          totalPrice: (item.price * item.qty).toString(),
+        }))
+      );
+    }
+
+    revalidatePath('/');
+    return { success: true, orderCode, order: newOrder };
+  } catch (error: any) {
+    console.error('Error in createOfflineOrderAction:', error);
+    return { success: false, error: error.message };
   }
 }

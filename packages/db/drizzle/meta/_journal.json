@@ -15,6 +15,20 @@
       "when": 1781265204502,
       "tag": "0001_oval_mephistopheles",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781352447559,
+      "tag": "0002_shiny_sleeper",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1782728254022,
+      "tag": "0003_rare_synch",
+      "breakpoints": true
     }
   ]
 }

@@ -34,9 +34,13 @@ export default function PrintReceipt({ order }: PrintReceiptProps) {
         </p>
         <p>
           Layanan:{' '}
-          {order.deliveryType === 'delivery'
+          {order.deliveryType === 'dine_in'
+            ? 'DINE-IN (Makan di Tempat)'
+            : order.deliveryType === 'takeaway'
+            ? 'TAKEAWAY (Bungkus)'
+            : order.deliveryType === 'delivery'
             ? 'DELIVERY (Pesan Antar)'
-            : 'PICKUP (Ambil Sendiri)'}
+            : 'PICKUP (Kasir Direct)'}
         </p>
         {order.deliveryAddress && <p>Alamat: {order.deliveryAddress}</p>}
         <div className="divider">-------------------------------</div>

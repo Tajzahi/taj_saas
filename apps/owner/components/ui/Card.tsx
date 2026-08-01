@@ -1,5 +1,3 @@
-﻿"use client";
-
 import React from "react";
 
 interface CardProps {
@@ -33,4 +31,3 @@ export function CardHeader({ title, subtitle, action }: CardHeaderProps) {
     </div>
   );
 }
-

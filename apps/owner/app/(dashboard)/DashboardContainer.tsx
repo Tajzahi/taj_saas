@@ -1,41 +1,31 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Sidebar } from "@/components/layout/Sidebar";
-import { Topbar } from "@/components/layout/Topbar";
-import type { PageId } from "@/types/nav";
-import type { Tenant } from "@taj-saas/shared";
+import React, { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import Sidebar from "@/components/layout/Sidebar";
+import Topbar from "@/components/layout/Topbar";
 
-export default function DashboardContainer({
-  children,
-  initialTenant,
-}: {
-  children: React.ReactNode;
-  initialTenant: Tenant | null;
-}) {
+export default function DashboardContainer({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isDark, setIsDark] = useState(false);
 
-  // Map pathname to PageId
-  let activePage: PageId = "cockpit";
-  if (pathname === "/cabang") activePage = "cabang";
-  else if (pathname === "/menu") activePage = "menu";
-  else if (pathname === "/persediaan") activePage = "persediaan";
-  else if (pathname === "/keuangan") activePage = "keuangan";
-  else if (pathname === "/produksi") activePage = "produksi";
-  else if (pathname === "/penjualan") activePage = "penjualan";
-  else if (pathname === "/sdm") activePage = "sdm";
-  else if (pathname === "/persetujuan") activePage = "persetujuan";
-  else if (pathname === "/ai") activePage = "ai";
-  else if (pathname === "/pengaturan") activePage = "pengaturan";
+  // Handle dark mode
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [isDark]);
 
   // Mobile: auto collapse sidebar on small screens
   useEffect(() => {
     const handler = () => {
       if (window.innerWidth < 1024) {
         setSidebarCollapsed(true);
+      } else {
+        setSidebarCollapsed(false);
       }
     };
     handler();
@@ -43,42 +33,35 @@ export default function DashboardContainer({
     return () => window.removeEventListener("resize", handler);
   }, []);
 
-  function handleNavigate(page: PageId) {
+  // Auto-collapse sidebar on mobile after navigating
+  useEffect(() => {
     if (window.innerWidth < 1024) {
       setSidebarCollapsed(true);
     }
-    if (page === "cockpit") {
-      router.push("/");
-    } else {
-      router.push(`/${page}`);
-    }
-  }
-
-  const sidebarWidth = sidebarCollapsed ? 72 : 260;
+  }, [pathname]);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--color-bg)" }}>
-      {/* Sidebar */}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
       <Sidebar
-        activePage={activePage}
-        onNavigate={handleNavigate}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
 
-      {/* Topbar */}
       <Topbar
-        activePage={activePage}
         onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
+        isDark={isDark}
+        onToggleDark={() => setIsDark(!isDark)}
         sidebarCollapsed={sidebarCollapsed}
       />
 
-      {/* Main Content */}
       <main
-        className="transition-all duration-300 pt-16 min-h-screen"
-        style={{ marginLeft: `${sidebarWidth}px` }}
+        className={`transition-all duration-300 pt-16 min-h-screen ${
+          sidebarCollapsed ? "lg:ml-16" : "lg:ml-64"
+        }`}
       >
-        <div className="p-4 md:p-6 max-w-[1600px]">{children}</div>
+        <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-[1600px] mx-auto overflow-x-hidden">
+          {children}
+        </div>
       </main>
     </div>
   );

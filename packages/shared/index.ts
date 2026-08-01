@@ -19,8 +19,10 @@ export interface ParsedTenant {
  * - owner: owner.[slug].com -> slug, 'owner'
  */
 export function parseTenantFromHostname(hostname: string): ParsedTenant {
-  // Strip port if present
-  const host = hostname.split(':')[0].toLowerCase();
+  const parts = hostname.split(':');
+  const host = parts[0].toLowerCase();
+  const port = parts[1] || '';
+  
   const isLocalhost = host.endsWith('.localhost') || host === 'localhost' || host === '127.0.0.1';
 
   let slug: string | null = null;
@@ -29,39 +31,46 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
   if (isLocalhost) {
     if (host === 'localhost' || host === '127.0.0.1') {
       // Fallback if no subdomain is specified, read environment variable if available
-      slug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'a6-nyuss';
-      appType = 'customer';
+      slug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
+      // Detect app type based on port in development
+      if (port === '3001') {
+        appType = 'admin';
+      } else if (port === '3002') {
+        appType = 'owner';
+      } else {
+        appType = 'customer';
+      }
     } else {
       // e.g. admin.a6-nyuss.localhost or a6-nyuss.localhost
-      const parts = host.split('.');
+      const subParts = host.split('.');
       // Remove 'localhost'
-      parts.pop();
+      subParts.pop();
 
-      if (parts.length === 2) {
+      if (subParts.length === 2) {
         // admin.a6-nyuss or owner.a6-nyuss
-        const sub = parts[0];
-        slug = parts[1];
+        const sub = subParts[0];
+        slug = subParts[1];
         if (sub === 'admin') appType = 'admin';
         else if (sub === 'owner') appType = 'owner';
       } else {
         // a6-nyuss
-        slug = parts[0];
+        slug = subParts[0];
         appType = 'customer';
       }
     }
   } else {
     // Production custom domains
     // e.g. admin.martabakpakde.com or martabakpakde.com
-    const parts = host.split('.');
+    const subParts = host.split('.');
     
-    if (parts.length >= 3) {
-      const sub = parts[0];
+    if (subParts.length >= 3) {
+      const sub = subParts[0];
       if (sub === 'admin') {
         appType = 'admin';
-        slug = parts.slice(1).join('.'); // e.g. martabakpakde.com
+        slug = subParts.slice(1).join('.'); // e.g. martabakpakde.com
       } else if (sub === 'owner') {
         appType = 'owner';
-        slug = parts.slice(1).join('.'); // e.g. martabakpakde.com
+        slug = subParts.slice(1).join('.'); // e.g. martabakpakde.com
       } else {
         appType = 'customer';
         slug = host; // Entire domain is the tenant identifier
@@ -70,6 +79,11 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
       appType = 'customer';
       slug = host; // Entire domain
     }
+  }
+
+  // Ensure slug uses our new default if it resolved to the old a6-nyuss
+  if (slug === 'a6-nyuss') {
+    slug = 'taj-saas';
   }
 
   return { slug, appType, isLocalhost };

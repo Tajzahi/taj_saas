@@ -453,7 +453,7 @@ export async function seedTemplate(tenantId: string) {
 }
 
 async function run() {
-  const defaultSlug = 'a6-nyuss';
+  const defaultSlug = 'taj-saas';
   
   let tenant = await db.select().from(tenants).where(eq(tenants.slug, defaultSlug)).limit(1);
   let tenantId: string;
@@ -461,15 +461,15 @@ async function run() {
   if (tenant.length === 0) {
     console.log('Default tenant not found, creating one...');
     const inserted = await db.insert(tenants).values({
-      name: 'Martabak Terbul A6 Nyuss',
+      name: 'Taj SaaS F&B',
       slug: defaultSlug,
-      domain: 'a6nyuss.com',
-      adminSubdomain: 'admin.a6nyuss.com',
-      ownerSubdomain: 'owner.a6nyuss.com',
+      domain: 'taj-saas.com',
+      adminSubdomain: 'admin.taj-saas.com',
+      ownerSubdomain: 'owner.taj-saas.com',
       branding: {
         primaryColor: '#8E0E0E',
         secondaryColor: '#E05009',
-        businessName: 'Martabak Terbul A6 Nyuss',
+        businessName: 'Taj SaaS F&B',
         whatsappNumber: '6287811123482',
         flatDeliveryFee: 10000,
         minimumOrderAmount: 0,

@@ -1,5 +1,3 @@
-﻿"use client";
-
 import React from "react";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline";
@@ -45,4 +43,3 @@ export function Button({ variant = "secondary", size = "md", children, loading, 
     </button>
   );
 }
-

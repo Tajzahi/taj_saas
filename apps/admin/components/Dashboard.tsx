@@ -3,7 +3,8 @@ import { useAdminStore } from '../store/adminStore';
 import OrderQueue from './OrderQueue';
 import OrderDetail from './OrderDetail';
 import StoreToggleModal from './StoreToggleModal';
-import { LogOut, Store, StoreIcon, Volume2, VolumeX, Bell, ChevronLeft, ChefHat, X, RefreshCw, Clock, AlertTriangle, User, ClipboardList, Utensils } from 'lucide-react';
+import POSOfflineModal from './POSOfflineModal';
+import { LogOut, Store, StoreIcon, Volume2, VolumeX, Bell, ChevronLeft, ChefHat, X, RefreshCw, Clock, AlertTriangle, User, ClipboardList, Utensils, ShoppingCart } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { formatRupiah } from '../utils/format';
 
@@ -42,6 +43,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isStoreModalOpen, setIsStoreModalOpen] = useState(false);
+  const [isPOSOfflineOpen, setIsPOSOfflineOpen] = useState(false);
   const [cashInput, setCashInput] = useState('');
   const [currentTime, setCurrentTime] = useState('');
   const [startingCashInput, setStartingCashInput] = useState('200000'); // default modal awal wajar
@@ -247,7 +249,16 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
             </button>
           )}
 
-          {/* Stok Menu Button */}
+          {/* POS Offline Button (Non-Mobile Mode: Only Cart Icon in Header) */}
+          {activeShift && (
+            <button
+              onClick={() => setIsPOSOfflineOpen(true)}
+              className="hidden sm:flex items-center justify-center p-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all shadow-md shrink-0 border border-white/20 cursor-pointer"
+              title="Buka Mode Kasir POS Offline"
+            >
+              <ShoppingCart className="w-4 h-4 text-white" />
+            </button>
+          )}
           <button
             onClick={() => {
               fetchMenuItems();
@@ -424,11 +435,20 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
           <span>Pesanan Hari Ini: <strong className="text-gray-700">{todayOrders.length}</strong></span>
           <span>Menunggu Verifikasi: <strong className="text-amber-600">{todayOrders.filter(o => o.paymentStatus === 'waiting_verification').length}</strong></span>
           <span>© 2026 Martabak Terbul A6 Nyuss</span>
+          {activeShift && (
+            <button
+              onClick={() => setIsPOSOfflineOpen(true)}
+              className="p-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 active:scale-95 text-white transition-all shadow-sm shrink-0 border border-white/20 cursor-pointer ml-1"
+              title="Buka Mode Kasir POS Offline (Direct Order)"
+            >
+              <ShoppingCart className="w-3.5 h-3.5 text-white" />
+            </button>
+          )}
         </div>
       </div>
 
       {/* Footer Quick Stats — Mobile Only */}
-      <div className="md:hidden flex items-center justify-around px-3 py-2 border-t border-gray-200 bg-white text-xs shrink-0">
+      <div className="md:hidden flex items-center justify-around px-2 py-1.5 border-t border-gray-200 bg-white text-xs shrink-0">
         <div className="flex flex-col items-center gap-0.5">
           <span className={`h-2.5 w-2.5 rounded-full ${isStoreOpen ? 'bg-green-500 animate-pulse' : 'bg-red-500'} mb-0.5`}></span>
           <span className={`font-bold text-[10px] ${isStoreOpen ? 'text-green-600' : 'text-red-600'}`}>
@@ -465,6 +485,18 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
           <span className="font-black text-base text-gray-800">{todayOrders.length}</span>
           <span className="text-gray-400 font-medium">Total</span>
         </div>
+        {activeShift && (
+          <>
+            <div className="w-px h-8 bg-gray-200" />
+            <button
+              onClick={() => setIsPOSOfflineOpen(true)}
+              className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-r from-orange-500 to-rose-600 text-white shadow-md active:scale-95 transition-all shrink-0 cursor-pointer"
+              title="Buka Mode Kasir POS Offline"
+            >
+              <ShoppingCart className="w-4 h-4 text-white" />
+            </button>
+          </>
+        )}
       </div>
 
       {/* Menu Items Stock Modal */}
@@ -885,6 +917,14 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
           </button>
         </div>
       </div>
+    )}
+
+    {/* Mode Kasir Offline Modal */}
+    {isPOSOfflineOpen && (
+      <POSOfflineModal
+        onClose={() => setIsPOSOfflineOpen(false)}
+        username={username}
+      />
     )}
     </>
   );

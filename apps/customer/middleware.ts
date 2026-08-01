@@ -10,6 +10,12 @@ export async function middleware(request: NextRequest) {
   }
 
   if ('error' in result) {
+    if (result.status === 404) {
+      const ownerRegisterUrl = new URL(request.url);
+      ownerRegisterUrl.port = '3002';
+      ownerRegisterUrl.pathname = '/register';
+      return NextResponse.redirect(ownerRegisterUrl);
+    }
     return new NextResponse(result.error, { status: result.status });
   }
 

@@ -1,5 +1,3 @@
-﻿"use client";
-
 import React from "react";
 
 type BadgeVariant = "default" | "success" | "warning" | "danger" | "info" | "neutral" | "brand";
@@ -29,4 +27,3 @@ export function Badge({ variant = "default", children, className = "", size = "s
     </span>
   );
 }
-

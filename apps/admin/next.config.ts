@@ -18,13 +18,12 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
-  org: "taj-saas",
-  project: "taj-saas-admin",
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  reactComponentAnnotation: { enabled: true },
-  tunnelRoute: "/monitoring",
-  disableLogger: true,
-  automaticVercelMonitors: true,
-});
+export default process.env.NODE_ENV === "production"
+  ? withSentryConfig(nextConfig, {
+      org: "taj-saas",
+      project: "taj-saas-admin",
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      tunnelRoute: "/monitoring",
+    })
+  : nextConfig;

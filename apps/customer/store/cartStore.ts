@@ -122,7 +122,7 @@ export interface Order {
   items: CartItem[];
   customerName: string;
   customerPhone: string;
-  orderType: 'pickup' | 'delivery';
+  orderType: 'dine_in' | 'takeaway' | 'delivery';
   deliveryAddress?: string;
   addressNote?: string;
   generalNote: string;

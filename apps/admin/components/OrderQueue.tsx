@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { AdminOrder, useAdminStore } from '../store/adminStore';
 import OrderCard from './OrderCard';
-import { Search, ClipboardList } from 'lucide-react';
+import { Search, ClipboardList, X } from 'lucide-react';
 
 type TabStatus = 'received' | 'processing' | 'ready' | 'completed' | 'cancelled';
 
@@ -42,12 +42,17 @@ export default function OrderQueue({ onOrderSelect }: OrderQueueProps) {
   const todayStr = new Date().toDateString();
   const todayOrders = orders.filter((o) => new Date(o.createdAt).toDateString() === todayStr);
 
+  const isSearching = searchQuery.trim() !== '';
+
   const filtered = todayOrders.filter((o) => {
-    const matchTab = o.status === activeTab;
+    const matchTab = isSearching ? true : o.status === activeTab;
+    const query = searchQuery.toLowerCase().trim();
     const matchSearch =
-      searchQuery === '' ||
-      o.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      o.orderCode.toLowerCase().includes(searchQuery.toLowerCase());
+      query === '' ||
+      o.customerName.toLowerCase().includes(query) ||
+      o.orderCode.toLowerCase().includes(query) ||
+      (o.notes && o.notes.toLowerCase().includes(query)) ||
+      o.items.some(item => item.name.toLowerCase().includes(query));
     return matchTab && matchSearch;
   });
 
@@ -84,9 +89,18 @@ export default function OrderQueue({ onOrderSelect }: OrderQueueProps) {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Cari pesanan..."
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-400 bg-gray-50/50"
+            placeholder="Cari pesanan / nama / nota..."
+            className="w-full pl-8 pr-7 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 bg-gray-50/80 text-gray-900 placeholder:text-gray-400"
           />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors"
+              title="Hapus pencarian"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -100,7 +114,7 @@ export default function OrderQueue({ onOrderSelect }: OrderQueueProps) {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-bold border-b-2 whitespace-nowrap transition-all flex-1 justify-center ${
-                isActive
+                isActive && !isSearching
                   ? `${tabActiveStyle[tab.color]} border-current`
                   : 'text-gray-500 border-transparent hover:text-gray-700 hover:bg-gray-50'
               }`}
@@ -109,7 +123,7 @@ export default function OrderQueue({ onOrderSelect }: OrderQueueProps) {
               {count > 0 && (
                 <span
                   className={`inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-xs font-black ${
-                    isActive ? badgeStyle[tab.color] : 'bg-gray-200 text-gray-700'
+                    isActive && !isSearching ? badgeStyle[tab.color] : 'bg-gray-200 text-gray-700'
                   } ${
                     tab.key === 'received' && count > 0 && !isActive
                       ? '!bg-red-500 !text-white animate-bounce'
@@ -124,13 +138,23 @@ export default function OrderQueue({ onOrderSelect }: OrderQueueProps) {
         })}
       </div>
 
+      {/* Search Notice Banner */}
+      {isSearching && (
+        <div className="bg-orange-50 text-orange-800 text-[11px] px-3 py-1.5 border-b border-orange-100 flex items-center justify-between font-medium">
+          <span>Mencari di semua tab status untuk: &quot;{searchQuery}&quot;</span>
+          <button onClick={() => setSearchQuery('')} className="underline text-orange-600 font-bold ml-2">Reset</button>
+        </div>
+      )}
+
       {/* Order List */}
       <div className="flex-1 overflow-y-auto p-3 space-y-2">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-gray-400">
             <ClipboardList className="w-10 h-10 text-gray-300 mb-2" />
-            <p className="text-sm font-medium">Tidak ada pesanan</p>
-            <p className="text-xs">di antrean ini</p>
+            <p className="text-sm font-medium text-gray-600">Tidak ada pesanan ditemukan</p>
+            <p className="text-xs text-gray-400">
+              {isSearching ? `Tidak ada pesanan dengan nama / nota "${searchQuery}"` : 'di antrean ini'}
+            </p>
           </div>
         ) : (
           filtered.map((order) => (

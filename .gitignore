@@ -30,3 +30,10 @@ pnpm-debug.log*
 # System files
 .DS_Store
 Thumbs.db
+
+# Test & Debug Artifacts
+login-failure.png
+check_login.js
+*.tsbuildinfo
+test-results/
+playwright-report/

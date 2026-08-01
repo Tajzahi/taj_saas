@@ -6,43 +6,8 @@
 
 import { NextResponse } from 'next/server';
 
-// ─────────────────────────────────────────────────────────
-// KONFIGURASI PROMO — Hanya bisa diakses dari server.
-// Untuk keamanan lebih lanjut, pindahkan ke tabel database
-// `promo_codes` agar bisa dikelola dari admin panel.
-// ─────────────────────────────────────────────────────────
-interface PromoConfig {
-  type: 'percent' | 'fixed';
-  value: number;             // Persentase (0–100) atau nominal Rupiah
-  minOrder: number;          // Minimum subtotal untuk berlaku
-  targetCategory: 'terang-bulan' | 'all'; // Kategori yang mendapat diskon
-  description: string;
-}
-
-const PROMO_CODES: Record<string, PromoConfig> = {
-  ANNIV25: {
-    type: 'percent',
-    value: 25,
-    minOrder: 50000,
-    targetCategory: 'terang-bulan',
-    description: 'Diskon 25% untuk semua Terang Bulan (min. Rp 50.000)',
-  },
-  WEBAPPNEW: {
-    type: 'fixed',
-    value: 5000,
-    minOrder: 40000,
-    targetCategory: 'all',
-    description: 'Potongan Rp 5.000 (gratis Es Teh) (min. Rp 40.000)',
-  },
-  SATURDAY15: {
-    type: 'percent',
-    value: 15,
-    minOrder: 0,
-    targetCategory: 'terang-bulan',
-    description: 'Diskon 15% untuk semua Terang Bulan',
-  },
-};
-// ─────────────────────────────────────────────────────────
+import { db, schema } from '@taj-saas/db';
+import { eq, and } from 'drizzle-orm';
 
 export interface ValidatePromoRequest {
   code: string;
@@ -79,7 +44,26 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     const cleanCode = code.trim().toUpperCase().slice(0, 30); // max 30 chars
-    const promo = PROMO_CODES[cleanCode];
+    
+    // Get tenant
+    const tenantSlug = request.headers.get('x-tenant-slug') || 'taj-saas';
+    const tenantResult = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, tenantSlug)).limit(1);
+    const tenant = tenantResult[0];
+
+    if (!tenant) {
+      return NextResponse.json({ valid: false, message: 'Tenant tidak valid.', discountAmount: 0, promoCode: '' }, { status: 400 });
+    }
+
+    // Get promo from DB
+    const promoResult = await db.select().from(schema.promos).where(
+      and(
+        eq(schema.promos.tenantId, tenant.id),
+        eq(schema.promos.code, cleanCode),
+        eq(schema.promos.isActive, true)
+      )
+    ).limit(1);
+    
+    const promo = promoResult[0];
 
     if (!promo) {
       return NextResponse.json<ValidatePromoResponse>({
@@ -91,10 +75,11 @@ export async function POST(request: Request): Promise<NextResponse> {
     }
 
     // ── Minimum order check ──
-    if (subtotal < promo.minOrder) {
+    const minOrderVal = Number(promo.minOrder);
+    if (subtotal < minOrderVal) {
       return NextResponse.json<ValidatePromoResponse>({
         valid: false,
-        message: `Minimum pembelian untuk promo ini adalah Rp ${promo.minOrder.toLocaleString('id-ID')}.`,
+        message: `Minimum pembelian untuk promo ini adalah Rp ${minOrderVal.toLocaleString('id-ID')}.`,
         discountAmount: 0,
         promoCode: cleanCode,
       });
@@ -102,13 +87,14 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     // ── Calculate discount amount ──
     let discountAmount = 0;
+    const promoValue = Number(promo.value);
 
     if (promo.targetCategory === 'all') {
       // Diskon berlaku untuk semua item
       if (promo.type === 'fixed') {
-        discountAmount = promo.value;
+        discountAmount = promoValue;
       } else {
-        discountAmount = Math.round(subtotal * (promo.value / 100));
+        discountAmount = Math.round(subtotal * (promoValue / 100));
       }
     } else {
       // Diskon hanya untuk kategori tertentu (misal: terang-bulan)
@@ -121,9 +107,9 @@ export async function POST(request: Request): Promise<NextResponse> {
         .reduce((sum, item) => sum + item.totalPrice, 0);
 
       if (promo.type === 'fixed') {
-        discountAmount = Math.min(promo.value, categoryTotal);
+        discountAmount = Math.min(promoValue, categoryTotal);
       } else {
-        discountAmount = Math.round(categoryTotal * (promo.value / 100));
+        discountAmount = Math.round(categoryTotal * (promoValue / 100));
       }
     }
 
@@ -132,7 +118,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       message: `Promo ${cleanCode} berhasil diterapkan!`,
       discountAmount,
       promoCode: cleanCode,
-      description: promo.description,
+      description: `Diskon ${promo.type === 'percent' ? promoValue + '%' : 'Rp ' + promoValue}`,
     });
   } catch {
     return NextResponse.json<ValidatePromoResponse>(

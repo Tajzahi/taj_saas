@@ -1,24 +1,22 @@
 import type { Metadata } from "next";
+import ToastProvider from "@/components/ToastProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Taj SaaS — Owner Dashboard",
-  description: "Dashboard pemilik restoran — analitik, manajemen cabang, menu, keuangan, dan operasional.",
+  title: "Owner Dashboard - A6 Nyuss",
+  description: "Dashboard analitik dan manajemen operasional untuk pemilik gerai F&B A6 Nyuss.",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html lang="id" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-      </head>
-      <body className="antialiased">
+    <html lang="id">
+      <body className="antialiased min-h-screen min-w-[320px]">
         {children}
+        <ToastProvider />
       </body>
     </html>
   );

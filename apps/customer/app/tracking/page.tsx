@@ -150,15 +150,15 @@ export default function Tracking() {
     const itemsSummary = ord.items
       .map((i) => `- ${i.menuItem.name} x${i.quantity} = ${formatPrice(i.totalPrice)}`)
       .join('%0A');
-    const paymentLabel = ord.orderType === 'pickup'
-      ? (ord.paymentMethod === 'cod' ? 'Tunai' : 'QRIS')
-      : (ord.paymentMethod === 'cod' ? 'Tunai COD' : 'QRIS');
+    const paymentLabel = ord.orderType === 'delivery'
+      ? (ord.paymentMethod === 'cod' ? 'Tunai COD' : 'QRIS')
+      : (ord.paymentMethod === 'cod' ? 'Tunai' : 'QRIS');
     const msg =
       `Halo A6 Nyuss! Saya sudah melakukan pemesanan online%0A%0A` +
       `*Kode Order: ${ord.orderCode}*%0A%0A` +
       `*Detail Pesanan:*%0A${itemsSummary}%0A%0A` +
       `*Total: ${formatPrice(ord.total)}*%0A` +
-      `*Tipe: ${ord.orderType === 'pickup' ? 'Pickup' : 'Delivery'}*%0A` +
+      `*Tipe: ${ord.orderType === 'dine_in' ? 'Dine-in' : ord.orderType === 'takeaway' ? 'Takeaway' : 'Delivery'}*%0A` +
       `*Pembayaran: ${paymentLabel}*%0A%0A` +
       `Mohon dikonfirmasi ya! Terima kasih`;
     return `https://wa.me/6287811123482?text=${msg}`;
@@ -581,9 +581,9 @@ export default function Tracking() {
               </div>
               <p className={`text-sm ${colorMap[currentStatus.color as keyof typeof colorMap].text}`}>
                 {order.status === 'ready'
-                  ? order.orderType === 'pickup'
-                    ? 'Pesanan siap diambil! Silakan datang ke toko kami.'
-                    : 'Pesanan sedang dalam perjalanan ke alamat Anda!'
+                  ? (order.orderType === 'delivery'
+                    ? 'Pesanan sedang dalam perjalanan ke alamat Anda!'
+                    : 'Pesanan Anda sudah siap!')
                   : currentStatus.desc}
               </p>
             </div>
@@ -597,15 +597,15 @@ export default function Tracking() {
                   <Banknote className="w-6 h-6 text-[#E05009] flex-shrink-0" />
                   <div>
                     <p className="text-sm font-bold text-gray-900">
-                      {order.orderType === 'pickup' ? 'Bayar Tunai di Gerai' : 'Bayar di Tempat (Tunai COD)'}
+                      {order.orderType === 'delivery' ? 'Bayar di Tempat (Tunai COD)' : 'Bayar Tunai di Gerai'}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      {order.orderType === 'pickup'
-                        ? 'Selesaikan pembayaran tunai saat mengambil pesanan.'
-                        : 'Selesaikan pembayaran tunai ke kurir saat menerima pesanan.'}
+                      {order.orderType === 'delivery'
+                        ? 'Selesaikan pembayaran tunai ke kurir saat menerima pesanan.'
+                        : 'Selesaikan pembayaran tunai saat mengambil pesanan.'}
                     </p>
                     <span className="inline-block bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full mt-2 uppercase">
-                      {order.orderType === 'pickup' ? 'Tunai • Pending' : 'Tunai COD • Pending'}
+                      {order.orderType === 'delivery' ? 'Tunai COD • Pending' : 'Tunai • Pending'}
                     </span>
                   </div>
                 </div>
@@ -759,8 +759,8 @@ export default function Tracking() {
               </div>
             )}
 
-            {/* Pickup Info */}
-            {order.status === 'ready' && order.orderType === 'pickup' && (
+            {/* Takeaway Info */}
+            {order.status === 'ready' && order.orderType === 'takeaway' && (
               <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-5">
                 <h3 className="font-bold text-green-800 mb-2 flex items-center gap-2">
                   <MapPin className="w-4 h-4" /> Lokasi Pengambilan
@@ -794,15 +794,15 @@ export default function Tracking() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Tipe</span>
-                  <span className="font-medium flex items-center gap-1.5">{order.orderType === 'pickup' ? <ShoppingBag className="w-3.5 h-3.5" /> : <Truck className="w-3.5 h-3.5" />} {order.orderType === 'pickup' ? 'Pickup' : 'Delivery'}</span>
+                  <span className="font-medium flex items-center gap-1.5">{order.orderType === 'delivery' ? <Truck className="w-3.5 h-3.5" /> : <ShoppingBag className="w-3.5 h-3.5" />} {order.orderType === 'dine_in' ? 'Dine-in' : order.orderType === 'takeaway' ? 'Takeaway' : 'Delivery'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Metode Pembayaran</span>
                   <span className="font-medium uppercase flex items-center justify-end gap-1.5">
                     {order.paymentMethod === 'cod' ? <Banknote className="w-3.5 h-3.5" /> : <QrCode className="w-3.5 h-3.5" />}
-                    {order.orderType === 'pickup'
-                      ? (order.paymentMethod === 'cod' ? 'Tunai' : 'QRIS')
-                      : (order.paymentMethod === 'cod' ? 'Tunai COD' : 'QRIS')}
+                    {order.orderType === 'delivery'
+                      ? (order.paymentMethod === 'cod' ? 'Tunai COD' : 'QRIS')
+                      : (order.paymentMethod === 'cod' ? 'Tunai' : 'QRIS')}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -830,13 +830,13 @@ export default function Tracking() {
             {order.status !== 'cancelled' && order.status !== 'completed' && (
               <div className="bg-white rounded-2xl p-5 shadow-sm mb-5 text-center">
                 <p className="text-xs text-gray-500 mb-3 leading-relaxed">
-                  Pesanan hanya dapat dibatalkan sebelum masuk ke tahap siap diambil atau diantar.
+                  Pesanan hanya dapat dibatalkan sebelum masuk ke tahap diproses oleh dapur/kasir.
                 </p>
                 <button
                   onClick={handleCancelOrder}
-                  disabled={cancelling || order.status === 'ready'}
+                  disabled={cancelling || order.status !== 'received'}
                   className={`w-full py-3 rounded-xl font-bold text-sm transition-all ${
-                    order.status === 'ready'
+                    order.status !== 'received'
                       ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
                       : 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 cursor-pointer'
                   }`}
@@ -846,6 +846,8 @@ export default function Tracking() {
                       <div className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
                       Membatalkan...
                     </div>
+                  ) : order.status !== 'received' ? (
+                    'Pesanan Sedang Diproses (Tidak Dapat Dibatalkan)'
                   ) : (
                     'Batalkan Pesanan'
                   )}
@@ -1047,7 +1049,7 @@ export default function Tracking() {
                     <div>
                       <p className="text-xs font-bold">Estimasi Waktu Proses</p>
                       <p className="text-xs mt-0.5">
-                        ~{ord.estimatedTime} menit ({ord.orderType === 'pickup' ? 'Siap Diambil' : 'Sampai Alamat'})
+                        ~{ord.estimatedTime} menit ({ord.orderType === 'delivery' ? 'Sampai Alamat' : 'Siap'})
                       </p>
                     </div>
                   </div>
@@ -1092,9 +1094,9 @@ export default function Tracking() {
                   <div className="flex justify-between text-xs font-semibold text-gray-600 bg-stone-50 border p-3 rounded-xl">
                     <span>Metode Pembayaran:</span>
                     <span className="uppercase text-gray-850">
-                      {ord.orderType === 'pickup'
-                        ? (ord.paymentMethod === 'cod' ? 'Tunai' : 'QRIS')
-                        : (ord.paymentMethod === 'cod' ? 'Tunai COD (Bayar di Tempat)' : 'QRIS')}
+                      {ord.orderType === 'delivery'
+                        ? (ord.paymentMethod === 'cod' ? 'Tunai COD (Bayar di Tempat)' : 'QRIS')
+                        : (ord.paymentMethod === 'cod' ? 'Tunai' : 'QRIS')}
                     </span>
                   </div>
                 </div>

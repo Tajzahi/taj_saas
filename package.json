@@ -8,6 +8,11 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
+    "@typescript-eslint/eslint-plugin": "^8.62.0",
+    "@typescript-eslint/parser": "^8.62.0",
+    "eslint": "^10.6.0",
+    "eslint-config-next": "^16.2.9",
     "turbo": "latest"
   },
   "engines": {
@@ -17,10 +22,10 @@
   "dependencies": {
     "@better-auth/infra": "^0.2.14",
     "@neondatabase/serverless": "^1.1.0",
-    "better-auth": "^1.6.16",
-    "drizzle-orm": "^0.45.2",
     "@taj-saas/db": "workspace:*",
     "@taj-saas/shared": "workspace:*",
-    "@taj-saas/ui": "workspace:*"
+    "@taj-saas/ui": "workspace:*",
+    "better-auth": "^1.6.16",
+    "drizzle-orm": "^0.45.2"
   }
 }

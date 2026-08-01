@@ -11,6 +11,7 @@ export const user = pgTable("user", {
   email: varchar("email", { length: 255 }).notNull().unique(),
   emailVerified: boolean("email_verified").default(false).notNull(),
   image: text("image"),
+  role: varchar("role", { length: 50 }).default("kasir"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at")
     .defaultNow()
@@ -106,10 +107,11 @@ export const tenants = pgTable('tenants', {
 });
 
 export const profiles = pgTable('profiles', {
-  id: uuid('id').primaryKey(), // matches auth user id (user.id)
+  id: varchar('id', { length: 36 }).primaryKey(), // matches auth user id (user.id)
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
   email: text('email').notNull(),
   role: text('role').notNull().default('kasir'), // owner | manager | kasir
+  salary: numeric('salary', { precision: 12, scale: 2 }).default('0'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index("profiles_tenantId_idx").on(table.tenantId)
@@ -123,6 +125,9 @@ export const branches = pgTable('branches', {
   address: text('address'),
   phone: text('phone'),
   picName: text('pic_name'),
+  googleMapsUrl: text('google_maps_url'),
+  orderingMethods: jsonb('ordering_methods').$type<string[]>(),
+  paymentMethods: jsonb('payment_methods').$type<string[]>(),
   status: text('status').default('active').notNull(), // active | maintenance
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -317,6 +322,54 @@ export const auditLogs = pgTable('audit_logs', {
 ]);
 
 // ==========================================
+// 2.5 Additional Tables (Promos, Files)
+// ==========================================
+
+export const promos = pgTable('promos', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  code: text('code').notNull(),
+  type: text('type').notNull(), // 'percent' | 'fixed'
+  value: numeric('value', { precision: 10, scale: 2 }).notNull(),
+  minOrder: numeric('min_order', { precision: 10, scale: 2 }).default('0').notNull(),
+  targetCategory: text('target_category').default('all').notNull(), // Category slug or 'all'
+  isActive: boolean('is_active').default(true).notNull(),
+  expiresAt: timestamp('expires_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index("promos_tenantId_idx").on(table.tenantId),
+  index("promos_code_idx").on(table.code)
+]);
+
+export const files = pgTable('files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  fileName: text('file_name').notNull(),
+  fileType: text('file_type').notNull(),
+  content: text('content').notNull(), // base64 string
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index("files_tenantId_idx").on(table.tenantId)
+]);
+
+export const approvals = pgTable('approvals', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
+  type: text('type').notNull(), // purchase_order | discount | refund
+  title: text('title').notNull(),
+  requestedBy: text('requested_by').notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).default('0').notNull(),
+  priority: text('priority').notNull(), // low | medium | high | critical
+  status: text('status').notNull().default('pending'), // pending | approved | rejected
+  requestedAt: timestamp('requested_at').defaultNow().notNull(),
+  notes: text('notes'),
+}, (table) => [
+  index("approvals_tenantId_idx").on(table.tenantId),
+  index("approvals_branchId_idx").on(table.branchId)
+]);
+
+// ==========================================
 // 3. Relationships Definitions
 // ==========================================
 
@@ -353,6 +406,7 @@ export const tenantsRelations = relations(tenants, ({ many }) => ({
   auditLogs: many(auditLogs),
   inventory: many(inventory),
   inventoryTransactions: many(inventoryTransactions),
+  approvals: many(approvals),
 }));
 
 export const profilesRelations = relations(profiles, ({ one }) => ({
@@ -507,6 +561,17 @@ export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
   }),
 }));
 
+export const approvalsRelations = relations(approvals, ({ one }) => ({
+  tenant: one(tenants, {
+    fields: [approvals.tenantId],
+    references: [tenants.id],
+  }),
+  branch: one(branches, {
+    fields: [approvals.branchId],
+    references: [branches.id],
+  }),
+}));
+
 export type Tenant = typeof tenants.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
 export type Branch = typeof branches.$inferSelect;
@@ -523,3 +588,6 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type Shift = typeof shifts.$inferSelect;
 export type ShiftLog = typeof shiftLogs.$inferSelect;
 export type AuditLog = typeof auditLogs.$inferSelect;
+export type Promo = typeof promos.$inferSelect;
+export type FileRecord = typeof files.$inferSelect;
+export type Approval = typeof approvals.$inferSelect;

@@ -1,30 +1,35 @@
-export function formatRupiah(value: number, short = false): string {
+export function formatRupiah(value?: number, short = false): string {
+  const num = Number(value || 0);
   if (short) {
-    if (value >= 1_000_000_000) return `Rp ${(value / 1_000_000_000).toFixed(1)}M`;
-    if (value >= 1_000_000) return `Rp ${(value / 1_000_000).toFixed(1)}jt`;
-    if (value >= 1_000) return `Rp ${(value / 1_000).toFixed(0)}rb`;
-    return `Rp ${value}`;
+    if (num >= 1_000_000_000) return `Rp ${(num / 1_000_000_000).toFixed(1)}M`;
+    if (num >= 1_000_000) return `Rp ${(num / 1_000_000).toFixed(1)}jt`;
+    if (num >= 1_000) return `Rp ${(num / 1_000).toFixed(0)}rb`;
+    return `Rp ${num}`;
   }
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
     currency: "IDR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(num);
 }
 
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat("id-ID").format(value);
+export function formatNumber(value?: number): string {
+  const num = Number(value || 0);
+  return new Intl.NumberFormat("id-ID").format(num);
 }
 
-export function formatPercent(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`;
+export function formatPercent(value?: number, decimals = 1): string {
+  if (value === undefined || value === null || Number.isNaN(Number(value))) return `0%`;
+  return `${Number(value).toFixed(decimals)}%`;
 }
 
-export function formatChange(value: number, isPercent = true): string {
-  const sign = value >= 0 ? "+" : "";
-  if (isPercent) return `${sign}${value.toFixed(1)}%`;
-  return `${sign}${value.toFixed(1)}`;
+export function formatChange(value?: number, isPercent = true): string {
+  if (value === undefined || value === null || Number.isNaN(Number(value))) return isPercent ? `+0.0%` : `+0.0`;
+  const num = Number(value);
+  const sign = num >= 0 ? "+" : "";
+  if (isPercent) return `${sign}${num.toFixed(1)}%`;
+  return `${sign}${num.toFixed(1)}`;
 }
 
 export function clamp(val: number, min: number, max: number): number {

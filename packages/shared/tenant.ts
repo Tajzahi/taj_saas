@@ -107,10 +107,10 @@ export async function resolveTenantMiddleware(
   } catch (err) {
     console.error('Database connection error in middleware:', err);
     // If DB is down, we still pass through using slug in development, or return a 500 error in production
-    if (slug === 'a6-nyuss' || isLocalhost) {
+    if (slug === 'taj-saas' || isLocalhost) {
       const requestHeaders = new Headers(request.headers);
-      requestHeaders.set('x-tenant-id', 'bdb09bd7-8c55-4bbb-8318-0c046517da4f'); // default seeded id
-      requestHeaders.set('x-tenant-slug', 'a6-nyuss');
+      requestHeaders.set('x-tenant-id', process.env.NEXT_PUBLIC_TENANT_ID || '');
+      requestHeaders.set('x-tenant-slug', 'taj-saas');
       return {
         tenant: null,
         headers: requestHeaders,

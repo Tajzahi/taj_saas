@@ -4,7 +4,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingButtons from "@/components/FloatingButtons";
 import ChatBot from "@/components/ChatBot";
-import { Toaster } from "react-hot-toast";
+import ToastProvider from "@/components/ToastProvider";
 
 export const metadata: Metadata = {
   title: "A6 Nyuss - Martabak & Terang Bulan",
@@ -24,14 +24,8 @@ export default function RootLayout({
       lang="id"
       className="h-full antialiased"
     >
-      <body className="min-h-full flex flex-col bg-[#fffdf9] text-[#1c1917] dark:bg-stone-950 dark:text-stone-100">
-        <Toaster
-          position="top-center"
-          toastOptions={{
-            duration: 3000,
-            style: { fontFamily: 'var(--font-poppins), sans-serif', fontSize: '14px' },
-          }}
-        />
+      <body className="min-h-full flex flex-col bg-[#fffdf9] text-[#1c1917] dark:bg-stone-950 dark:text-stone-100 min-w-[320px]">
+        <ToastProvider />
         <Header />
         <main className="flex-1">
           {children}
