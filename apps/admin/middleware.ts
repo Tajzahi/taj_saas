@@ -11,11 +11,14 @@ export async function middleware(request: NextRequest) {
 
   if ('error' in result) {
     if (result.status === 404) {
-      // Redirect to owner register page on port 3002
-      const ownerRegisterUrl = new URL(request.url);
-      ownerRegisterUrl.port = '3002';
-      ownerRegisterUrl.pathname = '/register';
-      return NextResponse.redirect(ownerRegisterUrl);
+      const isLocalhost = request.nextUrl.hostname.includes('localhost') || request.nextUrl.hostname.includes('127.0.0.1');
+      if (isLocalhost) {
+        const ownerRegisterUrl = new URL(request.url);
+        ownerRegisterUrl.port = '3002';
+        ownerRegisterUrl.pathname = '/register';
+        return NextResponse.redirect(ownerRegisterUrl);
+      }
+      return NextResponse.redirect(new URL('https://tajsaas.netlify.app/register'));
     }
     return new NextResponse(result.error, { status: result.status });
   }
