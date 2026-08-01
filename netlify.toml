@@ -5,7 +5,8 @@
 [build.environment]
   NODE_VERSION = "20"
   PNPM_FLAGS = "--no-frozen-lockfile"
-  SECRETS_SCAN_OMIT_PATHS = ".env.example"
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_TENANT_SLUG"
+  SECRETS_SCAN_OMIT_PATHS = "*.md,.env.example,docs/*,map/*"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"

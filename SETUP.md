@@ -31,7 +31,7 @@ cp .env.example .env
 Fill in the following values in your `.env`:
 - `DATABASE_URL`: Your Neon connection string (e.g. `postgresql://...`).
 - `BETTER_AUTH_SECRET`: A secure 32-character secret key.
-- `BETTER_AUTH_URL`: The base URL of your client auth app (usually `http://a6-nyuss.localhost:3000`).
+- `BETTER_AUTH_URL`: The base URL of your client auth app (usually `http://your-tenant-slug.localhost:3000`).
 - `COOKIE_DOMAIN`: Set this to `.localhost` in development to share authentication sessions across subdomains.
 - `ABLY_API_KEY` & `NEXT_PUBLIC_ABLY_API_KEY`: Your Ably API key from the Ably dashboard.
 - `GEMINI_API_KEY`: Your Google Gemini API key to enable AI-powered chatbot insights.
@@ -81,18 +81,18 @@ The apps will be available at:
 
 ### Tenant Resolver Flow
 1. **Hostname Interception:** The Next.js Middleware in each app parses the hostname of the incoming request.
-2. **Branding & Config Query:** It extracts the subdomain prefix (e.g. `a6-nyuss`, `admin.a6-nyuss`, `owner.a6-nyuss`) and matches it with the database tenant slug.
+2. **Branding & Config Query:** It extracts the subdomain prefix (e.g. `your-tenant-slug`, `admin.your-tenant-slug`, `owner.your-tenant-slug`) and matches it with the database tenant slug.
 3. **Request Header Propagation:** The middleware attaches headers (`x-tenant-id`, `x-tenant-slug`) to the request before forwarding it to pages/API routes.
 4. **Data Isolation:** All database transactions and queries use Drizzle ORM to filter data exclusively by `tenantId`.
 
 ### Session & Cookie Sharing
-By setting `COOKIE_DOMAIN` to `.localhost` (or your root production domain), Better Auth issues session cookies that are automatically sent by the browser to all subdomains (e.g. `admin.a6-nyuss.localhost` and `owner.a6-nyuss.localhost`).
+By setting `COOKIE_DOMAIN` to `.localhost` (or your root production domain), Better Auth issues session cookies that are automatically sent by the browser to all subdomains (e.g. `admin.your-tenant-slug.localhost` and `owner.your-tenant-slug.localhost`).
 
 ---
 
 ## 🔔 Realtime Ably Notifications
 Realtime cashier functionality is Ably-based and completely tenant-aware:
-- The cashier dashboard subscribes to channels prefixed with the current tenant's slug (e.g., `a6-nyuss:orders`).
+- The cashier dashboard subscribes to channels prefixed with the current tenant's slug (e.g., `your-tenant-slug:orders`).
 - When a customer submits an order or updates a payment proof, a webhook or Server Action triggers an event on that tenant channel.
 - Cashier applications receive the update instantly without polling.
 
