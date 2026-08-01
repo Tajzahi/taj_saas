@@ -101,9 +101,9 @@ export default function LoginPage() {
           <div className="text-center pt-2">
             <p className="text-xs text-gray-600">
               Belum punya akun bisnis?{" "}
-              <Link href="/register" className="font-bold text-[#8E0E0E] hover:underline">
+              <a href="/register" className="font-bold text-[#8E0E0E] hover:underline cursor-pointer">
                 Daftar Bisnis Baru
-              </Link>
+              </a>
             </p>
           </div>
         </form>

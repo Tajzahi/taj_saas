@@ -132,9 +132,9 @@ export default function RegisterPage() {
           <div className="text-center pt-2">
             <p className="text-xs text-gray-600">
               Sudah memiliki akun?{" "}
-              <Link href="/login" className="font-bold text-[#8E0E0E] hover:underline">
+              <a href="/login" className="font-bold text-[#8E0E0E] hover:underline cursor-pointer">
                 Masuk / Login
-              </Link>
+              </a>
             </p>
           </div>
         </form>
