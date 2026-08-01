@@ -38,7 +38,6 @@ export default function RegisterPage() {
 
       if (error) {
         toast.error(error.message || "Gagal mendaftarkan akun. Coba lagi.");
-        setLoading(false);
         return;
       }
 
@@ -46,6 +45,7 @@ export default function RegisterPage() {
       router.push("/login");
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat pendaftaran.");
+    } finally {
       setLoading(false);
     }
   };
