@@ -1,7 +1,7 @@
 [build]
   command = "pnpm --filter @taj-saas/owner build"
   publish = "apps/owner/.next"
-  ignore = "git diff --quiet $NETLIFY_PREVIOUS_COMMIT $NETLIFY_COMMIT_REF -- apps/owner/ packages/ lib/ turbo.json package.json netlify.toml"
+  ignore = "git diff --quiet $NETLIFY_PREVIOUS_COMMIT $NETLIFY_COMMIT_REF -- apps/owner/ packages/ lib/ turbo.json package.json"
 
 [build.environment]
   NODE_VERSION = "20"
@@ -10,6 +10,3 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
-
-[site]
-  name = "taj-saas-owner"

@@ -33,6 +33,27 @@ export interface TenantContextType {
   loading: boolean;
 }
 
+// ─── In-memory cache untuk tenant lookup ────────────────────────────────────
+// Menghindari query DB ke Neon di setiap request/navigasi halaman.
+// Cache berlaku 60 detik. Setelah itu otomatis refresh dari DB.
+const tenantCache = new Map<string, { tenant: any; expiry: number }>();
+const CACHE_TTL_MS = 60_000; // 60 detik
+
+function getCachedTenant(slug: string) {
+  const entry = tenantCache.get(slug);
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) {
+    tenantCache.delete(slug);
+    return null;
+  }
+  return entry.tenant;
+}
+
+function setCachedTenant(slug: string, tenant: any) {
+  tenantCache.set(slug, { tenant, expiry: Date.now() + CACHE_TTL_MS });
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Helper to get current tenant from headers in server-side Next.js
 export function getTenantFromHeaders(headersList: Headers | Record<string, string>): { id: string | null; slug: string | null } {
   if (typeof (headersList as any).get === 'function') {
@@ -73,6 +94,20 @@ export async function resolveTenantMiddleware(
     return { error: 'Tenant not resolved', status: 400 };
   }
 
+  // ─── Cek cache dulu sebelum query DB ───────────────────────────────────
+  const cachedTenant = getCachedTenant(slug);
+  if (cachedTenant) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-tenant-id', cachedTenant.id);
+    requestHeaders.set('x-tenant-slug', cachedTenant.slug);
+    return {
+      tenant: cachedTenant as Tenant,
+      headers: requestHeaders,
+      next: NextResponse.next({ request: { headers: requestHeaders } }),
+    };
+  }
+  // ───────────────────────────────────────────────────────────────────────
+
   // Resolve tenant from database
   try {
     let tenantResult = await db
@@ -100,6 +135,9 @@ export async function resolveTenantMiddleware(
     if (!tenant.isActive) {
       return { error: 'Tenant is inactive', status: 403 };
     }
+
+    // Simpan ke cache agar navigasi berikutnya tidak query DB lagi
+    setCachedTenant(slug, tenant);
 
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-tenant-id', tenant.id);
