@@ -57,7 +57,7 @@ export default function Checkout() {
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [addressNote, setAddressNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'transfer'>('cod');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'qris'>('cod');
   const [agreed, setAgreed] = useState(false);
   const [agreedCancel, setAgreedCancel] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -289,7 +289,7 @@ export default function Checkout() {
 
       setCurrentOrder(order);
 
-      if (paymentMethod === 'transfer') {
+      if (paymentMethod === 'qris') {
         setCreatedOrderCode(serverOrderCode);
         setServerConfirmedTotal(serverTotal);
         setShowQrisModal(true);
@@ -574,17 +574,17 @@ export default function Checkout() {
               {(orderType !== 'delivery'
                 ? [
                     { val: 'cod', icon: <Banknote className="w-5 h-5 text-green-600" />, label: 'Tunai', desc: 'Bayar tunai di gerai saat mengambil pesanan' },
-                    { val: 'transfer', icon: <QrCode className="w-5 h-5 text-blue-600" />, label: 'QRIS', desc: 'Scan & bayar QRIS di gerai saat mengambil pesanan' },
+                    { val: 'qris', icon: <QrCode className="w-5 h-5 text-blue-600" />, label: 'QRIS', desc: 'Scan & bayar QRIS di gerai saat mengambil pesanan' },
                   ]
                 : [
                     { val: 'cod', icon: <Banknote className="w-5 h-5 text-green-600" />, label: 'Tunai COD', desc: 'Bayar tunai ke kurir saat pesanan tiba' },
-                    { val: 'transfer', icon: <QrCode className="w-5 h-5 text-blue-600" />, label: 'QRIS', desc: 'Scan QRIS & unggah bukti transfer konfirmasi otomatis' },
+                    { val: 'qris', icon: <QrCode className="w-5 h-5 text-blue-600" />, label: 'QRIS', desc: 'Scan QRIS & unggah bukti transfer konfirmasi otomatis' },
                   ]
               ).map((opt) => (
                 <button
                   key={opt.val}
                   type="button"
-                  onClick={() => setPaymentMethod(opt.val as 'cod' | 'transfer')}
+                    onClick={() => setPaymentMethod(opt.val as 'cod' | 'qris')}
                   className={`w-full p-3 rounded-xl border-2 text-left flex items-center gap-3 transition-all ${
                     paymentMethod === opt.val ? 'border-[#8E0E0E] bg-[#8E0E0E]/5' : 'border-gray-200 hover:border-gray-300'
                   }`}

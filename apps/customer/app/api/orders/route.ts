@@ -3,7 +3,9 @@ import { db, schema } from '@taj-saas/db';
 import { eq, inArray } from 'drizzle-orm';
 import Ably from 'ably';
 
-const VALID_DELIVERY_FEES = new Set([0, 10000, 15000, 20000]);
+// Harus sinkron dengan zona ongkir client (components/DeliveryMap.tsx &
+// store/cartStore.ts: 8000/13000/18000) serta nilai flat default.
+const VALID_DELIVERY_FEES = new Set([0, 8000, 10000, 13000, 15000, 18000, 20000]);
 
 import { and } from 'drizzle-orm';
 
