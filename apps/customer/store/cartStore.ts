@@ -126,7 +126,7 @@ export interface Order {
   deliveryAddress?: string;
   addressNote?: string;
   generalNote: string;
-  paymentMethod: 'cod' | 'transfer';
+  paymentMethod: 'cod' | 'qris';
   subtotal: number;
   deliveryFee: number;
   total: number;
