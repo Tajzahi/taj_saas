@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, numeric, jsonb, varchar, index } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, boolean, timestamp, numeric, jsonb, varchar, index, decimal } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // ==========================================
@@ -253,11 +253,12 @@ export const orders = pgTable('orders', {
   customerPhone: text('customer_phone').notNull(),
   deliveryType: text('delivery_type').notNull(), // pickup | delivery
   deliveryAddress: text('delivery_address'),
+  deliveryFee: decimal('deliveryFee', { mode: 'number' }).default(0),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
   totalPrice: numeric('total_price', { precision: 10, scale: 2 }).notNull(),
   status: text('status').notNull().default('received'), // received | processing | ready | completed | cancelled
   paymentMethod: text('payment_method').default('cod').notNull(), // cod | qris
-  paymentStatus: text('payment_status').default('pending').notNull(), // pending | paid | failed
+  paymentStatus: text('payment_status').default('pending').notNull(), // pending | waiting_verification | paid | failed
   paymentProofUrl: text('payment_proof_url'),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),

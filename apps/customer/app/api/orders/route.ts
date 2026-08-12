@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db, schema } from '@taj-saas/db';
-import { eq, inArray } from 'drizzle-orm';
+import { eq, inArray, and } from 'drizzle-orm';
 import Ably from 'ably';
+import { generateOrderCode } from '@/lib/utils/format';
 
-const VALID_DELIVERY_FEES = new Set([0, 10000, 15000, 20000]);
-
-import { and } from 'drizzle-orm';
+// Harus sinkron dengan zona ongkir client (components/DeliveryMap.tsx &
+// store/cartStore.ts: 8000/13000/18000) serta nilai flat default.
+const VALID_DELIVERY_FEES = new Set([0, 8000, 10000, 13000, 15000, 18000, 20000]);
 
 export interface OrderItemPayload {
   menuItemSlug: string;
@@ -24,14 +25,7 @@ export interface CreateOrderRequest {
   deliveryAddress?: string;
   deliveryFee: number;
   promoCode?: string;
-  paymentMethod: 'cod' | 'qris';
-}
-
-function generateOrderCode(): string {
-  const now = new Date();
-  const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const rand = Math.floor(Math.random() * 9000) + 1000;
-  return `A6-${date}-${rand}`;
+  paymentMethod: 'cod' | 'qris' | 'transfer';
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -68,7 +62,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (orderType === 'delivery' && !deliveryAddress?.trim()) {
       return NextResponse.json({ error: 'Alamat pengiriman wajib diisi untuk delivery.' }, { status: 400 });
     }
-    if (!['cod', 'qris'].includes(paymentMethod)) {
+    if (!['cod', 'qris', 'transfer'].includes(paymentMethod)) {
       return NextResponse.json({ error: 'Metode pembayaran tidak valid.' }, { status: 400 });
     }
 
@@ -94,10 +88,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       id: item.id,
       price: Number(item.price),
       isAvailable: item.isAvailable,
-      categorySlug: item.categoryId ? categoryMap.get(item.categoryId) : 'minuman'
+      categorySlug: item.categoryId ? categoryMap.get(item.categoryId) : 'minuman',
+      variants: item.variants as any[] | null
     }]));
 
-    const MAX_VARIANT_MODIFIER = 25000;
     let subtotal = 0;
     const validatedItems: any[] = [];
 
@@ -120,12 +114,19 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: 'Jumlah item tidak valid.' }, { status: 400 });
       }
 
-      const safeModifier = Math.min(
-        Math.max(0, Number(item.variantPriceModifier) || 0),
-        MAX_VARIANT_MODIFIER
-      );
+      // C8: Hitung ulang variantPriceModifier dari DB (bukan nilai client)
+      let validModifier = 0;
+      if (item.variantName && dbItem.variants && Array.isArray(dbItem.variants)) {
+        const allOptions = dbItem.variants.flatMap((v: any) => v.options || []);
+        const selectedNames = item.variantName.split(',').map((s: string) => s.trim().toLowerCase());
+        for (const opt of allOptions) {
+          if (opt && (selectedNames.includes(String(opt.name).trim().toLowerCase()) || selectedNames.includes(String(opt.id).trim().toLowerCase()))) {
+            validModifier += Number(opt.priceModifier) || 0;
+          }
+        }
+      }
 
-      const unitPrice = dbItem.price + safeModifier;
+      const unitPrice = dbItem.price + validModifier;
       const totalPrice = unitPrice * item.quantity;
       subtotal += totalPrice;
 
@@ -133,6 +134,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         menuItemId: dbItem.id,
         menuItemName: item.menuItemName,
         variantName: item.variantName || null,
+        variantPriceModifier: validModifier,
         quantity: item.quantity,
         unitPrice,
         totalPrice,
@@ -165,8 +167,6 @@ export async function POST(request: Request): Promise<NextResponse> {
             .filter((i) => i.categorySlug === promo.targetCategory)
             .reduce((sum, i) => sum + i.totalPrice, 0);
 
-          const base = categoryTotal || subtotal; // Wait, if categoryTotal is 0, we don't give discount if targetCategory doesn't match? 
-          // Actually, if categoryTotal is 0, base should be 0, not subtotal.
           const discountBase = categoryTotal; 
           promoDiscount = promo.type === 'fixed'
             ? Math.min(promoValue, discountBase)
@@ -177,8 +177,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     const total = Math.max(0, subtotal + claimedFee - promoDiscount);
     const orderCode = generateOrderCode();
+    const storedPaymentMethod = paymentMethod === 'qris' ? 'transfer' : paymentMethod;
 
-    // 1. Save to Database (Sequential insert, since neon-http doesn't support db.transaction)
+    // 1. Save to Database
     const [newOrder] = await db.insert(schema.orders).values({
       tenantId: tenant.id,
       orderCode,
@@ -186,10 +187,11 @@ export async function POST(request: Request): Promise<NextResponse> {
       customerPhone,
       deliveryType: orderType,
       deliveryAddress: deliveryAddress || null,
+      deliveryFee: String(claimedFee ?? 0),
       subtotal: String(subtotal),
       totalPrice: String(total),
       status: 'received',
-      paymentMethod,
+      paymentMethod: storedPaymentMethod,
       paymentStatus: 'pending',
       notes: items.map(i => i.note).filter(Boolean).join(' | ') || null,
     }).returning();

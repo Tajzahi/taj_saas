@@ -1,3 +1,5 @@
+import crypto from 'crypto';
+
 /**
  * Formats a numeric value into Indonesian Rupiah (IDR) currency format.
  * Example: 15000 -> "Rp 15.000"
@@ -15,15 +17,12 @@ export function formatRupiah(amount: number): string {
 }
 
 /**
- * Generates a unique, user-friendly order code.
- * Example format: A6-YYMMDD-HHMMSS-XXXX (where XXXX is a random uppercase string)
+ * Generates a unique, anti-collision order code.
+ * Format: A6-YYYYMMDD-XXXXXX
  */
 export function generateOrderCode(): string {
-  const now = new Date();
-  const year = now.getFullYear().toString().slice(-2);
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const date = String(now.getDate()).padStart(2, "0");
-  const randomChars = Math.random().toString(36).substring(2, 6).toUpperCase();
-  
-  return `A6-${year}${month}${date}-${randomChars}`;
+  const rand = crypto.randomBytes(4).toString('base64').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 6);
+  const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  return `A6-${date}-${rand}`;
 }
+

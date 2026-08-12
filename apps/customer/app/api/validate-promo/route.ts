@@ -120,15 +120,17 @@ export async function POST(request: Request): Promise<NextResponse> {
       promoCode: cleanCode,
       description: `Diskon ${promo.type === 'percent' ? promoValue + '%' : 'Rp ' + promoValue}`,
     });
-  } catch {
-    return NextResponse.json<ValidatePromoResponse>(
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json<ValidatePromoResponse & { error?: string }>(
       {
         valid: false,
-        message: 'Terjadi kesalahan saat memvalidasi promo.',
+        error: e?.message,
+        message: e?.message || 'Terjadi kesalahan saat memvalidasi promo.',
         discountAmount: 0,
         promoCode: '',
       },
-      { status: 500 }
+      { status: 400 }
     );
   }
 }

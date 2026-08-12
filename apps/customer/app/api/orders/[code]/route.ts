@@ -73,7 +73,7 @@ export async function GET(
       orderType: order.deliveryType,
       deliveryAddress: order.deliveryAddress || undefined,
       subtotal: Number(order.subtotal),
-      deliveryFee: Number(order.totalPrice) - Number(order.subtotal), // derived or calculated
+      deliveryFee: Number(order.deliveryFee ?? 0),
       total: Number(order.totalPrice),
       status: order.status,
       paymentMethod: order.paymentMethod,

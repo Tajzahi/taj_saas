@@ -53,7 +53,8 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
   return {
     id: tenant.id,
     store_name: tenant.name,
-    is_open: tenant.isActive ?? true,
+    // Honour admin "buka/tutup toko" toggle (branding.storeOpen); fall back ke status SaaS.
+    is_open: branding.storeOpen === undefined ? (tenant.isActive ?? true) : branding.storeOpen,
     whatsapp_number: branding.whatsappNumber || '6287811123482',
     flat_delivery_fee: Number(branding.flatDeliveryFee || 10000),
     minimum_order_amount: Number(branding.minimumOrderAmount || 0),

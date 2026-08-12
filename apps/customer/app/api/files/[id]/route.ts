@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db, schema } from '@taj-saas/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const resolvedParams = await params;
     const id = resolvedParams.id;
+    const tenantId = request.headers.get('x-tenant-id') || '';
     
-    const fileResult = await db.select().from(schema.files).where(eq(schema.files.id, id)).limit(1);
+    const fileResult = await db.select().from(schema.files).where(and(eq(schema.files.id, id), eq(schema.files.tenantId, tenantId))).limit(1);
     const file = fileResult[0];
 
     if (!file) {

@@ -126,7 +126,7 @@ export interface Order {
   deliveryAddress?: string;
   addressNote?: string;
   generalNote: string;
-  paymentMethod: 'cod' | 'transfer';
+  paymentMethod: 'cod' | 'qris';
   subtotal: number;
   deliveryFee: number;
   total: number;
@@ -183,12 +183,8 @@ export const useOrderStore = create<OrderState>()(
   )
 );
 
-export function generateOrderCode(): string {
-  const now = new Date();
-  const date = now.toISOString().slice(0, 10).replace(/-/g, '');
-  const rand = Math.floor(Math.random() * 9000) + 1000;
-  return `A6-${date}-${rand}`;
-}
+import { generateOrderCode } from '@/lib/utils/format';
+export { generateOrderCode };
 
 export const DELIVERY_FEE = 10000;
 export const DELIVERY_ZONES: { name: string; fee: number }[] = [

@@ -89,16 +89,13 @@ export async function registerOwnerAction(params: RegisterParams) {
 
     const userId = userRes.user.id;
 
-    // 5. Update user role to 'owner' and create linked profile
+    // 5. Update user role to 'owner' and linked profile tenant
     await db.update(schema.user).set({ role: "owner" }).where(eq(schema.user.id, userId));
 
-    await db.delete(schema.profiles).where(eq(schema.profiles.id, userId));
-    await db.insert(schema.profiles).values({
-      id: userId,
+    await db.update(schema.profiles).set({
       tenantId: newTenant.id,
-      email: email,
       role: "owner",
-    });
+    }).where(eq(schema.profiles.id, userId));
 
     return {
       success: true,
