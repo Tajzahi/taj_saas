@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db, schema } from '@taj-saas/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import Ably from 'ably';
 
 export async function POST(request: Request) {
@@ -9,6 +9,13 @@ export async function POST(request: Request) {
 
     if (!fileBase64 || !fileName || !fileType) {
       return NextResponse.json({ error: 'File tidak lengkap.' }, { status: 400 });
+    }
+
+    if (!fileType.startsWith('image/')) {
+      return NextResponse.json({ error: 'Tipe file harus gambar.' }, { status: 400 });
+    }
+    if ((fileBase64.length * 3) / 4 > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Maksimal 5MB.' }, { status: 400 });
     }
 
     const tenantSlug = request.headers.get('x-tenant-slug') || 'taj-saas';
@@ -31,7 +38,7 @@ export async function POST(request: Request) {
     if (orderCode) {
       const updatedOrders = await db.update(schema.orders)
         .set({ paymentProofUrl: `/api/files/${newFile.id}`, paymentStatus: 'waiting_verification' })
-        .where(eq(schema.orders.orderCode, orderCode))
+        .where(and(eq(schema.orders.orderCode, orderCode), eq(schema.orders.tenantId, tenant.id)))
         .returning();
       
       const updatedOrder = updatedOrders[0];
