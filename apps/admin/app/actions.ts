@@ -23,11 +23,7 @@ async function getTenantContext() {
       tenantId = tenant.id;
       tenantSlug = tenant.slug;
     } else {
-      const [firstTenant] = await db.select().from(schema.tenants).limit(1);
-      if (firstTenant) {
-        tenantId = firstTenant.id;
-        tenantSlug = firstTenant.slug;
-      }
+      throw new Error("Tenant tidak ditemukan untuk slug: " + slug);
     }
   }
 
