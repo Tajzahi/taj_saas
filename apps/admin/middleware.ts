@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { resolveTenantMiddleware } from '@taj-saas/shared';
 
-export async function middleware(request: NextRequest) {
+export const middleware = async (request: NextRequest) => {
   const result = await resolveTenantMiddleware(request as any, 'admin');
 
   if ('redirect' in result) {
