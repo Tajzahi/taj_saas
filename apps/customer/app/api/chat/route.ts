@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from '@google/genai';
 import fs from 'fs';
 import path from 'path';
 import { db, schema } from '@taj-saas/db';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
@@ -76,14 +76,14 @@ function sanitizePrompt(raw: unknown): { valid: boolean; prompt: string; reason?
 }
 
 // Helper to query order status directly from database
-async function getOrderStatus(orderCode: string) {
+async function getOrderStatus(orderCode: string, tenantId: string) {
   try {
     const trimmedCode = orderCode.trim().toUpperCase();
     
     // Query order from database
     const ordersResult = await db.select()
       .from(schema.orders)
-      .where(eq(schema.orders.orderCode, trimmedCode))
+      .where(and(eq(schema.orders.orderCode, trimmedCode), eq(schema.orders.tenantId, tenantId)))
       .limit(1);
       
     const order = ordersResult[0];
@@ -126,14 +126,14 @@ async function getOrderStatus(orderCode: string) {
 }
 
 // Helper to search order codes by phone number directly from database
-async function findOrderCodesByPhone(customerPhone: string) {
+async function findOrderCodesByPhone(customerPhone: string, tenantId: string) {
   try {
     const trimmedPhone = customerPhone.trim().replace(/\s/g, '');
     
     // Query orders from database
     const ordersResult = await db.select()
       .from(schema.orders)
-      .where(eq(schema.orders.customerPhone, trimmedPhone))
+      .where(and(eq(schema.orders.customerPhone, trimmedPhone), eq(schema.orders.tenantId, tenantId)))
       .orderBy(schema.orders.createdAt);
       
     const list = ordersResult.map(order => ({
@@ -173,6 +173,8 @@ export async function POST(request: Request) {
       );
     }
     // ──────────────────────────────────────────────────────────
+
+    const tenantId = request.headers.get('x-tenant-id') || '';
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
@@ -296,7 +298,7 @@ export async function POST(request: Request) {
         }
 
         // Execute database query
-        const orderResult = await getOrderStatus(orderCode);
+        const orderResult = await getOrderStatus(orderCode, tenantId);
         
         // Send the function response back to Gemini to generate the final response
         const secondResponse = await ai.models.generateContent({
@@ -331,7 +333,7 @@ export async function POST(request: Request) {
         }
 
         // Execute database query
-        const searchResult = await findOrderCodesByPhone(customerPhone);
+        const searchResult = await findOrderCodesByPhone(customerPhone, tenantId);
         
         // Send the function response back to Gemini to generate the final response
         const secondResponse = await ai.models.generateContent({
