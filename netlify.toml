@@ -1,7 +1,7 @@
 [build]
-  command = "pnpm --filter @taj-saas/owner build"
-  publish = "apps/owner/.next"
-  ignore = "git diff --quiet $NETLIFY_PREVIOUS_COMMIT $NETLIFY_COMMIT_REF -- apps/owner/ packages/ lib/ turbo.json package.json"
+  command = "pnpm --filter @taj-saas/customer build"
+  publish = "apps/customer/.next"
+  ignore = "git diff --quiet $NETLIFY_PREVIOUS_COMMIT $NETLIFY_COMMIT_REF -- apps/customer/ packages/ lib/ turbo.json package.json"
 
 [build.environment]
   NODE_VERSION = "20"

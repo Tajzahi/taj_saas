@@ -1,6 +1,6 @@
 [build]
   command = "pnpm --filter @taj-saas/customer build"
-  publish = ".next"
+  publish = "apps/customer/.next"
   ignore = "git diff --quiet $NETLIFY_PREVIOUS_COMMIT $NETLIFY_COMMIT_REF -- apps/customer/ packages/ lib/ turbo.json package.json"
 
 [build.environment]
