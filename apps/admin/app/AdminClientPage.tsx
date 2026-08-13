@@ -39,7 +39,8 @@ export default function AdminClientPage({ tenantId, tenantSlug, initialSession }
     }
   };
 
-  if (!session || (session.user?.role !== 'owner' && session.user?.role !== 'kasir')) {
+  const userRole = (session?.user as any)?.role;
+  if (!session || (userRole !== 'owner' && userRole !== 'kasir')) {
     return <LoginPage onLogin={() => {}} />;
   }
 
