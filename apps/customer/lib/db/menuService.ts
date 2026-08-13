@@ -3,7 +3,7 @@
 import { db, schema } from "@taj-saas/db";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import { MenuItem, MenuCategory, menuItems as staticMenuItems } from "@/data/menu";
+import { MenuItem, MenuCategory, menuItems as staticMenuItems, toppingOptions, extraToppingOptions } from "@/data/menu";
 
 export interface DbStoreSettings {
   id: string; // uuid
@@ -18,6 +18,63 @@ export interface DbStoreSettings {
   qris_image_url: string;
   bank_info: string;
   hero_banner_url: string;
+}
+
+// Fallback topping variant structures for Terang Bulan items
+const default2VariantToppings = [
+  { label: 'Pilihan Topping 1', required: true, options: toppingOptions },
+  { label: 'Pilihan Topping 2', required: true, options: toppingOptions },
+  { label: 'Topping Tambahan', required: false, options: extraToppingOptions },
+];
+
+const default1VariantToppings = [
+  { label: 'Pilih Topping Tambahan', required: true, options: toppingOptions },
+  { label: 'Extra Topping', required: false, options: extraToppingOptions },
+];
+
+function resolveMenuItemVariants(
+  dbTableVariants: any[] | undefined,
+  jsonbVariants: any[] | undefined,
+  slug: string,
+  name: string,
+  categorySlug: string
+) {
+  // 1. Check DB menu_variants table
+  if (dbTableVariants && dbTableVariants.length > 0) return dbTableVariants;
+
+  // 2. Check JSONB variants column on menu_items table
+  if (jsonbVariants && jsonbVariants.length > 0) return jsonbVariants;
+
+  // 3. Match static menu items by exact or normalized slug
+  const normalizedSlug = slug.toLowerCase();
+  const staticMatch = staticMenuItems.find(
+    s => s.slug === slug || normalizedSlug.includes(s.slug) || s.slug.includes(normalizedSlug)
+  );
+  if (staticMatch && staticMatch.variants && staticMatch.variants.length > 0) {
+    return staticMatch.variants;
+  }
+
+  // 4. Fallback based on category or item name keywords
+  const isTerangBulan =
+    categorySlug?.includes('terang') ||
+    name?.toLowerCase().includes('terang bulan') ||
+    normalizedSlug.includes('terang-bulan');
+
+  if (isTerangBulan) {
+    const lowerName = name.toLowerCase();
+    if (
+      lowerName.includes('2 variant') ||
+      lowerName.includes('2 topping') ||
+      lowerName.includes('2 rasa') ||
+      normalizedSlug.includes('2-variant') ||
+      normalizedSlug.includes('2-topping')
+    ) {
+      return default2VariantToppings;
+    }
+    return default1VariantToppings;
+  }
+
+  return undefined;
 }
 
 async function getTenantBySlug(slug: string) {
@@ -125,9 +182,17 @@ export async function getMenuItems(): Promise<MenuItem[]> {
   const staticMap = new Map(staticMenuItems.map(s => [s.slug, s]));
 
   return dbItems.map(item => {
-    const dbItemVariants = variantsMap.get(item.id);
+    const categorySlug = (item.categoryId ? categoryMap.get(item.categoryId) : 'minuman') || 'minuman';
+    const dbItemTableVariants = variantsMap.get(item.id);
     const staticItem = staticMap.get(item.slug);
-    const variants = (dbItemVariants && dbItemVariants.length > 0) ? dbItemVariants : staticItem?.variants;
+
+    const variants = resolveMenuItemVariants(
+      dbItemTableVariants,
+      item.variants as any[],
+      item.slug,
+      item.name,
+      categorySlug
+    );
 
     return {
       id: item.id,
@@ -136,7 +201,7 @@ export async function getMenuItems(): Promise<MenuItem[]> {
       description: item.description || staticItem?.description || '',
       price: Number(item.price),
       image: item.imageUrl || staticItem?.image || `/assets/menu/placeholder.jpg`,
-      category: (item.categoryId ? categoryMap.get(item.categoryId) : 'minuman') as MenuCategory,
+      category: categorySlug as MenuCategory,
       categoryLabel: (item.categoryId ? categoryLabelMap.get(item.categoryId) : 'Minuman') || 'Minuman',
       isAvailable: item.isAvailable,
       badge: item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined,
