@@ -114,12 +114,25 @@ export async function POST(request: Request): Promise<NextResponse> {
         return NextResponse.json({ error: 'Jumlah item tidak valid.' }, { status: 400 });
       }
 
-      // C8: Hitung ulang variantPriceModifier dari DB (bukan nilai client)
+      // Hitung ulang variantPriceModifier dari DB / static definitions (mencegah manipulasi harga client)
       let validModifier = 0;
-      if (item.variantName && dbItem.variants && Array.isArray(dbItem.variants)) {
-        const allOptions = dbItem.variants.flatMap((v: any) => v.options || []);
+      if (item.variantName) {
+        let variantOptionsSource: any[] = [];
+        if (dbItem.variants && Array.isArray(dbItem.variants) && dbItem.variants.length > 0) {
+          variantOptionsSource = dbItem.variants.flatMap((v: any) => v.options || []);
+        } else {
+          // Fallback to static menu variants / topping definitions
+          const { menuItems: staticMenuItems, toppingOptions, extraToppingOptions } = await import('@/data/menu');
+          const staticMatch = staticMenuItems.find(s => s.slug === item.menuItemSlug);
+          if (staticMatch && staticMatch.variants) {
+            variantOptionsSource = staticMatch.variants.flatMap((v: any) => v.options || []);
+          } else {
+            variantOptionsSource = [...toppingOptions, ...extraToppingOptions];
+          }
+        }
+
         const selectedNames = item.variantName.split(',').map((s: string) => s.trim().toLowerCase());
-        for (const opt of allOptions) {
+        for (const opt of variantOptionsSource) {
           if (opt && (selectedNames.includes(String(opt.name).trim().toLowerCase()) || selectedNames.includes(String(opt.id).trim().toLowerCase()))) {
             validModifier += Number(opt.priceModifier) || 0;
           }

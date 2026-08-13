@@ -92,7 +92,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     if (promo.targetCategory === 'all') {
       // Diskon berlaku untuk semua item
       if (promo.type === 'fixed') {
-        discountAmount = promoValue;
+        discountAmount = Math.min(promoValue, subtotal);
       } else {
         discountAmount = Math.round(subtotal * (promoValue / 100));
       }
