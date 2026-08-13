@@ -3,7 +3,7 @@
 import { db, schema } from "@taj-saas/db";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import { MenuItem, MenuCategory } from "@/data/menu";
+import { MenuItem, MenuCategory, menuItems as staticMenuItems } from "@/data/menu";
 
 export interface DbStoreSettings {
   id: string; // uuid
@@ -98,6 +98,22 @@ export async function getMenuItems(): Promise<MenuItem[]> {
     .from(schema.menuItems)
     .where(eq(schema.menuItems.tenantId, tenant.id));
 
+  // Fetch dbVariants for this tenant if populated
+  const dbVariants = await db.select()
+    .from(schema.menuVariants)
+    .where(eq(schema.menuVariants.tenantId, tenant.id));
+  
+  const variantsMap = new Map<string, { label: string; required: boolean; options: any[] }[]>();
+  for (const v of dbVariants) {
+    const existing = variantsMap.get(v.menuItemId) || [];
+    existing.push({
+      label: v.label,
+      required: v.required,
+      options: v.options as any[],
+    });
+    variantsMap.set(v.menuItemId, existing);
+  }
+
   // Get categories to map category ID to slug
   const dbCategories = await db.select()
     .from(schema.categories)
@@ -106,16 +122,26 @@ export async function getMenuItems(): Promise<MenuItem[]> {
   const categoryMap = new Map(dbCategories.map(c => [c.id, c.slug]));
   const categoryLabelMap = new Map(dbCategories.map(c => [c.id, c.name]));
 
-  return dbItems.map(item => ({
-    id: item.id,
-    name: item.name,
-    slug: item.slug,
-    description: item.description || '',
-    price: Number(item.price),
-    image: item.imageUrl || `/assets/menu/placeholder.jpg`, // fallback
-    category: (item.categoryId ? categoryMap.get(item.categoryId) : 'minuman') as MenuCategory,
-    categoryLabel: (item.categoryId ? categoryLabelMap.get(item.categoryId) : 'Minuman') || 'Minuman',
-    isAvailable: item.isAvailable,
-    badge: item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined
-  }));
+  const staticMap = new Map(staticMenuItems.map(s => [s.slug, s]));
+
+  return dbItems.map(item => {
+    const dbItemVariants = variantsMap.get(item.id);
+    const staticItem = staticMap.get(item.slug);
+    const variants = (dbItemVariants && dbItemVariants.length > 0) ? dbItemVariants : staticItem?.variants;
+
+    return {
+      id: item.id,
+      name: item.name,
+      slug: item.slug,
+      description: item.description || staticItem?.description || '',
+      price: Number(item.price),
+      image: item.imageUrl || staticItem?.image || `/assets/menu/placeholder.jpg`,
+      category: (item.categoryId ? categoryMap.get(item.categoryId) : 'minuman') as MenuCategory,
+      categoryLabel: (item.categoryId ? categoryLabelMap.get(item.categoryId) : 'Minuman') || 'Minuman',
+      isAvailable: item.isAvailable,
+      badge: item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined,
+      variants,
+      relatedSlugs: staticItem?.relatedSlugs,
+    };
+  });
 }
