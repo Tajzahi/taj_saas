@@ -187,7 +187,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       customerPhone,
       deliveryType: orderType,
       deliveryAddress: deliveryAddress || null,
-      deliveryFee: String(claimedFee ?? 0),
+      deliveryFee: claimedFee ?? 0,
       subtotal: String(subtotal),
       totalPrice: String(total),
       status: 'received',
