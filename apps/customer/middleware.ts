@@ -18,7 +18,19 @@ export const middleware = async (request: NextRequest) => {
         ownerRegisterUrl.pathname = '/register';
         return NextResponse.redirect(ownerRegisterUrl);
       }
-      return NextResponse.redirect(new URL('https://tajsaas.netlify.app/register'));
+      const ownerAppUrl = process.env.OWNER_APP_URL;
+
+      if (!ownerAppUrl) {
+        console.error('[tenant] OWNER_APP_URL is not configured.');
+        return new NextResponse('Owner app URL is not configured.', { status: 500 });
+      }
+
+      try {
+        return NextResponse.redirect(new URL('/register', ownerAppUrl));
+      } catch {
+        console.error('[tenant] OWNER_APP_URL is invalid.');
+        return new NextResponse('Owner app URL is invalid.', { status: 500 });
+      }
     }
     return new NextResponse(result.error, { status: result.status });
   }

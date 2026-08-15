@@ -1,0 +1,15 @@
+.git
+.gitignore
+.env
+.env.*
+.env*.local
+.vscode
+.idea
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+*.log
+README.md
+docs

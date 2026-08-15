@@ -1,0 +1,99 @@
+# cloudbuild.yaml
+# CI/CD pipeline: build Docker image → push → deploy ke Cloud Run
+# Trigger: push ke branch main
+# Default target: customer app
+#
+# ARSITEKTUR NOTE:
+# NEXT_PUBLIC_* vars di-pull dari Secret Manager via availableSecrets,
+# lalu di-pass sebagai --build-arg ke docker build (baked ke JS bundle).
+# Server-side vars di-inject ke Cloud Run via --set-secrets (runtime).
+
+substitutions:
+  _APP: customer
+  _IMAGE: customer-app
+  _SERVICE: taj-customer
+  _REGION: asia-southeast2
+  _REPOSITORY: taj-saas
+
+steps:
+  # Step 1: Build Docker image
+  # NEXT_PUBLIC_* vars di-expose via secretEnv lalu di-pass sebagai --build-arg
+  # agar ter-bake ke dalam JS bundle oleh Next.js saat build time.
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-image"
+    secretEnv:
+      - 'NEXT_PUBLIC_BETTER_AUTH_URL'
+      - 'NEXT_PUBLIC_ABLY_API_KEY'
+      - 'NEXT_PUBLIC_SENTRY_DSN'
+      - 'NEXT_PUBLIC_POSTHOG_KEY'
+      - 'NEXT_PUBLIC_TENANT_SLUG'
+    args:
+      - "build"
+      - "--build-arg"
+      - "APP=${_APP}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_BETTER_AUTH_URL=$$NEXT_PUBLIC_BETTER_AUTH_URL"
+      - "--build-arg"
+      - "NEXT_PUBLIC_ABLY_API_KEY=$$NEXT_PUBLIC_ABLY_API_KEY"
+      - "--build-arg"
+      - "NEXT_PUBLIC_SENTRY_DSN=$$NEXT_PUBLIC_SENTRY_DSN"
+      - "--build-arg"
+      - "NEXT_PUBLIC_POSTHOG_KEY=$$NEXT_PUBLIC_POSTHOG_KEY"
+      - "--build-arg"
+      - "NEXT_PUBLIC_TENANT_SLUG=$$NEXT_PUBLIC_TENANT_SLUG"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest"
+      - "."
+
+  # Step 2: Push image ke Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-image"
+    args:
+      - "push"
+      - "--all-tags"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}"
+
+  # Step 3: Deploy ke Cloud Run
+  # Hanya server-side secrets yang di-inject via --set-secrets (runtime env vars).
+  # NEXT_PUBLIC_* TIDAK ada di sini — sudah ter-bake ke dalam image di Step 1.
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "deploy-cloud-run"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE}"
+      - "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--memory=512Mi"
+      - "--cpu=1"
+      - "--min-instances=0"
+      - "--max-instances=10"
+      - "--concurrency=80"
+      - "--timeout=60s"
+      - "--allow-unauthenticated"
+      - "--set-secrets=DATABASE_URL=TAJ_DATABASE_URL:latest,BETTER_AUTH_SECRET=TAJ_BETTER_AUTH_SECRET:latest,BETTER_AUTH_URL=TAJ_BETTER_AUTH_URL:latest,ABLY_API_KEY=TAJ_ABLY_API_KEY:latest,GEMINI_API_KEY=TAJ_GEMINI_API_KEY:latest,SENTRY_AUTH_TOKEN=TAJ_SENTRY_AUTH_TOKEN:latest,COOKIE_DOMAIN=TAJ_COOKIE_DOMAIN:latest,OWNER_APP_URL=TAJ_OWNER_APP_URL:latest"
+      - "--set-env-vars=NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com,NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1"
+
+# Pull NEXT_PUBLIC_* dari Secret Manager dan expose sebagai env vars di step build-image
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_BETTER_AUTH_URL/versions/latest
+      env: 'NEXT_PUBLIC_BETTER_AUTH_URL'
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_ABLY_API_KEY/versions/latest
+      env: 'NEXT_PUBLIC_ABLY_API_KEY'
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_SENTRY_DSN/versions/latest
+      env: 'NEXT_PUBLIC_SENTRY_DSN'
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_POSTHOG_KEY/versions/latest
+      env: 'NEXT_PUBLIC_POSTHOG_KEY'
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_TENANT_SLUG/versions/latest
+      env: 'NEXT_PUBLIC_TENANT_SLUG'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: "1800s"
