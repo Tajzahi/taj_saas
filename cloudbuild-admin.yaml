@@ -1,0 +1,82 @@
+# cloudbuild-admin.yaml
+# CI/CD pipeline untuk Admin app
+# Trigger: push ke branch main
+
+substitutions:
+  _APP: admin
+  _IMAGE: admin-app
+  _SERVICE: taj-admin
+  _REGION: asia-southeast2
+  _REPOSITORY: taj-saas
+
+steps:
+  # Step 1: Build Docker image
+  # NEXT_PUBLIC_* vars di-pass sebagai --build-arg (baked ke JS bundle)
+  - name: "gcr.io/cloud-builders/docker"
+    id: "build-image"
+    secretEnv:
+      - 'NEXT_PUBLIC_BETTER_AUTH_URL'
+      - 'NEXT_PUBLIC_SENTRY_DSN'
+      - 'NEXT_PUBLIC_POSTHOG_KEY'
+    args:
+      - "build"
+      - "--build-arg"
+      - "APP=${_APP}"
+      - "--build-arg"
+      - "NEXT_PUBLIC_BETTER_AUTH_URL=$$NEXT_PUBLIC_BETTER_AUTH_URL"
+      - "--build-arg"
+      - "NEXT_PUBLIC_SENTRY_DSN=$$NEXT_PUBLIC_SENTRY_DSN"
+      - "--build-arg"
+      - "NEXT_PUBLIC_POSTHOG_KEY=$$NEXT_PUBLIC_POSTHOG_KEY"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID"
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest"
+      - "."
+
+  # Step 2: Push image ke Artifact Registry
+  - name: "gcr.io/cloud-builders/docker"
+    id: "push-image"
+    args:
+      - "push"
+      - "--all-tags"
+      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}"
+
+  # Step 3: Deploy ke Cloud Run
+  # Server-side secrets di-inject via --set-secrets (runtime)
+  # NEXT_PUBLIC_* tidak ada di sini — sudah baked ke image di Step 1
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    id: "deploy-cloud-run"
+    entrypoint: "gcloud"
+    args:
+      - "run"
+      - "deploy"
+      - "${_SERVICE}"
+      - "--image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID"
+      - "--region=${_REGION}"
+      - "--platform=managed"
+      - "--port=8080"
+      - "--memory=512Mi"
+      - "--cpu=1"
+      - "--min-instances=0"
+      - "--max-instances=10"
+      - "--concurrency=80"
+      - "--timeout=60s"
+      - "--allow-unauthenticated"
+      - "--set-secrets=DATABASE_URL=TAJ_DATABASE_URL:latest,BETTER_AUTH_SECRET=TAJ_BETTER_AUTH_SECRET:latest,BETTER_AUTH_URL=TAJ_ADMIN_BETTER_AUTH_URL:latest,BETTER_AUTH_API_KEY=TAJ_BETTER_AUTH_API_KEY:latest,ABLY_API_KEY=TAJ_ABLY_API_KEY:latest,SENTRY_AUTH_TOKEN=TAJ_SENTRY_AUTH_TOKEN:latest,COOKIE_DOMAIN=TAJ_COOKIE_DOMAIN:latest,OWNER_APP_URL=TAJ_OWNER_APP_URL:latest"
+      - "--set-env-vars=NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com,NODE_ENV=production,NEXT_TELEMETRY_DISABLED=1"
+
+# NEXT_PUBLIC_* dari Secret Manager → di-expose ke step build-image sebagai env var
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_ADMIN_BETTER_AUTH_URL/versions/latest
+      env: 'NEXT_PUBLIC_BETTER_AUTH_URL'
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_SENTRY_DSN/versions/latest
+      env: 'NEXT_PUBLIC_SENTRY_DSN'
+    - versionName: projects/$PROJECT_ID/secrets/TAJ_POSTHOG_KEY/versions/latest
+      env: 'NEXT_PUBLIC_POSTHOG_KEY'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: "1800s"
