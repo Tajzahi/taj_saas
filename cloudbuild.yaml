@@ -21,6 +21,7 @@ steps:
   # agar ter-bake ke dalam JS bundle oleh Next.js saat build time.
   - name: "gcr.io/cloud-builders/docker"
     id: "build-image"
+    entrypoint: "bash"
     secretEnv:
       - 'NEXT_PUBLIC_BETTER_AUTH_URL'
       - 'NEXT_PUBLIC_ABLY_API_KEY'
@@ -28,24 +29,18 @@ steps:
       - 'NEXT_PUBLIC_POSTHOG_KEY'
       - 'NEXT_PUBLIC_TENANT_SLUG'
     args:
-      - "build"
-      - "--build-arg"
-      - "APP=${_APP}"
-      - "--build-arg"
-      - "NEXT_PUBLIC_BETTER_AUTH_URL=$$NEXT_PUBLIC_BETTER_AUTH_URL"
-      - "--build-arg"
-      - "NEXT_PUBLIC_ABLY_API_KEY=$$NEXT_PUBLIC_ABLY_API_KEY"
-      - "--build-arg"
-      - "NEXT_PUBLIC_SENTRY_DSN=$$NEXT_PUBLIC_SENTRY_DSN"
-      - "--build-arg"
-      - "NEXT_PUBLIC_POSTHOG_KEY=$$NEXT_PUBLIC_POSTHOG_KEY"
-      - "--build-arg"
-      - "NEXT_PUBLIC_TENANT_SLUG=$$NEXT_PUBLIC_TENANT_SLUG"
-      - "-t"
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID"
-      - "-t"
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest"
-      - "."
+      - "-c"
+      - |
+        docker build \
+          --build-arg APP=${_APP} \
+          --build-arg NEXT_PUBLIC_BETTER_AUTH_URL=$$NEXT_PUBLIC_BETTER_AUTH_URL \
+          --build-arg NEXT_PUBLIC_ABLY_API_KEY=$$NEXT_PUBLIC_ABLY_API_KEY \
+          --build-arg NEXT_PUBLIC_SENTRY_DSN=$$NEXT_PUBLIC_SENTRY_DSN \
+          --build-arg NEXT_PUBLIC_POSTHOG_KEY=$$NEXT_PUBLIC_POSTHOG_KEY \
+          --build-arg NEXT_PUBLIC_TENANT_SLUG=$$NEXT_PUBLIC_TENANT_SLUG \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest \
+          .
 
   # Step 2: Push image ke Artifact Registry
   - name: "gcr.io/cloud-builders/docker"
