@@ -13,27 +13,26 @@ substitutions:
 steps:
   # Step 1: Build Docker image
   # NEXT_PUBLIC_* vars di-pass sebagai --build-arg (baked ke JS bundle)
+  # WAJIB entrypoint:bash agar $$VAR di-expand oleh shell sebelum dikirim ke docker.
+  # Tanpa shell, docker menerima literal "$VAR" bukan nilai sesungguhnya.
   - name: "gcr.io/cloud-builders/docker"
     id: "build-image"
+    entrypoint: "bash"
     secretEnv:
       - 'NEXT_PUBLIC_BETTER_AUTH_URL'
       - 'NEXT_PUBLIC_SENTRY_DSN'
       - 'NEXT_PUBLIC_POSTHOG_KEY'
     args:
-      - "build"
-      - "--build-arg"
-      - "APP=${_APP}"
-      - "--build-arg"
-      - "NEXT_PUBLIC_BETTER_AUTH_URL=$$NEXT_PUBLIC_BETTER_AUTH_URL"
-      - "--build-arg"
-      - "NEXT_PUBLIC_SENTRY_DSN=$$NEXT_PUBLIC_SENTRY_DSN"
-      - "--build-arg"
-      - "NEXT_PUBLIC_POSTHOG_KEY=$$NEXT_PUBLIC_POSTHOG_KEY"
-      - "-t"
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID"
-      - "-t"
-      - "${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest"
-      - "."
+      - "-c"
+      - |
+        docker build \
+          --build-arg APP=${_APP} \
+          --build-arg NEXT_PUBLIC_BETTER_AUTH_URL=$$NEXT_PUBLIC_BETTER_AUTH_URL \
+          --build-arg NEXT_PUBLIC_SENTRY_DSN=$$NEXT_PUBLIC_SENTRY_DSN \
+          --build-arg NEXT_PUBLIC_POSTHOG_KEY=$$NEXT_PUBLIC_POSTHOG_KEY \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:$BUILD_ID \
+          -t ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_IMAGE}:latest \
+          .
 
   # Step 2: Push image ke Artifact Registry
   - name: "gcr.io/cloud-builders/docker"

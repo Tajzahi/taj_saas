@@ -3,6 +3,9 @@
 .env
 .env.*
 .env*.local
+**/.env
+**/.env.*
+**/.env*.local
 .vscode
 .idea
 node_modules
