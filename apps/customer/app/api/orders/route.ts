@@ -1,256 +1,269 @@
-import { NextResponse } from 'next/server';
-import { db, schema } from '@taj-saas/db';
-import { eq, inArray, and } from 'drizzle-orm';
-import Ably from 'ably';
-import { generateOrderCode } from '@/lib/utils/format';
-
-// Harus sinkron dengan zona ongkir client (components/DeliveryMap.tsx &
-// store/cartStore.ts: 8000/13000/18000) serta nilai flat default.
-const VALID_DELIVERY_FEES = new Set([0, 8000, 10000, 13000, 15000, 18000, 20000]);
-
-export interface OrderItemPayload {
-  menuItemSlug: string;
-  menuItemName: string;
-  variantName?: string;
-  variantPriceModifier: number;
-  quantity: number;
-  note?: string;
-}
+import { NextResponse } from "next/server";
+import { db, schema } from "@taj-saas/db";
+import { eq, and } from "drizzle-orm";
+import crypto from "crypto";
+import { resolveTenantFromRequestHost } from "@lib/tenant-authorization";
+import { rateLimiter } from "@lib/server/rate-limiter";
+import { calculateOrderPricing, PricingOrderItemInput } from "@lib/server/pricing-service";
+import { generateOrderCode } from "@/lib/utils/format";
 
 export interface CreateOrderRequest {
-  items: OrderItemPayload[];
+  items: PricingOrderItemInput[];
   customerName: string;
   customerPhone: string;
-  orderType: 'dine_in' | 'takeaway' | 'delivery';
+  orderType: "dine_in" | "takeaway" | "pickup" | "delivery";
+  branchId?: string;
   deliveryAddress?: string;
-  deliveryFee: number;
+  customerLat?: number;
+  customerLng?: number;
   promoCode?: string;
-  paymentMethod: 'cod' | 'qris' | 'transfer';
+  paymentMethod: "cod" | "qris" | "transfer";
+  idempotencyKey?: string;
+  claimedDeliveryFee?: number;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
   try {
-    const body: CreateOrderRequest = await request.json();
-    const { items, customerName, customerPhone, orderType, deliveryAddress, deliveryFee, promoCode, paymentMethod } = body;
+    // 1. Zero-trust tenant resolution
+    const host = request.headers.get("host") || "";
+    const tenant = await resolveTenantFromRequestHost(host, { expectedApp: "customer" });
 
-    // Get tenant from headers
-    const tenantSlug = request.headers.get('x-tenant-slug');
-    if (!tenantSlug) {
-      return NextResponse.json({ error: 'Request tidak valid.' }, { status: 400 });
-    }
-    
-    // Find tenant
-    const tenantResult = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, tenantSlug)).limit(1);
-    const tenant = tenantResult[0];
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant tidak ditemukan.' }, { status: 404 });
-    }
+    // 2. Distributed Rate Limiting
+    const forwardedFor = request.headers.get("x-forwarded-for") || "";
+    const clientIp = forwardedFor.split(",")[0]?.trim() || "127.0.0.1";
 
-    // Basic input validation
-    if (!items || !Array.isArray(items) || items.length === 0) {
-      return NextResponse.json({ error: 'Keranjang belanja kosong.' }, { status: 400 });
-    }
-    if (!customerName?.trim() || customerName.trim().length < 2) {
-      return NextResponse.json({ error: 'Nama pemesan tidak valid.' }, { status: 400 });
-    }
-    if (!customerPhone?.trim() || !/^(08|\+62)\d{8,12}$/.test(customerPhone.replace(/\s/g, ''))) {
-      return NextResponse.json({ error: 'Nomor HP tidak valid.' }, { status: 400 });
-    }
-    if (!['dine_in', 'takeaway', 'delivery'].includes(orderType)) {
-      return NextResponse.json({ error: 'Tipe order tidak valid.' }, { status: 400 });
-    }
-    if (orderType === 'delivery' && !deliveryAddress?.trim()) {
-      return NextResponse.json({ error: 'Alamat pengiriman wajib diisi untuk delivery.' }, { status: 400 });
-    }
-    if (!['cod', 'qris', 'transfer'].includes(paymentMethod)) {
-      return NextResponse.json({ error: 'Metode pembayaran tidak valid.' }, { status: 400 });
-    }
-
-    const claimedFee = orderType === 'delivery' ? deliveryFee : 0;
-    if (!VALID_DELIVERY_FEES.has(claimedFee)) {
+    const rateResult = await rateLimiter.check(clientIp, "order_creation");
+    if (!rateResult.allowed) {
       return NextResponse.json(
-        { error: `Ongkos kirim tidak valid: Rp${claimedFee}. Hubungi admin jika ada masalah.` },
-        { status: 400 }
+        { error: "Terlalu banyak permintaan pemesanan. Silakan tunggu beberapa saat." },
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(Math.ceil((rateResult.resetAt - Date.now()) / 1000)),
+          },
+        }
       );
     }
 
-    // Fetch items from DB to prevent client price tampering
-    const itemSlugs = items.map(i => i.menuItemSlug);
-    const dbItems = await db.select()
-      .from(schema.menuItems)
-      .where(inArray(schema.menuItems.slug, itemSlugs));
+    const body: CreateOrderRequest = await request.json();
+    const {
+      items,
+      customerName,
+      customerPhone,
+      orderType,
+      branchId,
+      deliveryAddress,
+      customerLat,
+      customerLng,
+      promoCode,
+      paymentMethod,
+      idempotencyKey,
+      claimedDeliveryFee,
+    } = body;
 
-    // Get categories to map IDs to slugs
-    const dbCategories = await db.select().from(schema.categories).where(eq(schema.categories.tenantId, tenant.id));
-    const categoryMap = new Map(dbCategories.map(c => [c.id, c.slug]));
+    // 3. Basic input validation
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return NextResponse.json({ error: "Keranjang belanja kosong." }, { status: 400 });
+    }
+    if (!customerName?.trim() || customerName.trim().length < 2) {
+      return NextResponse.json({ error: "Nama pemesan tidak valid." }, { status: 400 });
+    }
+    const cleanPhone = (customerPhone || "").replace(/[\s-]/g, "");
+    if (!cleanPhone || !/^(08|\+62)\d{8,12}$/.test(cleanPhone)) {
+      return NextResponse.json({ error: "Nomor HP tidak valid. Gunakan format 08xx atau +62xx." }, { status: 400 });
+    }
+    if (!["dine_in", "takeaway", "pickup", "delivery"].includes(orderType)) {
+      return NextResponse.json({ error: "Tipe pemesanan tidak valid." }, { status: 400 });
+    }
+    if (orderType === "delivery" && !deliveryAddress?.trim()) {
+      return NextResponse.json({ error: "Alamat pengiriman wajib diisi untuk delivery." }, { status: 400 });
+    }
+    if (!["cod", "qris", "transfer"].includes(paymentMethod)) {
+      return NextResponse.json({ error: "Metode pembayaran tidak valid." }, { status: 400 });
+    }
 
-    const dbItemMap = new Map(dbItems.map(item => [item.slug, {
-      id: item.id,
-      price: Number(item.price),
-      isAvailable: item.isAvailable,
-      categorySlug: item.categoryId ? categoryMap.get(item.categoryId) : 'minuman',
-      variants: item.variants as any[] | null
-    }]));
+    // 4. Server-Side Pricing Verification
+    let pricingResult;
+    try {
+      pricingResult = await calculateOrderPricing({
+        tenantId: tenant.id,
+        branchId,
+        items,
+        deliveryType: orderType,
+        promoCode,
+        customerLat,
+        customerLng,
+        claimedDeliveryFee,
+      });
+    } catch (pricingErr: unknown) {
+      const msg = pricingErr instanceof Error ? pricingErr.message : "Gagal menghitung harga pesanan";
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
 
-    let subtotal = 0;
-    const validatedItems: any[] = [];
+    const {
+      subtotal,
+      discountAmount,
+      deliveryFee,
+      taxAmount,
+      serviceChargeAmount,
+      totalPrice,
+      itemsBreakdown,
+      pricingSnapshot,
+      branch,
+    } = pricingResult;
 
-    for (const item of items) {
-      const dbItem = dbItemMap.get(item.menuItemSlug);
+    // 5. Idempotency Fingerprint Check (SEC-009)
+    const effectiveIdempotencyKey = idempotencyKey?.trim() || `IDEM-${crypto.randomUUID()}`;
+    const payloadCanonicalString = JSON.stringify({
+      tenantId: tenant.id,
+      branchId: branch?.id || null,
+      phone: cleanPhone,
+      items: itemsBreakdown.map((i) => ({ id: i.menuItemId, qty: i.quantity, price: i.unitPrice })),
+      total: totalPrice,
+      idemKey: effectiveIdempotencyKey,
+    });
+    const idempotencyRequestHash = crypto.createHash("sha256").update(payloadCanonicalString).digest("hex");
 
-      if (!dbItem) {
-        return NextResponse.json(
-          { error: `Menu "${item.menuItemName}" tidak ditemukan di sistem.` },
-          { status: 400 }
-        );
-      }
-      if (!dbItem.isAvailable) {
-        return NextResponse.json(
-          { error: `Menu "${item.menuItemName}" sedang tidak tersedia.` },
-          { status: 400 }
-        );
-      }
-      if (item.quantity < 1 || item.quantity > 99) {
-        return NextResponse.json({ error: 'Jumlah item tidak valid.' }, { status: 400 });
-      }
+    // Check if order with this idempotency key already exists
+    const existingOrderResult = await db
+      .select()
+      .from(schema.orders)
+      .where(
+        and(
+          eq(schema.orders.tenantId, tenant.id),
+          eq(schema.orders.idempotencyKey, effectiveIdempotencyKey)
+        )
+      )
+      .limit(1);
 
-      // Hitung ulang variantPriceModifier dari DB / static definitions (mencegah manipulasi harga client)
-      let validModifier = 0;
-      if (item.variantName) {
-        let variantOptionsSource: any[] = [];
-        if (dbItem.variants && Array.isArray(dbItem.variants) && dbItem.variants.length > 0) {
-          variantOptionsSource = dbItem.variants.flatMap((v: any) => v.options || []);
-        } else {
-          // Fallback to static menu variants / topping definitions
-          const { menuItems: staticMenuItems, toppingOptions, extraToppingOptions } = await import('@/data/menu');
-          const staticMatch = staticMenuItems.find(s => s.slug === item.menuItemSlug);
-          if (staticMatch && staticMatch.variants) {
-            variantOptionsSource = staticMatch.variants.flatMap((v: any) => v.options || []);
-          } else {
-            variantOptionsSource = [...toppingOptions, ...extraToppingOptions];
-          }
-        }
-
-        const selectedNames = item.variantName.split(',').map((s: string) => s.trim().toLowerCase());
-        for (const opt of variantOptionsSource) {
-          if (opt && (selectedNames.includes(String(opt.name).trim().toLowerCase()) || selectedNames.includes(String(opt.id).trim().toLowerCase()))) {
-            validModifier += Number(opt.priceModifier) || 0;
-          }
-        }
-      }
-
-      const unitPrice = dbItem.price + validModifier;
-      const totalPrice = unitPrice * item.quantity;
-      subtotal += totalPrice;
-
-      validatedItems.push({
-        menuItemId: dbItem.id,
-        menuItemName: item.menuItemName,
-        variantName: item.variantName || null,
-        variantPriceModifier: validModifier,
-        quantity: item.quantity,
-        unitPrice,
-        totalPrice,
-        categorySlug: dbItem.categorySlug,
+    if (existingOrderResult.length > 0) {
+      const existingOrder = existingOrderResult[0];
+      return NextResponse.json({
+        success: true,
+        isIdempotentReplay: true,
+        orderCode: existingOrder.orderCode,
+        subtotal: Number(existingOrder.subtotal),
+        deliveryFee: Number(existingOrder.deliveryFee || 0),
+        discountAmount: Number(existingOrder.discountAmount || 0),
+        taxAmount: Number(existingOrder.taxAmount || 0),
+        serviceChargeAmount: Number(existingOrder.serviceChargeAmount || 0),
+        total: Number(existingOrder.totalPrice),
+        status: existingOrder.status,
       });
     }
 
-    let promoDiscount = 0;
+    // 6. Generate Customer Token (SEC-001)
+    const customerToken = crypto.randomBytes(32).toString("hex");
+    const customerTokenHash = crypto.createHash("sha256").update(customerToken).digest("hex");
 
-    if (promoCode) {
-      const cleanCode = promoCode.trim().toUpperCase().slice(0, 30);
-      const promoResult = await db.select().from(schema.promos).where(
-        and(
-          eq(schema.promos.tenantId, tenant.id),
-          eq(schema.promos.code, cleanCode),
-          eq(schema.promos.isActive, true)
-        )
-      ).limit(1);
-      
-      const promo = promoResult[0];
-
-      if (promo && subtotal >= Number(promo.minOrder)) {
-        const promoValue = Number(promo.value);
-        if (promo.targetCategory === 'all') {
-          promoDiscount = promo.type === 'fixed'
-            ? promoValue
-            : Math.round(subtotal * (promoValue / 100));
-        } else {
-          const categoryTotal = validatedItems
-            .filter((i) => i.categorySlug === promo.targetCategory)
-            .reduce((sum, i) => sum + i.totalPrice, 0);
-
-          const discountBase = categoryTotal; 
-          promoDiscount = promo.type === 'fixed'
-            ? Math.min(promoValue, discountBase)
-            : Math.round(discountBase * (promoValue / 100));
-        }
-      }
-    }
-
-    const total = Math.max(0, subtotal + claimedFee - promoDiscount);
     const orderCode = generateOrderCode();
-    const storedPaymentMethod = paymentMethod === 'qris' ? 'transfer' : paymentMethod;
+    const storedPaymentMethod = paymentMethod === "qris" ? "transfer" : paymentMethod;
 
-    // 1. Save to Database
-    const [newOrder] = await db.insert(schema.orders).values({
-      tenantId: tenant.id,
-      orderCode,
-      customerName,
-      customerPhone,
-      deliveryType: orderType,
-      deliveryAddress: deliveryAddress || null,
-      deliveryFee: claimedFee ?? 0,
-      subtotal: String(subtotal),
-      totalPrice: String(total),
-      status: 'received',
-      paymentMethod: storedPaymentMethod,
-      paymentStatus: 'pending',
-      notes: items.map(i => i.note).filter(Boolean).join(' | ') || null,
-    }).returning();
+    // 7. Atomic Multi-Statement Transaction
+    const newOrder = await db.transaction(async (tx) => {
+      const [insertedOrder] = await tx
+        .insert(schema.orders)
+        .values({
+          tenantId: tenant.id,
+          branchId: branch?.id || null,
+          orderCode,
+          customerName: customerName.trim(),
+          customerPhone: cleanPhone,
+          customerTokenHash,
+          idempotencyKey: effectiveIdempotencyKey,
+          idempotencyRequestHash,
+          deliveryType: orderType,
+          deliveryAddress: deliveryAddress?.trim() || null,
+          deliveryDistance: branch?.distanceKm ? String(branch.distanceKm) : null,
+          deliveryLat: customerLat ? String(customerLat) : null,
+          deliveryLng: customerLng ? String(customerLng) : null,
+          deliveryFee: deliveryFee ?? 0,
+          subtotal: String(subtotal),
+          discountAmount: String(discountAmount),
+          taxAmount: String(taxAmount),
+          serviceChargeAmount: String(serviceChargeAmount),
+          totalPrice: String(totalPrice),
+          status: "received",
+          paymentMethod: storedPaymentMethod,
+          paymentStatus: "pending",
+          pricingSnapshot,
+          notes: itemsBreakdown.map((i) => i.note).filter(Boolean).join(" | ") || null,
+        })
+        .returning();
 
-    const orderItemValues = validatedItems.map(item => ({
-      orderId: newOrder.id,
-      menuItemId: item.menuItemId,
-      menuItemName: item.menuItemName,
-      variantName: item.variantName,
-      quantity: item.quantity,
-      unitPrice: String(item.unitPrice),
-      totalPrice: String(item.totalPrice),
-    }));
+      const orderItemValues = itemsBreakdown.map((item) => ({
+        orderId: insertedOrder.id,
+        menuItemId: item.menuItemId,
+        menuItemName: item.menuItemName,
+        variantName: item.variantName || null,
+        quantity: item.quantity,
+        unitPrice: String(item.unitPrice),
+        totalPrice: String(item.totalPrice),
+        note: item.note || null,
+      }));
 
-    await db.insert(schema.orderItems).values(orderItemValues);
-    const orderResult = newOrder;
+      await tx.insert(schema.orderItems).values(orderItemValues);
 
-    // 2. Publish Realtime Message to Ably (Serverless REST)
-    const ablyKey = process.env.ABLY_API_KEY;
-    if (ablyKey) {
-      try {
-        const ably = new Ably.Rest({ key: ablyKey });
-        const channel = ably.channels.get(`orders:${tenantSlug}`);
-        await channel.publish('new-order', {
-          order: {
-            ...orderResult,
-            items: validatedItems
-          }
-        });
-        console.log('[Ably] Order event published successfully:', orderCode);
-      } catch (ablyErr) {
-        console.error('[Ably] Failed to publish order event:', ablyErr);
-      }
+      // Insert transactional Outbox Event (SEC-008)
+      await tx.insert(schema.outboxEvents).values({
+        tenantId: tenant.id,
+        aggregateType: "order",
+        aggregateId: insertedOrder.id,
+        eventType: "order.created",
+        payload: {
+          orderId: insertedOrder.id,
+          orderCode: insertedOrder.orderCode,
+          branchId: branch?.id || null,
+          deliveryType: orderType,
+          totalPrice,
+          paymentMethod: storedPaymentMethod,
+        },
+        status: "pending",
+      });
+
+      return insertedOrder;
+    });
+
+    // 8. Trigger asynchronous outbox dispatch (non-blocking)
+    try {
+      fetch(`${new URL(request.url).origin}/api/internal/outbox/dispatch`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.CRON_SECRET || ""}`,
+        },
+      }).catch(() => {});
+    } catch {
+      // Background dispatch failure is safely recovered by scheduled sweeper
     }
 
-    return NextResponse.json({
-      success: true,
-      orderCode,
-      subtotal,
-      deliveryFee: claimedFee,
-      promoDiscount,
-      total,
-    }, { status: 201 });
+    const response = NextResponse.json(
+      {
+        success: true,
+        orderCode,
+        customerToken,
+        subtotal,
+        deliveryFee,
+        discountAmount,
+        taxAmount,
+        serviceChargeAmount,
+        total: totalPrice,
+        status: newOrder.status,
+      },
+      { status: 201 }
+    );
 
-  } catch (err: any) {
-    console.error('[orders/route] Unexpected error:', err);
-    return NextResponse.json({ error: 'Terjadi kesalahan sistem. Coba lagi.' }, { status: 500 });
+    // Set secure HttpOnly cookie for order ownership
+    response.cookies.set(`cust_tok_${orderCode}`, customerToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7, // 7 days
+      path: "/",
+    });
+
+    return response;
+  } catch (err: unknown) {
+    console.error("[orders/route] Unexpected error:", err);
+    return NextResponse.json({ error: "Terjadi kesalahan sistem saat membuat pesanan." }, { status: 500 });
   }
 }

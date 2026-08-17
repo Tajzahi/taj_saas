@@ -8,6 +8,18 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
+    },
+    "test": {
+      "outputs": ["coverage/**"]
+    },
+    "test:integration": {
+      "cache": false
+    },
+    "test:e2e": {
+      "cache": false
+    },
     "dev": {
       "cache": false,
       "persistent": true

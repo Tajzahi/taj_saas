@@ -20,7 +20,7 @@ export interface ParsedTenant {
  */
 export function parseTenantFromHostname(hostname: string): ParsedTenant {
   const parts = hostname.split(':');
-  const host = parts[0].toLowerCase();
+  const host = parts[0].toLowerCase().replace(/\.$/, '');
   const port = parts[1] || '';
   
   const isLocalhost = host.endsWith('.localhost') || host === 'localhost' || host === '127.0.0.1';
@@ -30,9 +30,7 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
 
   if (isLocalhost) {
     if (host === 'localhost' || host === '127.0.0.1') {
-      // Fallback if no subdomain is specified, read environment variable if available
       slug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
-      // Detect app type based on port in development
       if (port === '3001') {
         appType = 'admin';
       } else if (port === '3002') {
@@ -41,58 +39,27 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
         appType = 'customer';
       }
     } else {
-      // e.g. admin.a6-nyuss.localhost or a6-nyuss.localhost
       const subParts = host.split('.');
-      // Remove 'localhost'
-      subParts.pop();
+      subParts.pop(); // remove 'localhost'
 
-      if (subParts.length === 2) {
-        // admin.a6-nyuss or owner.a6-nyuss
-        const sub = subParts[0];
+      if (subParts.length >= 2 && (subParts[0] === 'admin' || subParts[0] === 'owner')) {
+        appType = subParts[0] as 'admin' | 'owner';
         slug = subParts[1];
-        if (sub === 'admin') appType = 'admin';
-        else if (sub === 'owner') appType = 'owner';
       } else {
-        // a6-nyuss
         slug = subParts[0];
         appType = 'customer';
       }
     }
-  } else if (host.endsWith('.netlify.app')) {
-    slug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
-    if (host.includes('admin')) {
-      appType = 'admin';
-    } else if (host.includes('owner') || host.includes('tajsaas')) {
-      appType = 'owner';
-    } else {
-      appType = 'customer';
-    }
   } else {
     // Production custom domains
-    // e.g. admin.martabakpakde.com or martabakpakde.com
     const subParts = host.split('.');
-    
-    if (subParts.length >= 3) {
-      const sub = subParts[0];
-      if (sub === 'admin') {
-        appType = 'admin';
-        slug = subParts.slice(1).join('.'); // e.g. martabakpakde.com
-      } else if (sub === 'owner') {
-        appType = 'owner';
-        slug = subParts.slice(1).join('.'); // e.g. martabakpakde.com
-      } else {
-        appType = 'customer';
-        slug = host; // Entire domain is the tenant identifier
-      }
+    if (subParts.length >= 3 && (subParts[0] === 'admin' || subParts[0] === 'owner')) {
+      appType = subParts[0] as 'admin' | 'owner';
+      slug = subParts.slice(1).join('.'); // Base custom domain
     } else {
       appType = 'customer';
-      slug = host; // Entire domain
+      slug = host; // Full domain
     }
-  }
-
-  // Ensure slug uses our new default if it resolved to the old a6-nyuss
-  if (slug === 'a6-nyuss') {
-    slug = 'taj-saas';
   }
 
   return { slug, appType, isLocalhost };

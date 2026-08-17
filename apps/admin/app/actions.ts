@@ -2,47 +2,36 @@
 
 import { db, schema } from "@taj-saas/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
+import {
+  requireTenantPermission,
+  requireTenantSession,
+  writeAuditEvent,
+  AuthorizationError,
+} from "@lib/tenant-authorization";
 
-// Helper to get tenant context safely with automatic fallback
-async function getTenantContext() {
-  const headersList = await headers();
-  let tenantId = headersList.get("x-tenant-id");
-  let tenantSlug = headersList.get("x-tenant-slug");
+// ─── STATE MACHINE DEFINITIONS ──────────────────────────────────────────────
 
-  if (!tenantId) {
-    const slug = tenantSlug || process.env.NEXT_PUBLIC_TENANT_SLUG || "taj-saas";
-    const [tenant] = await db
-      .select()
-      .from(schema.tenants)
-      .where(eq(schema.tenants.slug, slug))
-      .limit(1);
+const ORDER_TRANSITIONS: Record<string, string[]> = {
+  received: ["processing", "cancelled"],
+  processing: ["ready", "cancelled"],
+  ready: ["completed"],
+  completed: [],
+  cancelled: [],
+};
 
-    if (tenant) {
-      tenantId = tenant.id;
-      tenantSlug = tenant.slug;
-    } else {
-      throw new Error("Tenant tidak ditemukan untuk slug: " + slug);
-    }
-  }
-
-  if (!tenantId) {
-    throw new Error("Tenant ID tidak ditemukan.");
-  }
-  return { tenantId, tenantSlug };
-}
+// ─── ORDERS ACTIONS ─────────────────────────────────────────────────────────
 
 // Fetch all orders for current tenant (Optimized single batch query)
 export async function getOrdersAction() {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant } = await requireTenantPermission("orders:read", { expectedApp: "admin" });
 
     const dbOrders = await db
       .select()
       .from(schema.orders)
-      .where(eq(schema.orders.tenantId, tenantId))
+      .where(eq(schema.orders.tenantId, tenant.id))
       .orderBy(desc(schema.orders.createdAt));
 
     if (dbOrders.length === 0) {
@@ -73,7 +62,6 @@ export async function getOrdersAction() {
         variant: item.variantName || undefined,
       }));
 
-      // Calculate delivery fee safely (only if delivery type is 'delivery' and non-negative)
       const calculatedFee = Number(order.totalPrice) - Number(order.subtotal);
       const deliveryFee = order.deliveryType === "delivery" ? Math.max(0, calculatedFee) : 0;
 
@@ -102,157 +90,171 @@ export async function getOrdersAction() {
     });
 
     return { success: true, orders: ordersWithItems };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message, orders: [] };
+    }
     console.error("Error in getOrdersAction:", err);
-    return { success: false, error: err.message, orders: [] };
+    return { success: false, error: "Gagal memuat daftar pesanan", orders: [] };
   }
 }
 
-// Update order status and log audit trail
+// Update order status with strict state machine and conditional SQL update
 export async function updateOrderStatusAction(
   orderId: string,
   newStatus: string,
   cancellationReason?: string
 ) {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant, user } = await requireTenantPermission("orders:update-status", {
+      expectedApp: "admin",
+    });
 
     const orderResult = await db
       .select()
       .from(schema.orders)
-      .where(eq(schema.orders.id, orderId))
+      .where(and(eq(schema.orders.id, orderId), eq(schema.orders.tenantId, tenant.id)))
       .limit(1);
 
     const order = orderResult[0];
-    if (!order || order.tenantId !== tenantId) {
+    if (!order) {
       return { success: false, error: "Pesanan tidak ditemukan." };
     }
 
-    const shouldAutoPay = newStatus === "completed" && order.paymentMethod === "cod";
+    // State machine transition validation
+    const allowedTransitions = ORDER_TRANSITIONS[order.status] || [];
+    if (!allowedTransitions.includes(newStatus)) {
+      return {
+        success: false,
+        error: `Transisi status tidak valid: tidak dapat mengubah dari '${order.status}' ke '${newStatus}'.`,
+      };
+    }
+
+    const shouldAutoPay = newStatus === "completed" && (order.paymentMethod === "cod" || order.paymentMethod === "cash");
     const paymentStatus = shouldAutoPay ? "paid" : order.paymentStatus;
 
-    // Perform sequential insertions/updates instead of db.transaction since neon-http doesn't support transaction blocks
-    await db
+    // Atomic conditional status update (WHERE status = :currentStatus)
+    const updateResult = await db
       .update(schema.orders)
       .set({
         status: newStatus,
         paymentStatus,
       })
-      .where(eq(schema.orders.id, orderId));
+      .where(
+        and(
+          eq(schema.orders.id, orderId),
+          eq(schema.orders.tenantId, tenant.id),
+          eq(schema.orders.status, order.status)
+        )
+      );
 
-    await db.insert(schema.auditLogs).values({
-      tenantId,
-      action: `update_status_${newStatus}`,
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: `order_status_${newStatus}`,
       entityType: "orders",
       entityId: orderId,
       details: {
         previousStatus: order.status,
+        newStatus,
         cancellationReason: cancellationReason || null,
       },
     });
 
-    // If COD completed, log this transaction into the shift
+    // If Cash completed, log transaction into active shift
     if (shouldAutoPay) {
       const activeShifts = await db
         .select()
         .from(schema.shifts)
-        .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
+        .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
         .limit(1);
 
       const activeShift = activeShifts[0];
       if (activeShift) {
-        // Log inside shiftLogs
         await db.insert(schema.shiftLogs).values({
-          tenantId,
+          tenantId: tenant.id,
           shiftId: activeShift.id,
           action: "cash_in",
           amount: order.totalPrice,
-          notes: `Pembayaran COD pesanan ${order.orderCode}`,
+          notes: `Pembayaran Cash pesanan ${order.orderCode}`,
         });
       }
     }
 
     revalidatePath("/");
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in updateOrderStatusAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal memperbarui status pesanan" };
   }
 }
 
 // Verify payment status
 export async function verifyPaymentStatusAction(orderId: string, isPaid: boolean) {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant, user } = await requireTenantPermission("orders:verify-payment", {
+      expectedApp: "admin",
+    });
 
     const orderResult = await db
       .select()
       .from(schema.orders)
-      .where(eq(schema.orders.id, orderId))
+      .where(and(eq(schema.orders.id, orderId), eq(schema.orders.tenantId, tenant.id)))
       .limit(1);
 
     const order = orderResult[0];
-    if (!order || order.tenantId !== tenantId) {
+    if (!order) {
       return { success: false, error: "Pesanan tidak ditemukan." };
     }
 
     const newPaymentStatus = isPaid ? "paid" : "failed";
 
-    // Perform sequential insertions/updates instead of db.transaction since neon-http doesn't support transaction blocks
     await db
       .update(schema.orders)
       .set({
         paymentStatus: newPaymentStatus,
       })
-      .where(eq(schema.orders.id, orderId));
+      .where(and(eq(schema.orders.id, orderId), eq(schema.orders.tenantId, tenant.id)));
 
-    await db.insert(schema.auditLogs).values({
-      tenantId,
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
       action: `verify_payment_${newPaymentStatus}`,
       entityType: "orders",
       entityId: orderId,
       details: {
         previousPaymentStatus: order.paymentStatus,
+        newPaymentStatus,
       },
     });
 
-    // If payment is verified (paid), log as transfer cash-in (for shift calculations if relevant)
-    if (isPaid) {
-      const activeShifts = await db
-        .select()
-        .from(schema.shifts)
-        .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
-        .limit(1);
-
-      const activeShift = activeShifts[0];
-      if (activeShift) {
-        await db.insert(schema.shiftLogs).values({
-          tenantId,
-          shiftId: activeShift.id,
-          action: "cash_in",
-          amount: order.totalPrice,
-          notes: `Pembayaran QRIS pesanan ${order.orderCode} terverifikasi`,
-        });
-      }
-    }
-
     revalidatePath("/");
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in verifyPaymentStatusAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal memverifikasi pembayaran" };
   }
 }
 
-// Get the active shift (open status)
+// ─── SHIFTS ACTIONS ─────────────────────────────────────────────────────────
+
+// Get active shift for current tenant
 export async function getActiveShiftAction() {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant } = await requireTenantPermission("shifts:manage-own", {
+      expectedApp: "admin",
+    });
 
     const activeShifts = await db
       .select()
       .from(schema.shifts)
-      .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
+      .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
       .limit(1);
 
     const activeShift = activeShifts[0];
@@ -264,7 +266,7 @@ export async function getActiveShiftAction() {
     const logs = await db
       .select()
       .from(schema.shiftLogs)
-      .where(eq(schema.shiftLogs.shiftId, activeShift.id));
+      .where(and(eq(schema.shiftLogs.shiftId, activeShift.id), eq(schema.shiftLogs.tenantId, tenant.id)));
 
     const totalCashIn = logs
       .filter((l) => l.action === "cash_in")
@@ -288,25 +290,32 @@ export async function getActiveShiftAction() {
         expectedCash,
         actualCash: activeShift.actualCash ? Number(activeShift.actualCash) : null,
         drift: activeShift.drift ? Number(activeShift.drift) : null,
-        status: activeShift.status as 'open' | 'closed',
+        status: activeShift.status as "open" | "closed",
       },
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message, activeShift: null };
+    }
     console.error("Error in getActiveShiftAction:", err);
-    return { success: false, error: err.message, activeShift: null };
+    return { success: false, error: "Gagal memuat status shift aktif", activeShift: null };
   }
 }
 
 // Start/Open a new shift
 export async function openShiftAction(startingCash: number, operatorName: string) {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant, user } = await requireTenantPermission("shifts:manage-own", {
+      expectedApp: "admin",
+    });
 
-    // Check if there is already an open shift
+    const parsedStartingCash = Math.max(0, Number(startingCash) || 0);
+
+    // Check if there is already an open shift for this tenant
     const existing = await db
       .select()
       .from(schema.shifts)
-      .where(and(eq(schema.shifts.tenantId, tenantId), eq(schema.shifts.status, "open")))
+      .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
       .limit(1);
 
     if (existing.length > 0) {
@@ -316,21 +325,29 @@ export async function openShiftAction(startingCash: number, operatorName: string
     const [newShift] = await db
       .insert(schema.shifts)
       .values({
-        tenantId,
-        operatorName,
-        startingCash: String(startingCash),
+        tenantId: tenant.id,
+        operatorName: operatorName || user.name || "Kasir",
+        startingCash: String(parsedStartingCash),
         status: "open",
         openedAt: new Date(),
       })
       .returning();
 
-    // Log the open action
     await db.insert(schema.shiftLogs).values({
-      tenantId,
+      tenantId: tenant.id,
       shiftId: newShift.id,
       action: "open",
-      amount: String(startingCash),
-      notes: `Shift dibuka oleh ${operatorName}`,
+      amount: String(parsedStartingCash),
+      notes: `Shift dibuka oleh ${newShift.operatorName}`,
+    });
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "shift_open",
+      entityType: "shifts",
+      entityId: newShift.id,
+      details: { startingCash: parsedStartingCash },
     });
 
     revalidatePath("/");
@@ -346,62 +363,108 @@ export async function openShiftAction(startingCash: number, operatorName: string
         expectedCash: Number(newShift.startingCash),
         actualCash: null,
         drift: null,
-        status: newShift.status as 'open' | 'closed',
+        status: newShift.status as "open" | "closed",
       },
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in openShiftAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal membuka shift baru" };
   }
 }
 
 // Close active shift
-export async function closeShiftAction(shiftId: string, actualCash: number, expectedCash: number) {
+export async function closeShiftAction(shiftId: string, actualCash: number) {
   try {
-    const { tenantId } = await getTenantContext();
-    const drift = actualCash - expectedCash;
+    const { tenant, user } = await requireTenantPermission("shifts:manage-own", {
+      expectedApp: "admin",
+    });
 
-    // Perform sequential insertions/updates instead of db.transaction since neon-http doesn't support transaction blocks
+    const shiftResult = await db
+      .select()
+      .from(schema.shifts)
+      .where(and(eq(schema.shifts.id, shiftId), eq(schema.shifts.tenantId, tenant.id)))
+      .limit(1);
+
+    const shift = shiftResult[0];
+    if (!shift || shift.status !== "open") {
+      return { success: false, error: "Shift tidak ditemukan atau sudah ditutup." };
+    }
+
+    // Calculate expected physical cash strictly from shiftLogs
+    const logs = await db
+      .select()
+      .from(schema.shiftLogs)
+      .where(and(eq(schema.shiftLogs.shiftId, shift.id), eq(schema.shiftLogs.tenantId, tenant.id)));
+
+    const totalCashIn = logs
+      .filter((l) => l.action === "cash_in")
+      .reduce((sum, l) => sum + Number(l.amount || 0), 0);
+
+    const totalCashOut = logs
+      .filter((l) => l.action === "cash_out")
+      .reduce((sum, l) => sum + Number(l.amount || 0), 0);
+
+    const expectedCash = Number(shift.startingCash) + totalCashIn - totalCashOut;
+    const parsedActualCash = Number(actualCash) || 0;
+    const drift = parsedActualCash - expectedCash;
+
     await db
       .update(schema.shifts)
       .set({
         status: "closed",
         closedAt: new Date(),
-        actualCash: String(actualCash),
+        actualCash: String(parsedActualCash),
         drift: String(drift),
       })
-      .where(eq(schema.shifts.id, shiftId));
+      .where(and(eq(schema.shifts.id, shiftId), eq(schema.shifts.tenantId, tenant.id)));
 
     await db.insert(schema.shiftLogs).values({
-      tenantId,
+      tenantId: tenant.id,
       shiftId,
       action: "close",
-      amount: String(actualCash),
-      notes: `Shift ditutup. Uang Fisik: Rp ${actualCash}, Harapan: Rp ${expectedCash}, Selisih: Rp ${drift}`,
+      amount: String(parsedActualCash),
+      notes: `Shift ditutup. Uang Fisik: Rp ${parsedActualCash}, Harapan: Rp ${expectedCash}, Selisih: Rp ${drift}`,
+    });
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "shift_close",
+      entityType: "shifts",
+      entityId: shiftId,
+      details: { actualCash: parsedActualCash, expectedCash, drift },
     });
 
     revalidatePath("/");
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in closeShiftAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal menutup shift" };
   }
 }
+
+// ─── MENU & STORE OPERATIONS ────────────────────────────────────────────────
 
 // Fetch menu items availability list
 export async function getMenuItemsAction() {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant } = await requireTenantPermission("menu:read", { expectedApp: "admin" });
 
     const dbItems = await db
       .select()
       .from(schema.menuItems)
-      .where(eq(schema.menuItems.tenantId, tenantId));
+      .where(eq(schema.menuItems.tenantId, tenant.id));
 
     const dbCategories = await db
       .select()
       .from(schema.categories)
-      .where(eq(schema.categories.tenantId, tenantId));
+      .where(eq(schema.categories.tenantId, tenant.id));
 
     const categoryLabelMap = new Map(dbCategories.map((c) => [c.id, c.name]));
 
@@ -416,39 +479,54 @@ export async function getMenuItemsAction() {
     }));
 
     return { success: true, menuItems: formatted };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message, menuItems: [] };
+    }
     console.error("Error in getMenuItemsAction:", err);
-    return { success: false, error: err.message, menuItems: [] };
+    return { success: false, error: "Gagal memuat menu", menuItems: [] };
   }
 }
 
 // Toggle menu item availability
 export async function toggleMenuItemAvailabilityAction(itemId: string, isAvailable: boolean) {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant, user } = await requireTenantPermission("menu:manage", { expectedApp: "admin" });
 
     await db
       .update(schema.menuItems)
       .set({ isAvailable })
-      .where(and(eq(schema.menuItems.id, itemId), eq(schema.menuItems.tenantId, tenantId)));
+      .where(and(eq(schema.menuItems.id, itemId), eq(schema.menuItems.tenantId, tenant.id)));
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "toggle_menu_item",
+      entityType: "menu_items",
+      entityId: itemId,
+      details: { isAvailable },
+    });
 
     revalidatePath("/");
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in toggleMenuItemAvailabilityAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal memperbarui ketersediaan menu" };
   }
 }
 
 // Fetch toppings availability list
 export async function getToppingsAction() {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant } = await requireTenantPermission("menu:read", { expectedApp: "admin" });
 
     const dbToppings = await db
       .select()
       .from(schema.toppings)
-      .where(eq(schema.toppings.tenantId, tenantId));
+      .where(eq(schema.toppings.tenantId, tenant.id));
 
     const formatted = dbToppings.map((t) => ({
       id: t.id,
@@ -457,45 +535,58 @@ export async function getToppingsAction() {
     }));
 
     return { success: true, toppings: formatted };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message, toppings: [] };
+    }
     console.error("Error in getToppingsAction:", err);
-    return { success: false, error: err.message, toppings: [] };
+    return { success: false, error: "Gagal memuat toppings", toppings: [] };
   }
 }
 
 // Toggle topping availability
 export async function toggleToppingAvailabilityAction(toppingId: string, isAvailable: boolean) {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant, user } = await requireTenantPermission("menu:manage", { expectedApp: "admin" });
 
     await db
       .update(schema.toppings)
       .set({ isAvailable })
-      .where(and(eq(schema.toppings.id, toppingId), eq(schema.toppings.tenantId, tenantId)));
+      .where(and(eq(schema.toppings.id, toppingId), eq(schema.toppings.tenantId, tenant.id)));
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "toggle_topping",
+      entityType: "toppings",
+      entityId: toppingId,
+      details: { isAvailable },
+    });
 
     revalidatePath("/");
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in toggleToppingAvailabilityAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal memperbarui ketersediaan topping" };
   }
 }
 
-// Fetch store logs (opened/closed logs from audit logs or shifts)
+// Fetch store logs
 export async function getStoreLogsAction() {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant } = await requireTenantPermission("shifts:manage-own", { expectedApp: "admin" });
 
-    // Map logs from shifts opened/closed events
     const dbShifts = await db
       .select()
       .from(schema.shifts)
-      .where(eq(schema.shifts.tenantId, tenantId))
+      .where(eq(schema.shifts.tenantId, tenant.id))
       .orderBy(desc(schema.shifts.openedAt));
 
     const logs: any[] = [];
     dbShifts.forEach((s) => {
-      // Open Log
       logs.push({
         id: `open-${s.id}`,
         action: "open",
@@ -506,7 +597,6 @@ export async function getStoreLogsAction() {
         notes: `Shift dibuka oleh ${s.operatorName}`,
       });
 
-      // Close Log if closed
       if (s.closedAt) {
         logs.push({
           id: `close-${s.id}`,
@@ -521,61 +611,59 @@ export async function getStoreLogsAction() {
     });
 
     return { success: true, storeLogs: logs };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message, storeLogs: [] };
+    }
     console.error("Error in getStoreLogsAction:", err);
-    return { success: false, error: err.message, storeLogs: [] };
+    return { success: false, error: "Gagal memuat log operasional", storeLogs: [] };
   }
 }
 
-// Toggle store open status (operational open/close for daily orders)
+// Toggle store operational open/close
 export async function toggleStoreAction(isOpen: boolean) {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant, user } = await requireTenantPermission("store:manage-operation", {
+      expectedApp: "admin",
+    });
 
-    const tenantResult = await db
-      .select()
-      .from(schema.tenants)
-      .where(eq(schema.tenants.id, tenantId))
-      .limit(1);
+    const currentBranding = tenant.branding || {};
+    await db
+      .update(schema.tenants)
+      .set({
+        branding: {
+          ...currentBranding,
+          storeOpen: isOpen,
+        },
+      })
+      .where(eq(schema.tenants.id, tenant.id));
 
-    const tenant = tenantResult[0];
-    if (tenant) {
-      const currentBranding = tenant.branding || {};
-      await db
-        .update(schema.tenants)
-        .set({
-          isActive: true, // Keep SaaS subscription active
-          branding: {
-            ...currentBranding,
-            storeOpen: isOpen,
-          },
-        })
-        .where(eq(schema.tenants.id, tenantId));
-    }
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "toggle_store_operation",
+      entityType: "tenants",
+      entityId: tenant.id,
+      details: { storeOpen: isOpen },
+    });
 
     revalidatePath("/");
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in toggleStoreAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal memperbarui status operasional toko" };
   }
 }
 
-// Get store settings
+// Get operational store settings
 export async function getStoreSettingsAction() {
   try {
-    const { tenantId } = await getTenantContext();
-
-    const tenantResult = await db
-      .select()
-      .from(schema.tenants)
-      .where(eq(schema.tenants.id, tenantId))
-      .limit(1);
-
-    const tenant = tenantResult[0];
-    if (!tenant) {
-      return { success: false, error: "Tenant tidak ditemukan." };
-    }
+    const { tenant } = await requireTenantPermission("store:read-operation", {
+      expectedApp: "admin",
+    });
 
     const branding = tenant.branding || {};
     return {
@@ -584,65 +672,100 @@ export async function getStoreSettingsAction() {
       name: tenant.name,
       branding: tenant.branding,
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
     console.error("Error in getStoreSettingsAction:", err);
-    return { success: false, error: err.message };
+    return { success: false, error: "Gagal memuat pengaturan toko" };
   }
 }
 
-// Write Audit Log
+// Write Audit Log from client
 export async function writeAuditLogAction(action: string, details: string, orderId?: string) {
   try {
-    const { tenantId } = await getTenantContext();
-
-    await db.insert(schema.auditLogs).values({
-      tenantId,
-      action,
+    const { tenant, user } = await requireTenantSession({ expectedApp: "admin" });
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: action.slice(0, 50),
       entityType: "general",
-      entityId: orderId || null,
-      details: { info: details },
+      entityId: orderId || undefined,
+      details: { note: details.slice(0, 255) },
     });
-
     return { success: true };
-  } catch (err: any) {
-    console.error("Error in writeAuditLogAction:", err);
-    return { success: false, error: err.message };
+  } catch {
+    return { success: false };
   }
 }
+
+// ─── POS ORDERS ─────────────────────────────────────────────────────────────
 
 // Create Offline POS Order in Database
 export async function createOfflineOrderAction(data: {
   customerName: string;
-  orderType: 'dine_in' | 'takeaway' | 'pickup' | 'delivery';
+  orderType: "dine_in" | "takeaway" | "pickup" | "delivery";
   tableNo?: string;
   items: { id: string; name: string; price: number; qty: number }[];
   totalPrice: number;
-  paymentMethod: 'cod' | 'transfer';
+  paymentMethod: "cod" | "transfer";
   paymentProofUrl?: string | null;
   notes?: string;
 }) {
   try {
-    const { tenantId } = await getTenantContext();
+    const { tenant, user } = await requireTenantPermission("orders:create-pos", {
+      expectedApp: "admin",
+    });
 
-    const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
-    const orderCode = `OFF-${rand}`;
-    const subtotal = data.items.reduce((s, i) => s + i.price * i.qty, 0);
+    // Validate item menu IDs belong to this tenant
+    const itemIds = data.items.map((i) => i.id).filter((id) => id && id.length === 36);
+    let verifiedSubtotal = 0;
+
+    if (itemIds.length > 0) {
+      const dbMenuItems = await db
+        .select()
+        .from(schema.menuItems)
+        .where(and(inArray(schema.menuItems.id, itemIds), eq(schema.menuItems.tenantId, tenant.id)));
+
+      const priceMap = new Map(dbMenuItems.map((m) => [m.id, Number(m.price)]));
+      for (const item of data.items) {
+        const unitPrice = priceMap.get(item.id) ?? item.price;
+        verifiedSubtotal += unitPrice * item.qty;
+      }
+    } else {
+      verifiedSubtotal = data.items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    }
+
+    const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
+    const orderCode = `POS-${rand}`;
 
     const [newOrder] = await db
       .insert(schema.orders)
       .values({
-        tenantId,
+        tenantId: tenant.id,
         orderCode,
-        customerName: data.customerName,
-        customerPhone: data.tableNo ? `Meja ${data.tableNo}` : (data.orderType === 'dine_in' ? 'Dine-In' : data.orderType === 'takeaway' ? 'Takeaway' : data.orderType === 'delivery' ? 'Delivery' : 'Pickup'),
+        customerName: data.customerName || "Pelanggan POS",
+        customerPhone: data.tableNo
+          ? `Meja ${data.tableNo}`
+          : data.orderType === "dine_in"
+          ? "Dine-In"
+          : data.orderType === "takeaway"
+          ? "Takeaway"
+          : data.orderType === "delivery"
+          ? "Delivery"
+          : "Pickup",
         deliveryType: data.orderType,
-        subtotal: subtotal.toString(),
-        totalPrice: data.totalPrice.toString(),
-        status: 'completed', // Direct completed POS order
-        paymentMethod: data.paymentMethod === 'cod' ? 'cod' : 'transfer',
-        paymentStatus: 'paid', // Direct paid
+        subtotal: verifiedSubtotal.toString(),
+        totalPrice: verifiedSubtotal.toString(),
+        status: "completed",
+        paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
+        paymentStatus: "paid",
         paymentProofUrl: data.paymentProofUrl || null,
-        notes: data.notes || (data.orderType === 'dine_in' ? `Dine-In${data.tableNo ? ' Meja ' + data.tableNo : ''}` : data.orderType.toUpperCase()),
+        notes:
+          data.notes ||
+          (data.orderType === "dine_in"
+            ? `Dine-In${data.tableNo ? " Meja " + data.tableNo : ""}`
+            : data.orderType.toUpperCase()),
       })
       .returning();
 
@@ -659,10 +782,196 @@ export async function createOfflineOrderAction(data: {
       );
     }
 
-    revalidatePath('/');
+    // Log to active shift if cash/cod payment
+    if (data.paymentMethod === "cod") {
+      const activeShifts = await db
+        .select()
+        .from(schema.shifts)
+        .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
+        .limit(1);
+
+      const activeShift = activeShifts[0];
+      if (activeShift) {
+        await db.insert(schema.shiftLogs).values({
+          tenantId: tenant.id,
+          shiftId: activeShift.id,
+          action: "cash_in",
+          amount: verifiedSubtotal.toString(),
+          notes: `Pembayaran POS Kasir: ${orderCode}`,
+        });
+      }
+    }
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "pos_order_created",
+      entityType: "orders",
+      entityId: newOrder.id,
+      details: { orderCode, totalPrice: verifiedSubtotal },
+    });
+
+    revalidatePath("/");
     return { success: true, orderCode, order: newOrder };
-  } catch (error: any) {
-    console.error('Error in createOfflineOrderAction:', error);
-    return { success: false, error: error.message };
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
+    console.error("Error in createOfflineOrderAction:", err);
+    return { success: false, error: "Gagal membuat pesanan POS" };
+  }
+}
+
+// ─── ORDER CANCELLATION & REFUND REVIEW (SEC-011, P2) ───────────────────────
+
+export async function getCancellationRequestsAction() {
+  try {
+    const { tenant } = await requireTenantPermission("cancellations:review", {
+      expectedApp: "admin",
+    });
+
+    const requests = await db
+      .select({
+        id: schema.orderCancellationRequests.id,
+        orderId: schema.orderCancellationRequests.orderId,
+        orderCode: schema.orders.orderCode,
+        customerName: schema.orders.customerName,
+        customerPhone: schema.orders.customerPhone,
+        totalPrice: schema.orders.totalPrice,
+        reason: schema.orderCancellationRequests.reason,
+        bankName: schema.orderCancellationRequests.bankName,
+        accountNumber: schema.orderCancellationRequests.accountNumber,
+        accountHolder: schema.orderCancellationRequests.accountHolder,
+        status: schema.orderCancellationRequests.status,
+        reviewedBy: schema.orderCancellationRequests.reviewedBy,
+        reviewedAt: schema.orderCancellationRequests.reviewedAt,
+        rejectionReason: schema.orderCancellationRequests.rejectionReason,
+        createdAt: schema.orderCancellationRequests.createdAt,
+      })
+      .from(schema.orderCancellationRequests)
+      .innerJoin(
+        schema.orders,
+        and(
+          eq(schema.orderCancellationRequests.orderId, schema.orders.id),
+          eq(schema.orders.tenantId, tenant.id)
+        )
+      )
+      .where(eq(schema.orderCancellationRequests.tenantId, tenant.id))
+      .orderBy(desc(schema.orderCancellationRequests.createdAt));
+
+    return { success: true, data: requests };
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message, data: [] };
+    }
+    console.error("Error in getCancellationRequestsAction:", err);
+    return { success: false, error: "Gagal memuat daftar pembatalan", data: [] };
+  }
+}
+
+export async function reviewCancellationRequestAction(
+  requestId: string,
+  decision: "approved" | "rejected",
+  rejectionReason?: string
+) {
+  try {
+    const { tenant, user } = await requireTenantPermission("cancellations:review", {
+      expectedApp: "admin",
+    });
+
+    const [reqRow] = await db
+      .select()
+      .from(schema.orderCancellationRequests)
+      .where(
+        and(
+          eq(schema.orderCancellationRequests.id, requestId),
+          eq(schema.orderCancellationRequests.tenantId, tenant.id)
+        )
+      )
+      .limit(1);
+
+    if (!reqRow || reqRow.status !== "pending") {
+      return { success: false, error: "Permintaan pembatalan tidak ditemukan atau sudah diproses." };
+    }
+
+    const [order] = await db
+      .select()
+      .from(schema.orders)
+      .where(and(eq(schema.orders.id, reqRow.orderId), eq(schema.orders.tenantId, tenant.id)))
+      .limit(1);
+
+    if (!order) {
+      return { success: false, error: "Pesanan terkait tidak ditemukan." };
+    }
+
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.orderCancellationRequests)
+        .set({
+          status: decision,
+          reviewedBy: user.id,
+          reviewedAt: new Date(),
+          rejectionReason: decision === "rejected" ? rejectionReason || "Ditolak oleh admin" : null,
+        })
+        .where(eq(schema.orderCancellationRequests.id, requestId));
+
+      if (decision === "approved") {
+        await tx
+          .update(schema.orders)
+          .set({
+            status: "cancelled",
+            paymentStatus: order.paymentStatus === "paid" ? "refunded" : "failed",
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.orders.id, order.id));
+
+        if (order.paymentStatus === "paid") {
+          await tx.insert(schema.paymentTransactions).values({
+            tenantId: tenant.id,
+            orderId: order.id,
+            amount: order.totalPrice,
+            paymentMethod: order.paymentMethod,
+            status: "refunded",
+            notes: `Refund approved: ${reqRow.reason}`,
+            verifiedBy: user.id,
+            verifiedAt: new Date(),
+          });
+        }
+
+        await tx.insert(schema.outboxEvents).values({
+          tenantId: tenant.id,
+          aggregateType: "order",
+          aggregateId: order.id,
+          eventType: "order.cancellation_approved",
+          payload: {
+            orderId: order.id,
+            orderCode: order.orderCode,
+            refundAmount: order.totalPrice,
+          },
+          status: "pending",
+        });
+      }
+
+      await tx.insert(schema.auditLogs).values({
+        tenantId: tenant.id,
+        userId: user.id,
+        action: `cancellation_request_${decision}`,
+        entityType: "order_cancellation_requests",
+        entityId: requestId,
+        details: { orderId: order.id, decision, rejectionReason },
+      });
+    });
+
+    revalidatePath("/");
+    return {
+      success: true,
+      message: decision === "approved" ? "Pembatalan & refund disetujui." : "Permintaan pembatalan ditolak.",
+    };
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
+    console.error("Error in reviewCancellationRequestAction:", err);
+    return { success: false, error: "Gagal memproses review pembatalan" };
   }
 }

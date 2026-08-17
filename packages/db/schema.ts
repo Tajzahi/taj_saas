@@ -1,82 +1,56 @@
-import { pgTable, uuid, text, integer, boolean, timestamp, numeric, jsonb, varchar, index, decimal } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, varchar, uuid, numeric, integer, jsonb, decimal, index, uniqueIndex } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // ==========================================
-// 1. Better Auth Tables
+// 1. Better Auth Core Tables
 // ==========================================
 
-export const user = pgTable("user", {
-  id: varchar("id", { length: 36 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 255 }).notNull().unique(),
-  emailVerified: boolean("email_verified").default(false).notNull(),
-  image: text("image"),
-  role: varchar("role", { length: 50 }).default("kasir"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at")
-    .defaultNow()
-    .$onUpdate(() => new Date())
-    .notNull(),
+export const user = pgTable('user', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('email_verified').default(false).notNull(),
+  image: text('image'),
+  role: text('role').default('kasir'), // owner | manager | kasir
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
-export const session = pgTable(
-  "session",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    expiresAt: timestamp("expires_at").notNull(),
-    token: varchar("token", { length: 255 }).notNull().unique(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
-      .$onUpdate(() => new Date())
-      .notNull(),
-    ipAddress: text("ip_address"),
-    userAgent: text("user_agent"),
-    userId: varchar("user_id", { length: 36 })
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-  },
-  (table) => [index("session_userId_idx").on(table.userId)],
-);
+export const session = pgTable('session', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  expiresAt: timestamp('expires_at').notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  ipAddress: text('ip_address'),
+  userAgent: text('user_agent'),
+  userId: varchar('user_id', { length: 36 }).notNull().references(() => user.id, { onDelete: 'cascade' }),
+});
 
-export const account = pgTable(
-  "account",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    accountId: text("account_id").notNull(),
-    providerId: text("provider_id").notNull(),
-    userId: varchar("user_id", { length: 36 })
-      .notNull()
-      .references(() => user.id, { onDelete: "cascade" }),
-    accessToken: text("access_token"),
-    refreshToken: text("refresh_token"),
-    idToken: text("id_token"),
-    accessTokenExpiresAt: timestamp("access_token_expires_at"),
-    refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
-    scope: text("scope"),
-    password: text("password"),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
-      .$onUpdate(() => new Date())
-      .notNull(),
-  },
-  (table) => [index("account_userId_idx").on(table.userId)],
-);
+export const account = pgTable('account', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  accountId: text('account_id').notNull(),
+  providerId: text('provider_id').notNull(),
+  userId: varchar('user_id', { length: 36 }).notNull().references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('access_token'),
+  refreshToken: text('refresh_token'),
+  idToken: text('id_token'),
+  accessTokenExpiresAt: timestamp('access_token_expires_at'),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
-export const verification = pgTable(
-  "verification",
-  {
-    id: varchar("id", { length: 36 }).primaryKey(),
-    identifier: varchar("identifier", { length: 255 }).notNull(),
-    value: text("value").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    createdAt: timestamp("created_at").defaultNow().notNull(),
-    updatedAt: timestamp("updated_at")
-      .defaultNow()
-      .$onUpdate(() => new Date())
-      .notNull(),
-  },
-  (table) => [index("verification_identifier_idx").on(table.identifier)],
-);
+export const verification = pgTable('verification', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
 
 // ==========================================
 // 2. F&B Multi-Tenant Business Tables
@@ -112,7 +86,9 @@ export const tenants = pgTable('tenants', {
     receiptFooter?: string;
     receiptPaperWidth?: string | number;
     taxRate?: number;
+    taxRateBps?: number;
     serviceChargeRate?: number;
+    serviceChargeRateBps?: number;
     enableQris?: boolean;
     enableBankTransfer?: boolean;
     enableCash?: boolean;
@@ -120,6 +96,7 @@ export const tenants = pgTable('tenants', {
   }>(),
   packageType: text('package_type').notNull().default('startup'), // startup | professional | enterprise
   isActive: boolean('is_active').default(true),
+  settingsVersion: integer('settings_version').default(1).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -143,6 +120,11 @@ export const branches = pgTable('branches', {
   phone: text('phone'),
   picName: text('pic_name'),
   googleMapsUrl: text('google_maps_url'),
+  outletLat: numeric('outlet_lat', { precision: 10, scale: 7 }),
+  outletLng: numeric('outlet_lng', { precision: 10, scale: 7 }),
+  isPrimary: boolean('is_primary').default(false).notNull(),
+  acceptsOnlineOrders: boolean('accepts_online_orders').default(true).notNull(),
+  deliveryZones: jsonb('delivery_zones').$type<{ maxDistanceKm: number; baseFee: number; perKmFee: number }[]>(),
   orderingMethods: jsonb('ordering_methods').$type<string[]>(),
   paymentMethods: jsonb('payment_methods').$type<string[]>(),
   status: text('status').default('active').notNull(), // active | maintenance
@@ -158,8 +140,10 @@ export const categories = pgTable('categories', {
   name: text('name').notNull(),
   slug: text('slug').notNull(),
   sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  index("categories_tenantId_idx").on(table.tenantId)
+  index("categories_tenantId_idx").on(table.tenantId),
+  uniqueIndex("categories_tenant_slug_idx").on(table.tenantId, table.slug)
 ]);
 
 export const menuItems = pgTable('menu_items', {
@@ -174,14 +158,13 @@ export const menuItems = pgTable('menu_items', {
   isAvailable: boolean('is_available').default(true).notNull(),
   isBestSeller: boolean('is_best_seller').default(false).notNull(),
   isNew: boolean('is_new').default(false).notNull(),
-  variants: jsonb('variants').$type<{
-    label: string;
-    required: boolean;
-    options: { id: string; name: string; priceModifier: number }[];
-  }[]>(),
+  variants: jsonb('variants'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index("menuItems_tenantId_idx").on(table.tenantId),
-  index("menuItems_categoryId_idx").on(table.categoryId)
+  index("menuItems_categoryId_idx").on(table.categoryId),
+  uniqueIndex("menu_items_tenant_slug_idx").on(table.tenantId, table.slug)
 ]);
 
 export const menuVariants = pgTable('menu_variants', {
@@ -190,11 +173,13 @@ export const menuVariants = pgTable('menu_variants', {
   menuItemId: uuid('menu_item_id').references(() => menuItems.id, { onDelete: 'cascade' }).notNull(),
   label: text('label').notNull(),
   required: boolean('required').default(false).notNull(),
-  options: jsonb('options').$type<{ id: string; name: string; priceModifier: number }[]>().notNull(),
+  options: jsonb('options').$type<{ name: string; price: number }[]>().notNull(),
 }, (table) => [
   index("menuVariants_tenantId_idx").on(table.tenantId),
   index("menuVariants_menuItemId_idx").on(table.menuItemId)
 ]);
+
+export const itemVariants = menuVariants;
 
 export const toppings = pgTable('toppings', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -268,20 +253,34 @@ export const orders = pgTable('orders', {
   orderCode: text('order_code').notNull().unique(),
   customerName: text('customer_name').notNull(),
   customerPhone: text('customer_phone').notNull(),
-  deliveryType: text('delivery_type').notNull(), // pickup | delivery
+  customerTokenHash: text('customer_token_hash'),
+  idempotencyKey: text('idempotency_key'),
+  idempotencyRequestHash: text('idempotency_request_hash'),
+  deliveryType: text('delivery_type').notNull(), // pickup | delivery | dine_in | takeaway
   deliveryAddress: text('delivery_address'),
+  deliveryDistance: numeric('delivery_distance', { precision: 8, scale: 2 }),
+  deliveryLat: numeric('delivery_lat', { precision: 10, scale: 7 }),
+  deliveryLng: numeric('delivery_lng', { precision: 10, scale: 7 }),
   deliveryFee: decimal('deliveryFee', { mode: 'number' }).default(0),
   subtotal: numeric('subtotal', { precision: 10, scale: 2 }).notNull(),
+  discountAmount: numeric('discount_amount', { precision: 10, scale: 2 }).default('0').notNull(),
+  taxAmount: numeric('tax_amount', { precision: 10, scale: 2 }).default('0').notNull(),
+  serviceChargeAmount: numeric('service_charge_amount', { precision: 10, scale: 2 }).default('0').notNull(),
   totalPrice: numeric('total_price', { precision: 10, scale: 2 }).notNull(),
   status: text('status').notNull().default('received'), // received | processing | ready | completed | cancelled
-  paymentMethod: text('payment_method').default('cod').notNull(), // cod | qris
+  paymentMethod: text('payment_method').default('cod').notNull(), // cod | transfer | qris | cash
   paymentStatus: text('payment_status').default('pending').notNull(), // pending | waiting_verification | paid | failed
   paymentProofUrl: text('payment_proof_url'),
+  pricingSnapshot: jsonb('pricing_snapshot').$type<Record<string, unknown>>(),
   notes: text('notes'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
   index("orders_tenantId_idx").on(table.tenantId),
-  index("orders_branchId_idx").on(table.branchId)
+  index("orders_branchId_idx").on(table.branchId),
+  index("orders_tenant_created_idx").on(table.tenantId, table.createdAt),
+  index("orders_tenant_status_payment_idx").on(table.tenantId, table.status, table.paymentStatus),
+  uniqueIndex("orders_tenant_idempotency_idx").on(table.tenantId, table.idempotencyKey)
 ]);
 
 export const orderItems = pgTable('order_items', {
@@ -290,9 +289,11 @@ export const orderItems = pgTable('order_items', {
   menuItemId: uuid('menu_item_id'),
   menuItemName: text('menu_item_name').notNull(),
   variantName: text('variant_name'),
+  variantSelection: jsonb('variant_selection').$type<Record<string, unknown>>(),
   quantity: integer('quantity').notNull(),
   unitPrice: numeric('unit_price', { precision: 10, scale: 2 }).notNull(),
   totalPrice: numeric('total_price', { precision: 10, scale: 2 }).notNull(),
+  note: text('note'),
 }, (table) => [
   index("orderItems_orderId_idx").on(table.orderId)
 ]);
@@ -301,7 +302,7 @@ export const shifts = pgTable('shifts', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
   branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
-  operatorId: uuid('operator_id'),
+  operatorId: varchar('operator_id', { length: 36 }),
   operatorName: text('operator_name').notNull(),
   openedAt: timestamp('opened_at').defaultNow().notNull(),
   closedAt: timestamp('closed_at'),
@@ -340,7 +341,7 @@ export const auditLogs = pgTable('audit_logs', {
 ]);
 
 // ==========================================
-// 2.5 Additional Tables (Promos, Files)
+// 2.5 Additional Tables (Promos, Files, Approvals, Invitations, Outbox, Cancellation)
 // ==========================================
 
 export const promos = pgTable('promos', {
@@ -362,12 +363,14 @@ export const promos = pgTable('promos', {
 export const files = pgTable('files', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  orderId: uuid('order_id').references(() => orders.id, { onDelete: 'cascade' }),
   fileName: text('file_name').notNull(),
   fileType: text('file_type').notNull(),
   content: text('content').notNull(), // base64 string
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  index("files_tenantId_idx").on(table.tenantId)
+  index("files_tenantId_idx").on(table.tenantId),
+  index("files_orderId_idx").on(table.orderId)
 ]);
 
 export const approvals = pgTable('approvals', {
@@ -387,6 +390,104 @@ export const approvals = pgTable('approvals', {
   index("approvals_branchId_idx").on(table.branchId)
 ]);
 
+export const employeeInvitations = pgTable('employee_invitations', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
+  email: text('email').notNull(),
+  name: text('name').notNull(),
+  role: text('role').notNull(), // manager | kasir | kitchen
+  salary: numeric('salary', { precision: 12, scale: 2 }).default('0'),
+  tokenHash: text('token_hash').notNull().unique(),
+  expiresAt: timestamp('expires_at').notNull(),
+  usedAt: timestamp('used_at'),
+  invitedBy: varchar('invited_by', { length: 36 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index("invitations_tenantId_idx").on(table.tenantId),
+  index("invitations_tokenHash_idx").on(table.tokenHash)
+]);
+
+export const orderCancellationRequests = pgTable('order_cancellation_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  orderId: uuid('order_id').references(() => orders.id, { onDelete: 'cascade' }).notNull(),
+  reason: text('reason').notNull(),
+  bankName: text('bank_name'),
+  accountNumber: text('account_number'),
+  accountHolder: text('account_holder'),
+  status: text('status').default('pending').notNull(), // pending | approved | rejected
+  reviewedBy: varchar('reviewed_by', { length: 36 }),
+  reviewedAt: timestamp('reviewed_at'),
+  rejectionReason: text('rejection_reason'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index("cancellation_tenantId_idx").on(table.tenantId),
+  index("cancellation_orderId_idx").on(table.orderId)
+]);
+
+export const outboxEvents = pgTable('outbox_events', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  aggregateType: text('aggregate_type').notNull(), // order | payment | shift
+  aggregateId: text('aggregate_id').notNull(),
+  eventType: text('event_type').notNull(),
+  payload: jsonb('payload').notNull(),
+  status: text('status').default('pending').notNull(), // pending | processing | published | failed
+  retryCount: integer('retry_count').default(0).notNull(),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  publishedAt: timestamp('published_at'),
+}, (table) => [
+  index("outbox_tenant_status_idx").on(table.tenantId, table.status),
+  index("outbox_status_created_idx").on(table.status, table.createdAt)
+]);
+
+export const paymentTransactions = pgTable('payment_transactions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  orderId: uuid('order_id').references(() => orders.id, { onDelete: 'cascade' }).notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  paymentMethod: text('payment_method').notNull(), // qris | transfer | cod | cash
+  status: text('status').notNull(), // pending | success | failed | refunded
+  referenceNumber: text('reference_number'),
+  proofUrl: text('proof_url'),
+  verifiedBy: varchar('verified_by', { length: 36 }),
+  verifiedAt: timestamp('verified_at'),
+  notes: text('notes'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index("pay_trans_tenantId_idx").on(table.tenantId),
+  index("pay_trans_orderId_idx").on(table.orderId)
+]);
+
+export const productionPlans = pgTable('production_plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'cascade' }),
+  planDate: text('plan_date').notNull(), // YYYY-MM-DD
+  status: text('status').default('draft').notNull(), // draft | in_progress | completed
+  notes: text('notes'),
+  createdBy: varchar('created_by', { length: 36 }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index("prod_plans_tenantId_idx").on(table.tenantId),
+  index("prod_plans_branchId_idx").on(table.branchId)
+]);
+
+export const productionPlanItems = pgTable('production_plan_items', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  planId: uuid('plan_id').references(() => productionPlans.id, { onDelete: 'cascade' }).notNull(),
+  menuItemId: uuid('menu_item_id').references(() => menuItems.id, { onDelete: 'cascade' }).notNull(),
+  targetQuantity: integer('target_quantity').notNull(),
+  actualQuantity: integer('actual_quantity').default(0).notNull(),
+  status: text('status').default('pending').notNull(), // pending | completed
+}, (table) => [
+  index("prod_plan_items_planId_idx").on(table.planId),
+  index("prod_plan_items_menuItemId_idx").on(table.menuItemId)
+]);
+
 // ==========================================
 // 3. Relationships Definitions
 // ==========================================
@@ -403,49 +504,24 @@ export const sessionRelations = relations(session, ({ one }) => ({
   }),
 }));
 
-export const accountRelations = relations(account, ({ one }) => ({
-  user: one(user, {
-    fields: [account.userId],
-    references: [user.id],
-  }),
-}));
-
-export const tenantsRelations = relations(tenants, ({ many }) => ({
+export const tenantRelations = relations(tenants, ({ many }) => ({
   profiles: many(profiles),
   branches: many(branches),
   categories: many(categories),
   menuItems: many(menuItems),
-  menuVariants: many(menuVariants),
-  toppings: many(toppings),
-  recipes: many(recipes),
+  inventory: many(inventory),
   orders: many(orders),
   shifts: many(shifts),
-  shiftLogs: many(shiftLogs),
-  auditLogs: many(auditLogs),
-  inventory: many(inventory),
-  inventoryTransactions: many(inventoryTransactions),
+  promos: many(promos),
+  files: many(files),
   approvals: many(approvals),
+  employeeInvitations: many(employeeInvitations),
+  outboxEvents: many(outboxEvents),
+  paymentTransactions: many(paymentTransactions),
+  productionPlans: many(productionPlans),
 }));
 
-export const profilesRelations = relations(profiles, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [profiles.tenantId],
-    references: [tenants.id],
-  }),
-}));
-
-export const branchesRelations = relations(branches, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [branches.tenantId],
-    references: [tenants.id],
-  }),
-  inventory: many(inventory),
-  inventoryTransactions: many(inventoryTransactions),
-  orders: many(orders),
-  shifts: many(shifts),
-}));
-
-export const categoriesRelations = relations(categories, ({ one, many }) => ({
+export const categoryRelations = relations(categories, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [categories.tenantId],
     references: [tenants.id],
@@ -453,7 +529,7 @@ export const categoriesRelations = relations(categories, ({ one, many }) => ({
   menuItems: many(menuItems),
 }));
 
-export const menuItemsRelations = relations(menuItems, ({ one, many }) => ({
+export const menuItemRelations = relations(menuItems, ({ one, many }) => ({
   tenant: one(tenants, {
     fields: [menuItems.tenantId],
     references: [tenants.id],
@@ -462,44 +538,52 @@ export const menuItemsRelations = relations(menuItems, ({ one, many }) => ({
     fields: [menuItems.categoryId],
     references: [categories.id],
   }),
+  variants: many(itemVariants),
   recipes: many(recipes),
-  menuVariants: many(menuVariants),
 }));
 
-export const menuVariantsRelations = relations(menuVariants, ({ one }) => ({
+export const orderRelations = relations(orders, ({ one, many }) => ({
   tenant: one(tenants, {
-    fields: [menuVariants.tenantId],
+    fields: [orders.tenantId],
     references: [tenants.id],
   }),
+  branch: one(branches, {
+    fields: [orders.branchId],
+    references: [branches.id],
+  }),
+  items: many(orderItems),
+  files: many(files),
+  cancellationRequests: many(orderCancellationRequests),
+  paymentTransactions: many(paymentTransactions),
+}));
+
+export const orderItemRelations = relations(orderItems, ({ one }) => ({
+  order: one(orders, {
+    fields: [orderItems.orderId],
+    references: [orders.id],
+  }),
   menuItem: one(menuItems, {
-    fields: [menuVariants.menuItemId],
+    fields: [orderItems.menuItemId],
     references: [menuItems.id],
   }),
 }));
 
-export const toppingsRelations = relations(toppings, ({ one }) => ({
+export const shiftRelations = relations(shifts, ({ one, many }) => ({
   tenant: one(tenants, {
-    fields: [toppings.tenantId],
+    fields: [shifts.tenantId],
     references: [tenants.id],
   }),
+  branch: one(branches, {
+    fields: [shifts.branchId],
+    references: [branches.id],
+  }),
+  logs: many(shiftLogs),
 }));
 
-export const recipesRelations = relations(recipes, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [recipes.tenantId],
-    references: [tenants.id],
-  }),
-  menuItem: one(menuItems, {
-    fields: [recipes.menuItemId],
-    references: [menuItems.id],
-  }),
-  ingredients: many(recipeIngredients),
-}));
-
-export const recipeIngredientsRelations = relations(recipeIngredients, ({ one }) => ({
-  recipe: one(recipes, {
-    fields: [recipeIngredients.recipeId],
-    references: [recipes.id],
+export const shiftLogRelations = relations(shiftLogs, ({ one }) => ({
+  shift: one(shifts, {
+    fields: [shiftLogs.shiftId],
+    references: [shifts.id],
   }),
 }));
 
@@ -515,7 +599,7 @@ export const inventoryRelations = relations(inventory, ({ one, many }) => ({
   transactions: many(inventoryTransactions),
 }));
 
-export const inventoryTransactionsRelations = relations(inventoryTransactions, ({ one }) => ({
+export const inventoryTransactionRelations = relations(inventoryTransactions, ({ one }) => ({
   tenant: one(tenants, {
     fields: [inventoryTransactions.tenantId],
     references: [tenants.id],
@@ -530,82 +614,25 @@ export const inventoryTransactionsRelations = relations(inventoryTransactions, (
   }),
 }));
 
-export const ordersRelations = relations(orders, ({ one, many }) => ({
+export const productionPlanRelations = relations(productionPlans, ({ one, many }) => ({
   tenant: one(tenants, {
-    fields: [orders.tenantId],
+    fields: [productionPlans.tenantId],
     references: [tenants.id],
   }),
   branch: one(branches, {
-    fields: [orders.branchId],
+    fields: [productionPlans.branchId],
     references: [branches.id],
   }),
-  items: many(orderItems),
+  items: many(productionPlanItems),
 }));
 
-export const orderItemsRelations = relations(orderItems, ({ one }) => ({
-  order: one(orders, {
-    fields: [orderItems.orderId],
-    references: [orders.id],
+export const productionPlanItemRelations = relations(productionPlanItems, ({ one }) => ({
+  plan: one(productionPlans, {
+    fields: [productionPlanItems.planId],
+    references: [productionPlans.id],
+  }),
+  menuItem: one(menuItems, {
+    fields: [productionPlanItems.menuItemId],
+    references: [menuItems.id],
   }),
 }));
-
-export const shiftsRelations = relations(shifts, ({ one, many }) => ({
-  tenant: one(tenants, {
-    fields: [shifts.tenantId],
-    references: [tenants.id],
-  }),
-  branch: one(branches, {
-    fields: [shifts.branchId],
-    references: [branches.id],
-  }),
-  logs: many(shiftLogs),
-}));
-
-export const shiftLogsRelations = relations(shiftLogs, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [shiftLogs.tenantId],
-    references: [tenants.id],
-  }),
-  shift: one(shifts, {
-    fields: [shiftLogs.shiftId],
-    references: [shifts.id],
-  }),
-}));
-
-export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [auditLogs.tenantId],
-    references: [tenants.id],
-  }),
-}));
-
-export const approvalsRelations = relations(approvals, ({ one }) => ({
-  tenant: one(tenants, {
-    fields: [approvals.tenantId],
-    references: [tenants.id],
-  }),
-  branch: one(branches, {
-    fields: [approvals.branchId],
-    references: [branches.id],
-  }),
-}));
-
-export type Tenant = typeof tenants.$inferSelect;
-export type Profile = typeof profiles.$inferSelect;
-export type Branch = typeof branches.$inferSelect;
-export type Category = typeof categories.$inferSelect;
-export type MenuItem = typeof menuItems.$inferSelect;
-export type MenuVariant = typeof menuVariants.$inferSelect;
-export type Topping = typeof toppings.$inferSelect;
-export type Recipe = typeof recipes.$inferSelect;
-export type RecipeIngredient = typeof recipeIngredients.$inferSelect;
-export type Inventory = typeof inventory.$inferSelect;
-export type InventoryTransaction = typeof inventoryTransactions.$inferSelect;
-export type Order = typeof orders.$inferSelect;
-export type OrderItem = typeof orderItems.$inferSelect;
-export type Shift = typeof shifts.$inferSelect;
-export type ShiftLog = typeof shiftLogs.$inferSelect;
-export type AuditLog = typeof auditLogs.$inferSelect;
-export type Promo = typeof promos.$inferSelect;
-export type FileRecord = typeof files.$inferSelect;
-export type Approval = typeof approvals.$inferSelect;

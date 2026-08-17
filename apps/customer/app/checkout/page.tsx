@@ -266,6 +266,11 @@ export default function Checkout() {
       // Gunakan total yang dikonfirmasi server (bukan kalkulasi client)
       const serverTotal = result.total;
       const serverOrderCode = result.orderCode;
+      if (result.customerToken) {
+        try {
+          localStorage.setItem(`cust_tok_${serverOrderCode}`, result.customerToken);
+        } catch {}
+      }
 
       const order = {
         orderCode: serverOrderCode,

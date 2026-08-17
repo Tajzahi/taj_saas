@@ -7,13 +7,18 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "seed": "tsx scripts/seed-template.ts"
+    "seed": "tsx scripts/seed-template.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"db: no tests\""
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
-    "@neondatabase/serverless": "^1.1.0"
+    "@neondatabase/serverless": "^1.1.0",
+    "ws": "^8.18.0"
   },
   "devDependencies": {
+    "@types/node": "^20",
+    "@types/ws": "^8.5.14",
     "drizzle-kit": "^0.30.0",
     "tsx": "^4.19.0",
     "typescript": "^5.5.0"

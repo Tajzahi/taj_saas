@@ -94,25 +94,41 @@ export default function Tracking() {
 
     setUploading(true);
     try {
-      const publicUrl = 'https://placehold.co/400x600/16a34a/white?text=Bukti+Transfer+MOCK';
-      
-      const res = await fetch(`/api/orders/${order.orderCode}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentProofUrl: publicUrl }),
+      const base64Data = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(uploadFile);
       });
 
-      if (!res.ok) {
-        throw new Error('Gagal mengunggah bukti ke database');
+      const token = typeof window !== 'undefined' ? localStorage.getItem(`cust_tok_${order.orderCode}`) || '' : '';
+
+      const res = await fetch('/api/upload-proof', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileBase64: base64Data,
+          fileName: uploadFile.name,
+          fileType: uploadFile.type,
+          orderCode: order.orderCode,
+          customerToken: token,
+        }),
+      });
+
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'Gagal mengunggah bukti pembayaran');
       }
-      
+
+      const proofUrl = result.proofUrl;
+
       // Update local state
       setOrder((prev) => {
         if (!prev) return null;
         return {
           ...prev,
           paymentStatus: 'waiting_verification',
-          paymentProofUrl: publicUrl,
+          paymentProofUrl: proofUrl,
         };
       });
 
@@ -120,7 +136,7 @@ export default function Tracking() {
       const history = useOrderStore.getState().orderHistory;
       const updatedHistory = history.map((o) =>
         o.orderCode === order.orderCode
-          ? { ...o, paymentStatus: 'waiting_verification', paymentProofUrl: publicUrl }
+          ? { ...o, paymentStatus: 'waiting_verification', paymentProofUrl: proofUrl }
           : o
       );
       useOrderStore.setState({
@@ -130,7 +146,7 @@ export default function Tracking() {
             ? {
                 ...useOrderStore.getState().currentOrder!,
                 paymentStatus: 'waiting_verification',
-                paymentProofUrl: publicUrl,
+                paymentProofUrl: proofUrl,
               }
             : useOrderStore.getState().currentOrder,
       });
@@ -174,28 +190,36 @@ export default function Tracking() {
     setShowCancelModal(false);
     setCancelling(true);
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem(`cust_tok_${order.orderCode}`) || '' : '';
       const res = await fetch(`/api/orders/${order.orderCode}`, {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'cancelled' }),
+        body: JSON.stringify({
+          reason: 'Dibatalkan oleh pelanggan via Lacak Pesanan',
+          customerToken: token,
+        }),
       });
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || 'Gagal membatalkan pesanan di server');
+      const result = await res.json();
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || 'Gagal memproses pembatalan pesanan di server');
       }
 
-      useOrderStore.getState().updateOrderStatus(order.orderCode, 'cancelled');
-      setOrder((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          status: 'cancelled',
-        };
-      });
-      toast.success("Pesanan berhasil dibatalkan");
+      if (result.directCancel) {
+        useOrderStore.getState().updateOrderStatus(order.orderCode, 'cancelled');
+        setOrder((prev) => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            status: 'cancelled',
+          };
+        });
+        toast.success('Pesanan berhasil dibatalkan.');
+      } else {
+        toast.success(result.message || 'Pengajuan pembatalan telah diterima staf.');
+      }
     } catch (err: any) {
-      console.error("Error cancelling order:", err);
+      console.error('Error cancelling order:', err);
       toast.error(`Gagal membatalkan pesanan: ${err.message || 'Terjadi kesalahan'}`);
     } finally {
       setCancelling(false);
@@ -204,7 +228,10 @@ export default function Tracking() {
 
   const fetchOrderFromDb = async (code: string): Promise<Order | null> => {
     try {
-      const res = await fetch(`/api/orders/${code}`);
+      const token = typeof window !== 'undefined' ? localStorage.getItem(`cust_tok_${code}`) || '' : '';
+      const res = await fetch(`/api/orders/${code}`, {
+        headers: token ? { 'x-customer-token': token } : {},
+      });
       if (!res.ok) {
         if (res.status === 404) return null;
         throw new Error('Gagal mengambil data pesanan dari database');
@@ -213,7 +240,6 @@ export default function Tracking() {
       return data;
     } catch (err) {
       console.error('Error fetching order:', err);
-      // Fallback to local store for offline/unseeded dev compatibility
       return useOrderStore.getState().getOrderByCode(code) || null;
     }
   };

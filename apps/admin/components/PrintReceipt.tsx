@@ -1,5 +1,5 @@
 import { Fragment } from 'react';
-import { AdminOrder } from '../store/adminStore';
+import { AdminOrder, useAdminStore } from '../store/adminStore';
 import { formatRupiah, formatDate } from '../utils/format';
 
 interface PrintReceiptProps {
@@ -7,6 +7,13 @@ interface PrintReceiptProps {
 }
 
 export default function PrintReceipt({ order }: PrintReceiptProps) {
+  const { storeName, branding } = useAdminStore();
+
+  const receiptTitle = branding?.receiptHeader || branding?.businessName || storeName || 'MARTABAK A6 NYUSS';
+  const storeAddress = branding?.storeAddress || 'Jl. Demak No.253, Krembangan, Surabaya';
+  const whatsappNumber = branding?.whatsappNumber || '0878-1112-3482';
+  const receiptFooter = branding?.receiptFooter || '-- Terima kasih & Selamat Menikmati! --';
+
   const paymentLabel =
     order.deliveryType === 'pickup'
       ? (order.paymentMethod === 'cod'
@@ -19,9 +26,9 @@ export default function PrintReceipt({ order }: PrintReceiptProps) {
   return (
     <div className="print-receipt-container hidden">
       <div className="header">
-        <h2>MARTABAK A6 NYUSS</h2>
-        <p>Jl. Demak No.253, Krembangan, Surabaya</p>
-        <p>WA: 0878-1112-3482</p>
+        <h2>{receiptTitle.toUpperCase()}</h2>
+        <p>{storeAddress}</p>
+        <p>WA: {whatsappNumber}</p>
         <div className="divider">===============================</div>
       </div>
       <div className="meta">
@@ -74,7 +81,7 @@ export default function PrintReceipt({ order }: PrintReceiptProps) {
         </p>
         {order.deliveryFee > 0 && (
           <p>
-            Ongkir ({order.deliveryDistance} Km):{' '}
+            Ongkir ({order.deliveryDistance ?? 0} Km):{' '}
             <span className="float-right">{formatRupiah(order.deliveryFee)}</span>
           </p>
         )}
@@ -92,7 +99,7 @@ export default function PrintReceipt({ order }: PrintReceiptProps) {
       <div className="footer">
         <p>Pembayaran: {paymentLabel}</p>
         {order.notes && <p>Catatan: {order.notes}</p>}
-        <p className="thanks">-- Terima kasih &amp; Selamat Menikmati! --</p>
+        <p className="thanks">{receiptFooter}</p>
       </div>
     </div>
   );

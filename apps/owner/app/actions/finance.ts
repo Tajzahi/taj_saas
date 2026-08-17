@@ -1,15 +1,14 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and, or, inArray } from "drizzle-orm";
-import { getTenantId, getCogsRate } from "./_tenantHelper";
+import { eq, and } from "drizzle-orm";
+import { requireTenantPermission, AuthorizationError } from "@lib/tenant-authorization";
 
-export async function getPnLAction(dateRange: string) {
+export async function getPnLAction(dateRange?: string) {
   try {
-    const tenantId = await getTenantId();
-    if (!tenantId) throw new Error("Tenant not found");
+    const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
 
-    // Query completed/paid orders from database
+    // Query completed and paid orders for recognized revenue
     const validOrders = await db
       .select({
         id: schema.orders.id,
@@ -20,13 +19,17 @@ export async function getPnLAction(dateRange: string) {
       .from(schema.orders)
       .where(
         and(
-          eq(schema.orders.tenantId, tenantId),
-          or(eq(schema.orders.status, "completed"), eq(schema.orders.paymentStatus, "paid"))
+          eq(schema.orders.tenantId, tenant.id),
+          eq(schema.orders.status, "completed"),
+          eq(schema.orders.paymentStatus, "paid")
         )
       );
 
-    // Fetch employee salaries for actual labor OpEx
-    const profiles = await db.select().from(schema.profiles).where(eq(schema.profiles.tenantId, tenantId));
+    // Fetch employee salaries for estimated labor OpEx
+    const profiles = await db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.tenantId, tenant.id));
     const monthlyLaborCost = profiles.reduce((sum, p) => sum + (parseFloat(p.salary || "0") || 0), 0);
 
     if (validOrders.length === 0) {
@@ -34,10 +37,12 @@ export async function getPnLAction(dateRange: string) {
     }
 
     const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-    const grouped: Record<string, { revenue: number; cogs: number; grossProfit: number; opex: number; netProfit: number; sortKey: number }> = {};
+    const grouped: Record<
+      string,
+      { revenue: number; cogs: number; grossProfit: number; opex: number; netProfit: number; sortKey: number }
+    > = {};
 
-    // Fetch COGS rate once outside loop
-    const cogsRate = await getCogsRate(tenantId);
+    const cogsRate = Number(tenant.branding?.cogsRate || 0.30);
 
     for (const order of validOrders) {
       const date = new Date(order.createdAt);
@@ -47,11 +52,17 @@ export async function getPnLAction(dateRange: string) {
       const rev = parseFloat(order.totalPrice) || 0;
       const subtotal = parseFloat(order.subtotal) || rev;
 
-      // COGS from tenant settings
       const orderCogs = Math.round(subtotal * cogsRate);
 
       if (!grouped[key]) {
-        grouped[key] = { revenue: 0, cogs: 0, grossProfit: 0, opex: monthlyLaborCost, netProfit: 0, sortKey: date.getTime() };
+        grouped[key] = {
+          revenue: 0,
+          cogs: 0,
+          grossProfit: 0,
+          opex: monthlyLaborCost,
+          netProfit: 0,
+          sortKey: date.getTime(),
+        };
       }
       grouped[key].revenue += rev;
       grouped[key].cogs += orderCogs;
@@ -61,7 +72,7 @@ export async function getPnLAction(dateRange: string) {
       .sort((a, b) => a[1].sortKey - b[1].sortKey)
       .map(([month, data]) => {
         const grossProfit = data.revenue - data.cogs;
-        const opex = data.opex; // Actual total labor salaries from DB
+        const opex = data.opex;
         const netProfit = grossProfit - opex;
         return {
           month,
@@ -75,6 +86,9 @@ export async function getPnLAction(dateRange: string) {
 
     return { success: true, data: sortedData };
   } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message, data: [] };
+    }
     const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
     return { success: false, error: message, data: [] };
   }
@@ -82,8 +96,7 @@ export async function getPnLAction(dateRange: string) {
 
 export async function getCashflowAction() {
   try {
-    const tenantId = await getTenantId();
-    if (!tenantId) return { success: true, data: [] };
+    const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
 
     const validOrders = await db
       .select({
@@ -93,8 +106,9 @@ export async function getCashflowAction() {
       .from(schema.orders)
       .where(
         and(
-          eq(schema.orders.tenantId, tenantId),
-          or(eq(schema.orders.status, "completed"), eq(schema.orders.paymentStatus, "paid"))
+          eq(schema.orders.tenantId, tenant.id),
+          eq(schema.orders.status, "completed"),
+          eq(schema.orders.paymentStatus, "paid")
         )
       );
 
@@ -104,52 +118,63 @@ export async function getCashflowAction() {
         createdAt: schema.approvals.requestedAt,
       })
       .from(schema.approvals)
-      .where(and(eq(schema.approvals.tenantId, tenantId), eq(schema.approvals.status, "approved")));
+      .where(and(eq(schema.approvals.tenantId, tenant.id), eq(schema.approvals.status, "approved")));
 
-    // Fetch employee salaries for monthly cash outflow
-    const profiles = await db.select().from(schema.profiles).where(eq(schema.profiles.tenantId, tenantId));
+    const profiles = await db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.tenantId, tenant.id));
     const monthlyLaborCost = profiles.reduce((sum, p) => sum + (parseFloat(p.salary || "0") || 0), 0);
 
     const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
-    const grouped: Record<string, { month: string; masuk: number; keluar: number; net: number; sortKey: number }> = {};
+    const grouped: Record<
+      string,
+      { month: string; masuk: number; keluar: number; net: number; sortKey: number }
+    > = {};
 
-    validOrders.forEach(o => {
+    const cogsRate = Number(tenant.branding?.cogsRate || 0.30);
+
+    validOrders.forEach((o) => {
       const d = new Date(o.createdAt);
-      const m = months[d.getMonth()];
+      const m = `${months[d.getMonth()]} ${d.getFullYear().toString().substring(2)}`;
       if (!grouped[m]) {
         grouped[m] = { month: m, masuk: 0, keluar: monthlyLaborCost, net: 0, sortKey: d.getTime() };
       }
       const val = parseFloat(o.totalPrice) || 0;
       grouped[m].masuk += val;
-      grouped[m].keluar += Math.round(val * 0.30); // COGS
+      grouped[m].keluar += Math.round(val * cogsRate);
     });
 
-    approvedPO.forEach(po => {
+    approvedPO.forEach((po) => {
       const d = new Date(po.createdAt);
-      const m = months[d.getMonth()];
+      const m = `${months[d.getMonth()]} ${d.getFullYear().toString().substring(2)}`;
       if (grouped[m]) {
         grouped[m].keluar += parseFloat(po.amount) || 0;
       }
     });
 
-    const result = Object.values(grouped).map(item => ({
-      month: item.month,
-      masuk: Math.round(item.masuk),
-      keluar: Math.round(item.keluar),
-      net: Math.round(item.masuk - item.keluar),
-    }));
+    const result = Object.values(grouped)
+      .sort((a, b) => a.sortKey - b.sortKey)
+      .map((item) => ({
+        month: item.month,
+        masuk: Math.round(item.masuk),
+        keluar: Math.round(item.keluar),
+        net: Math.round(item.masuk - item.keluar),
+      }));
 
     return { success: true, data: result };
   } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message, data: [] };
+    }
     const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
     return { success: false, error: message, data: [] };
   }
 }
 
-export async function getShiftHistoryAction(dateRange: string) {
+export async function getShiftHistoryAction(dateRange?: string) {
   try {
-    const tenantId = await getTenantId();
-    if (!tenantId) throw new Error("Tenant not found");
+    const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
 
     const list = await db
       .select({
@@ -165,11 +190,17 @@ export async function getShiftHistoryAction(dateRange: string) {
         branchName: schema.branches.name,
       })
       .from(schema.shifts)
-      .leftJoin(schema.branches, eq(schema.shifts.branchId, schema.branches.id))
-      .where(eq(schema.shifts.tenantId, tenantId));
-      
+      .leftJoin(
+        schema.branches,
+        and(eq(schema.shifts.branchId, schema.branches.id), eq(schema.branches.tenantId, tenant.id))
+      )
+      .where(eq(schema.shifts.tenantId, tenant.id));
+
     return { success: true, data: list };
   } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
     const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
     return { success: false, error: message };
   }

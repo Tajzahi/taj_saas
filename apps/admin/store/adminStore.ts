@@ -99,6 +99,8 @@ interface AdminState {
   selectedOrderId: string | null;
   isAlarmPlaying: boolean;
   isStoreOpen: boolean;
+  storeName: string;
+  branding: any | null;
   newOrderIds: string[];
   isLoading: boolean;
   subscription: any | null;
@@ -136,6 +138,8 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   selectedOrderId: null,
   isAlarmPlaying: false,
   isStoreOpen: true,
+  storeName: 'Martabak A6 Nyuss',
+  branding: null,
   newOrderIds: [],
   isLoading: false,
   subscription: null,
@@ -235,8 +239,12 @@ export const useAdminStore = create<AdminState>((set, get) => ({
 
   fetchStoreSettings: async () => {
     const res = await getStoreSettingsAction();
-    if (res.success && res.isOpen !== undefined) {
-      set({ isStoreOpen: res.isOpen });
+    if (res.success) {
+      set({
+        isStoreOpen: res.isOpen ?? true,
+        storeName: res.name || 'Martabak A6 Nyuss',
+        branding: res.branding || null,
+      });
     }
   },
 
@@ -299,28 +307,22 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   },
 
   subscribeToOrders: () => {
-    console.log('[Ably Realtime] Subscribed to orders');
-    const ablyKey = process.env.NEXT_PUBLIC_ABLY_API_KEY;
-    if (!ablyKey) {
-      console.warn('[Ably Realtime] NEXT_PUBLIC_ABLY_API_KEY tidak ditemukan. Mode real-time dimatikan.');
-      set({ connectionStatus: 'disconnected' });
-      return;
-    }
+    console.log('[Ably Realtime] Subscribed to orders via token auth');
     
     // Resolve tenantSlug dynamically from hostname on client side (using shared helper)
     let tenantSlug = "taj-saas";
     if (typeof window !== 'undefined') {
-      const hostname = window.location.host; // location.host includes port (important for localhost development)
+      const hostname = window.location.host;
       const { slug } = parseTenantFromHostname(hostname);
       if (slug) {
         tenantSlug = slug;
       }
     }
 
-    // Lazy load Ably client side
+    // Lazy load Ably client side using secure token authUrl endpoint
     import('ably').then(({ Realtime }) => {
       try {
-        const ably = new Realtime({ key: ablyKey });
+        const ably = new Realtime({ authUrl: '/api/ably/token' });
         const channel = ably.channels.get(`orders:${tenantSlug}`);
         set({ connectionStatus: 'connected' });
       
@@ -431,7 +433,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     const { activeShift } = get();
     if (!activeShift) return false;
 
-    const res = await closeShiftAction(activeShift.id, actualCash, expectedCash);
+    const res = await closeShiftAction(activeShift.id, actualCash);
     if (res.success) {
       set({
         activeShift: {

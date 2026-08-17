@@ -57,7 +57,7 @@ export default function RegisterPage() {
         return;
       }
 
-      toast.success(`Selamat datang! Toko ${res.data?.tenantName || ""} berhasil terdaftar.`);
+      toast.success(`Selamat datang! Toko ${res.tenant?.name || ""} berhasil terdaftar.`);
       window.location.href = "/";
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat pendaftaran.");
