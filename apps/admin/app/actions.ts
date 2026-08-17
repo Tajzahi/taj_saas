@@ -4,6 +4,7 @@ import { db, schema } from "@taj-saas/db";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
+import crypto from "crypto";
 
 // Helper to get tenant context safely with automatic fallback
 async function getTenantContext() {
@@ -623,7 +624,8 @@ export async function createOfflineOrderAction(data: {
   try {
     const { tenantId } = await getTenantContext();
 
-    const orderCode = `OFF-${Math.floor(1000 + Math.random() * 9000)}`;
+    const rand = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const orderCode = `OFF-${rand}`;
     const subtotal = data.items.reduce((s, i) => s + i.price * i.qty, 0);
 
     const [newOrder] = await db
