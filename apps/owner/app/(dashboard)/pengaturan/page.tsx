@@ -53,7 +53,7 @@ export default function Pengaturan() {
         if (branding) {
           if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
           if (branding.secondaryColor) setSecondaryColor(branding.secondaryColor);
-          if (branding.logo) setLogo(branding.logo);
+          if (branding.logoUrl || branding.logo) setLogo(branding.logoUrl || branding.logo || "");
           if (branding.brandName) setBusinessName(branding.brandName);
           if (branding.receiptHeader) setReceiptHeader(branding.receiptHeader);
           if (branding.receiptFooter) setReceiptFooter(branding.receiptFooter);

@@ -91,6 +91,7 @@ export const tenants = pgTable('tenants', {
   ownerSubdomain: text('owner_subdomain').notNull(),
   branding: jsonb('branding').$type<{
     logoUrl?: string;
+    logo?: string;
     primaryColor?: string;
     secondaryColor?: string;
     businessName?: string;

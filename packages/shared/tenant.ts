@@ -13,6 +13,7 @@ export interface Tenant {
   ownerSubdomain: string;
   branding: {
     logoUrl?: string;
+    logo?: string;
     primaryColor?: string;
     secondaryColor?: string;
     businessName?: string;
