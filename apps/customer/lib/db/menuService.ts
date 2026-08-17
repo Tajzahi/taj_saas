@@ -5,8 +5,8 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MenuItem, MenuCategory, menuItems as staticMenuItems, toppingOptions, extraToppingOptions } from "@/data/menu";
 
-export const DEFAULT_OUTLET_LAT = -7.2432537;
-export const DEFAULT_OUTLET_LNG = 112.7206275;
+const DEFAULT_OUTLET_LAT = -7.2432537;
+const DEFAULT_OUTLET_LNG = 112.7206275;
 
 export interface DbStoreSettings {
   id: string; // uuid
