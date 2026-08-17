@@ -13,9 +13,9 @@ export interface Tenant {
   ownerSubdomain: string;
   branding: {
     logoUrl?: string;
-    primaryColor: string;
-    secondaryColor: string;
-    businessName: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    businessName?: string;
     whatsappNumber?: string;
     flatDeliveryFee?: number;
     minimumOrderAmount?: number;
