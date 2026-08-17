@@ -540,7 +540,7 @@ export async function toggleStoreAction(isOpen: boolean) {
 
     const tenant = tenantResult[0];
     if (tenant) {
-      const currentBranding = (tenant.branding as any) || {};
+      const currentBranding = tenant.branding || {};
       await db
         .update(schema.tenants)
         .set({
@@ -577,7 +577,7 @@ export async function getStoreSettingsAction() {
       return { success: false, error: "Tenant tidak ditemukan." };
     }
 
-    const branding = (tenant.branding as any) || {};
+    const branding = tenant.branding || {};
     return {
       success: true,
       isOpen: branding.storeOpen ?? true,

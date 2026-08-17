@@ -49,7 +49,7 @@ export default function Pengaturan() {
     getTenantSettingsAction().then(res => {
       if (res.success && res.data) {
         setBusinessName(res.data.name || "");
-        const branding = res.data.branding as any;
+        const branding = res.data.branding;
         if (branding) {
           if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
           if (branding.secondaryColor) setSecondaryColor(branding.secondaryColor);

@@ -107,6 +107,15 @@ export const tenants = pgTable('tenants', {
     cogsRate?: number;
     outletLat?: number;
     outletLng?: number;
+    receiptHeader?: string;
+    receiptFooter?: string;
+    receiptPaperWidth?: number;
+    taxRate?: number;
+    serviceChargeRate?: number;
+    enableQris?: boolean;
+    enableBankTransfer?: boolean;
+    enableCash?: boolean;
+    brandName?: string;
   }>(),
   packageType: text('package_type').notNull().default('startup'), // startup | professional | enterprise
   isActive: boolean('is_active').default(true),

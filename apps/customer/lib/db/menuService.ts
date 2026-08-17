@@ -112,7 +112,7 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     };
   }
 
-  const branding = (tenant.branding || {}) as any;
+  const branding = tenant.branding || {};
 
   return {
     id: tenant.id,

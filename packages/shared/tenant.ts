@@ -29,6 +29,15 @@ export interface Tenant {
     cogsRate?: number;
     outletLat?: number;
     outletLng?: number;
+    receiptHeader?: string;
+    receiptFooter?: string;
+    receiptPaperWidth?: number;
+    taxRate?: number;
+    serviceChargeRate?: number;
+    enableQris?: boolean;
+    enableBankTransfer?: boolean;
+    enableCash?: boolean;
+    brandName?: string;
   } | null;
   packageType: string;
   isActive: boolean | null;

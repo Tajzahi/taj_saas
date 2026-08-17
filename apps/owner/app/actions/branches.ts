@@ -97,7 +97,7 @@ export async function createBranchAction(data: {
     if (data.googleMapsUrl) {
       const [tenant] = await db.select().from(schema.tenants).where(eq(schema.tenants.id, tenantId)).limit(1);
       if (tenant) {
-        const currentBranding = (tenant.branding as any) || {};
+        const currentBranding = tenant.branding || {};
         await db.update(schema.tenants).set({
           branding: {
             ...currentBranding,
