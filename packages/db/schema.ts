@@ -100,6 +100,10 @@ export const tenants = pgTable('tenants', {
     storeAddress?: string;
     googleMapsUrl?: string;
     openingHours?: string;
+    qrisImageUrl?: string;
+    bankInfo?: string;
+    heroBannerUrl?: string;
+    storeOpen?: boolean;
   }>(),
   packageType: text('package_type').notNull().default('startup'), // startup | professional | enterprise
   isActive: boolean('is_active').default(true),

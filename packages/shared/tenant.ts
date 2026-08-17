@@ -22,6 +22,10 @@ export interface Tenant {
     storeAddress?: string;
     googleMapsUrl?: string;
     openingHours?: string;
+    qrisImageUrl?: string;
+    bankInfo?: string;
+    heroBannerUrl?: string;
+    storeOpen?: boolean;
   } | null;
   packageType: string;
   isActive: boolean | null;
