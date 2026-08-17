@@ -21,8 +21,8 @@ export interface DbStoreSettings {
   qris_image_url: string;
   bank_info: string;
   hero_banner_url: string;
-  outlet_lat: number;
-  outlet_lng: number;
+  outlet_lat?: number;
+  outlet_lng?: number;
 }
 
 // Fallback topping variant structures for Terang Bulan items

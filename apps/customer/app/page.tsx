@@ -41,6 +41,8 @@ export default function Home() {
     qris_image_url: '/qris.png',
     bank_info: 'BCA 123-456-7890 a/n Martabak A6 Nyuss',
     hero_banner_url: '',
+    outlet_lat: -7.2432537,
+    outlet_lng: 112.7206275,
   });
   const [items, setItems] = useState<MenuItem[]>([]);
 
