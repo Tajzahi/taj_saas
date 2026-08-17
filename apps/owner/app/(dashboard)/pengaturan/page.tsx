@@ -57,7 +57,7 @@ export default function Pengaturan() {
           if (branding.brandName) setBusinessName(branding.brandName);
           if (branding.receiptHeader) setReceiptHeader(branding.receiptHeader);
           if (branding.receiptFooter) setReceiptFooter(branding.receiptFooter);
-          if (branding.receiptPaperWidth) setReceiptPaperWidth(branding.receiptPaperWidth);
+          if (branding.receiptPaperWidth) setReceiptPaperWidth(String(branding.receiptPaperWidth));
           if (branding.qrisImageUrl) setQrisImageUrl(branding.qrisImageUrl);
           if (branding.bankInfo) setBankInfo(branding.bankInfo);
           if (branding.heroBannerUrl) setHeroBannerUrl(branding.heroBannerUrl);

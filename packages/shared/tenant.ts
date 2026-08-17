@@ -32,7 +32,7 @@ export interface Tenant {
     outletLng?: number;
     receiptHeader?: string;
     receiptFooter?: string;
-    receiptPaperWidth?: number;
+    receiptPaperWidth?: string | number;
     taxRate?: number;
     serviceChargeRate?: number;
     enableQris?: boolean;
