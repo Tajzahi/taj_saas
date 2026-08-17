@@ -5,6 +5,9 @@ import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MenuItem, MenuCategory, menuItems as staticMenuItems, toppingOptions, extraToppingOptions } from "@/data/menu";
 
+export const DEFAULT_OUTLET_LAT = -7.2432537;
+export const DEFAULT_OUTLET_LNG = 112.7206275;
+
 export interface DbStoreSettings {
   id: string; // uuid
   store_name: string;
@@ -18,6 +21,8 @@ export interface DbStoreSettings {
   qris_image_url: string;
   bank_info: string;
   hero_banner_url: string;
+  outlet_lat: number;
+  outlet_lng: number;
 }
 
 // Fallback topping variant structures for Terang Bulan items
@@ -102,6 +107,8 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
       qris_image_url: '/qris.png',
       bank_info: 'BCA 123-456-7890 a/n Martabak A6 Nyuss',
       hero_banner_url: '',
+      outlet_lat: DEFAULT_OUTLET_LAT,
+      outlet_lng: DEFAULT_OUTLET_LNG,
     };
   }
 
@@ -121,6 +128,8 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     qris_image_url: branding.qrisImageUrl || '/qris.png',
     bank_info: branding.bankInfo || 'BCA 123-456-7890 a/n Martabak A6 Nyuss',
     hero_banner_url: branding.heroBannerUrl || '',
+    outlet_lat: typeof branding.outletLat === 'number' ? branding.outletLat : DEFAULT_OUTLET_LAT,
+    outlet_lng: typeof branding.outletLng === 'number' ? branding.outletLng : DEFAULT_OUTLET_LNG,
   };
 }
 

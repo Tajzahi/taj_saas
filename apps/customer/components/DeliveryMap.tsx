@@ -3,9 +3,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { MapPin, AlertCircle, CheckCircle2, XCircle, Search, Navigation } from 'lucide-react';
 
-// Outlet coordinates (A6 Nyuss - Jl. Demak 253, Surabaya)
-const OUTLET_LAT = -7.2432537;
-const OUTLET_LNG = 112.7206275;
+// Default outlet coordinates (A6 Nyuss - Jl. Demak 253, Surabaya)
+const DEFAULT_OUTLET_LAT = -7.2432537;
+const DEFAULT_OUTLET_LNG = 112.7206275;
 
 // Max delivery radius in meters
 const MAX_RADIUS_M = 10000;
@@ -134,13 +134,21 @@ interface DeliveryMapProps {
   onAddressResolved?: (address: string) => void;
   /** When parent updates the address field, forward-geocode it and move the map */
   searchAddress?: string;
+  /** Custom outlet latitude (fallback to default) */
+  outletLat?: number;
+  /** Custom outlet longitude (fallback to default) */
+  outletLng?: number;
 }
 
 export default function DeliveryMap({
   onLocationSelect,
   onAddressResolved,
   searchAddress,
+  outletLat,
+  outletLng,
 }: DeliveryMapProps) {
+  const resolvedOutletLat = outletLat ?? DEFAULT_OUTLET_LAT;
+  const resolvedOutletLng = outletLng ?? DEFAULT_OUTLET_LNG;
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const customerMarkerRef = useRef<any>(null);
@@ -194,9 +202,9 @@ export default function DeliveryMap({
           ? searchQuery
           : `${searchQuery}, Surabaya`;
         const encoded = encodeURIComponent(queryWithCity);
-        // Query Photon API biased towards Surabaya coordinates
+        // Query Photon API biased towards outlet coordinates
         const res = await fetch(
-          `https://photon.komoot.io/api/?q=${encoded}&limit=5&lat=-7.2432537&lon=112.7206275`
+          `https://photon.komoot.io/api/?q=${encoded}&limit=5&lat=${resolvedOutletLat}&lon=${resolvedOutletLng}`
         );
         const data = await res.json();
         if (data && Array.isArray(data.features)) {
@@ -228,7 +236,7 @@ export default function DeliveryMap({
     }, 500); // 500ms debounce
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, resolvedOutletLat, resolvedOutletLng]);
 
   const handleSelectSuggestion = (item: any) => {
     const lat = typeof item.lat === 'number' ? item.lat : parseFloat(item.lat);
@@ -246,7 +254,7 @@ export default function DeliveryMap({
   // ── Core: place/update customer marker ──────────────────────────
   const placeMarker = useCallback(
     async (lat: number, lng: number, L: any, resolveAddress = true) => {
-      const distanceM = haversineDistance(OUTLET_LAT, OUTLET_LNG, lat, lng);
+      const distanceM = haversineDistance(resolvedOutletLat, resolvedOutletLng, lat, lng);
       const distanceKm = distanceM / 1000;
       const zone = getZoneByDistance(distanceM);
       const isOutOfRange = distanceM > MAX_RADIUS_M;
@@ -300,7 +308,7 @@ export default function DeliveryMap({
         }
       }
     },
-    [onLocationSelect, onAddressResolved]
+    [onLocationSelect, onAddressResolved, resolvedOutletLat, resolvedOutletLng]
   );
 
   // ── Map initialisation ──────────────────────────────────────────
@@ -319,7 +327,7 @@ export default function DeliveryMap({
       });
 
       const map = L.map(mapContainerRef.current!, { 
-        center: [OUTLET_LAT, OUTLET_LNG], 
+        center: [resolvedOutletLat, resolvedOutletLng], 
         zoom: 13,
         attributionControl: false
       });
@@ -334,9 +342,9 @@ export default function DeliveryMap({
         .addTo(map);
 
       // Zone circles (draw largest first = behind)
-      L.circle([OUTLET_LAT, OUTLET_LNG], { radius: 10000, color: '#ef4444', fillColor: '#fef2f2', fillOpacity: 0.18, weight: 2, dashArray: '8 4' }).addTo(map);
-      L.circle([OUTLET_LAT, OUTLET_LNG], { radius: 6000,  color: '#f59e0b', fillColor: '#fffbeb', fillOpacity: 0.22, weight: 2, dashArray: '6 4' }).addTo(map);
-      L.circle([OUTLET_LAT, OUTLET_LNG], { radius: 3000,  color: '#22c55e', fillColor: '#f0fdf4', fillOpacity: 0.28, weight: 2 }).addTo(map);
+      L.circle([resolvedOutletLat, resolvedOutletLng], { radius: 10000, color: '#ef4444', fillColor: '#fef2f2', fillOpacity: 0.18, weight: 2, dashArray: '8 4' }).addTo(map);
+      L.circle([resolvedOutletLat, resolvedOutletLng], { radius: 6000,  color: '#f59e0b', fillColor: '#fffbeb', fillOpacity: 0.22, weight: 2, dashArray: '6 4' }).addTo(map);
+      L.circle([resolvedOutletLat, resolvedOutletLng], { radius: 3000,  color: '#22c55e', fillColor: '#f0fdf4', fillOpacity: 0.28, weight: 2 }).addTo(map);
 
       // Outlet marker
       const outletIcon = L.divIcon({
@@ -345,16 +353,16 @@ export default function DeliveryMap({
         iconSize: [44, 44],
         iconAnchor: [22, 22],
       });
-      L.marker([OUTLET_LAT, OUTLET_LNG], { icon: outletIcon })
+      L.marker([resolvedOutletLat, resolvedOutletLng], { icon: outletIcon })
         .addTo(map)
         .bindPopup(`<div style="font-size:13px;text-align:center;min-width:180px"><b style="color:#8E0E0E">A6 Nyuss</b><br/>Jl. Demak No. 253, Bubutan<br/><span style="color:#666">Kota Surabaya</span></div>`)
         .openPopup();
 
       // Zone labels
       const ls = 'background:white;border:none;font-size:11px;font-weight:600;white-space:nowrap;padding:2px 6px;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.2);';
-      L.marker([OUTLET_LAT + 0.018, OUTLET_LNG], { icon: L.divIcon({ html: `<div style="${ls}color:#16a34a">Zona 1: Rp 8.000</div>`, className: '', iconSize: [120, 24], iconAnchor: [60, 12] }) }).addTo(map);
-      L.marker([OUTLET_LAT + 0.042, OUTLET_LNG], { icon: L.divIcon({ html: `<div style="${ls}color:#d97706">Zona 2: Rp 13.000</div>`, className: '', iconSize: [130, 24], iconAnchor: [65, 12] }) }).addTo(map);
-      L.marker([OUTLET_LAT + 0.075, OUTLET_LNG], { icon: L.divIcon({ html: `<div style="${ls}color:#dc2626">Zona 3: Rp 18.000</div>`, className: '', iconSize: [135, 24], iconAnchor: [67, 12] }) }).addTo(map);
+      L.marker([resolvedOutletLat + 0.018, resolvedOutletLng], { icon: L.divIcon({ html: `<div style="${ls}color:#16a34a">Zona 1: Rp 8.000</div>`, className: '', iconSize: [120, 24], iconAnchor: [60, 12] }) }).addTo(map);
+      L.marker([resolvedOutletLat + 0.042, resolvedOutletLng], { icon: L.divIcon({ html: `<div style="${ls}color:#d97706">Zona 2: Rp 13.000</div>`, className: '', iconSize: [130, 24], iconAnchor: [65, 12] }) }).addTo(map);
+      L.marker([resolvedOutletLat + 0.075, resolvedOutletLng], { icon: L.divIcon({ html: `<div style="${ls}color:#dc2626">Zona 3: Rp 18.000</div>`, className: '', iconSize: [135, 24], iconAnchor: [67, 12] }) }).addTo(map);
 
       map.on('click', (e: any) => {
         mapRef.current?.setView([e.latlng.lat, e.latlng.lng], Math.max(mapRef.current.getZoom(), 15));
@@ -367,7 +375,7 @@ export default function DeliveryMap({
     });
 
     return () => { mounted = false; };
-  }, [placeMarker]);
+  }, [placeMarker, resolvedOutletLat, resolvedOutletLng]);
 
   // Cleanup
   useEffect(() => {

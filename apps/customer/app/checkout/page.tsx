@@ -451,6 +451,8 @@ export default function Checkout() {
                       onLocationSelect={handleMapLocationSelect}
                       onAddressResolved={handleAddressResolved}
                       searchAddress={address}
+                      outletLat={storeSettingsState?.outlet_lat}
+                      outletLng={storeSettingsState?.outlet_lng}
                     />
                     {errors.mapLocation && (
                       <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
