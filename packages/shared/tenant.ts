@@ -26,6 +26,9 @@ export interface Tenant {
     bankInfo?: string;
     heroBannerUrl?: string;
     storeOpen?: boolean;
+    cogsRate?: number;
+    outletLat?: number;
+    outletLng?: number;
   } | null;
   packageType: string;
   isActive: boolean | null;

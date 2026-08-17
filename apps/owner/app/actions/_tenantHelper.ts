@@ -33,7 +33,7 @@ export async function getCogsRate(tenantId: string): Promise<number> {
     .from(schema.tenants)
     .where(eq(schema.tenants.id, tenantId))
     .limit(1);
-  const branding = tenant?.branding as Record<string, unknown> | null;
+  const branding = tenant?.branding;
   const rate = typeof branding?.cogsRate === "number" ? branding.cogsRate : 0.30;
   return Math.min(Math.max(rate, 0.01), 0.99); // clamp between 1%–99%
 }

@@ -104,6 +104,9 @@ export const tenants = pgTable('tenants', {
     bankInfo?: string;
     heroBannerUrl?: string;
     storeOpen?: boolean;
+    cogsRate?: number;
+    outletLat?: number;
+    outletLng?: number;
   }>(),
   packageType: text('package_type').notNull().default('startup'), // startup | professional | enterprise
   isActive: boolean('is_active').default(true),
