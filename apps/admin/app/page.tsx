@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { auth } from "../../../lib/auth";
+import { auth } from "@lib/auth";
 import AdminClientPage from "./AdminClientPage";
 
 export const dynamic = "force-dynamic";

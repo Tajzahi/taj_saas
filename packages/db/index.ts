@@ -1,11 +1,19 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle, NeonDatabase } from 'drizzle-orm/neon-serverless';
-import ws from 'ws';
 import * as schema from './schema';
 
-// Configure WebSocket constructor for Node.js runtime
+// Robust WebSocket constructor resolution for Node.js / Edge / Serverless runtimes
 if (typeof window === 'undefined') {
-  neonConfig.webSocketConstructor = ws;
+  if (typeof globalThis.WebSocket !== 'undefined') {
+    neonConfig.webSocketConstructor = globalThis.WebSocket;
+  } else {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      neonConfig.webSocketConstructor = require('ws');
+    } catch {
+      // WebSocket fallback
+    }
+  }
 }
 
 const databaseUrl = process.env.DATABASE_URL;

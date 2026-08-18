@@ -1,6 +1,6 @@
 "use client";
 
-import { authClient } from "../../../lib/auth-client";
+import { authClient } from "@lib/auth-client";
 import LoginPage from "../components/LoginPage";
 import Dashboard from "../components/Dashboard";
 

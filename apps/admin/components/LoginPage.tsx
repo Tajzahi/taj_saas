@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, LogIn, ChefHat, AlertTriangle } from 'lucide-react';
 import { useAdminStore } from '../store/adminStore';
-import { authClient } from "../../../lib/auth-client";
+import { authClient } from "@lib/auth-client";
 
 interface LoginPageProps {
   onLogin: (username: string, password: string) => void;
