@@ -8,17 +8,8 @@ export interface ParsedTenant {
 
 /**
  * Parses tenant slug and application type from request hostname.
- * Supports localhost development formats and production custom domains.
- * 
- * Localhost formats:
- * - customer: [slug].localhost:3000 -> slug, 'customer'
- * - admin: admin.[slug].localhost:3001 -> slug, 'admin'
- * - owner: owner.[slug].localhost:3002 -> slug, 'owner'
- * 
- * Production formats:
- * - customer: [slug].com -> slug, 'customer'
- * - admin: admin.[slug].com -> slug, 'admin'
- * - owner: owner.[slug].com -> slug, 'owner'
+ * Supports localhost development formats, cloud staging platforms (Cloud Run, Netlify, Vercel),
+ * and production custom domains.
  */
 export function parseTenantFromHostname(hostname: string): ParsedTenant {
   const parts = hostname.split(':');
@@ -26,6 +17,7 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
   const port = parts[1] || '';
   
   const isLocalhost = host.endsWith('.localhost') || host === 'localhost' || host === '127.0.0.1';
+  const isCloudPlatform = host.endsWith('.a.run.app') || host.endsWith('.run.app') || host.endsWith('.netlify.app') || host.endsWith('.vercel.app');
 
   let slug: string | null = null;
   let appType: 'customer' | 'admin' | 'owner' = 'customer';
@@ -52,8 +44,19 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
         appType = 'customer';
       }
     }
+  } else if (isCloudPlatform) {
+    // Cloud Run / Staging platforms (e.g. taj-customer-*.a.run.app, taj-admin-*.a.run.app, taj-owner-*.a.run.app)
+    slug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
+
+    if (host.startsWith('taj-admin') || host.startsWith('admin.') || host.includes('-admin-') || host.includes('-admin.')) {
+      appType = 'admin';
+    } else if (host.startsWith('taj-owner') || host.startsWith('owner.') || host.includes('-owner-') || host.includes('-owner.')) {
+      appType = 'owner';
+    } else {
+      appType = 'customer';
+    }
   } else {
-    // Production custom domains
+    // Production custom domains (e.g. martabakpakde.com or admin.martabakpakde.com)
     const subParts = host.split('.');
     if (subParts.length >= 3 && (subParts[0] === 'admin' || subParts[0] === 'owner')) {
       appType = subParts[0] as 'admin' | 'owner';
@@ -64,7 +67,7 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
     }
   }
 
-  return { slug, appType, isLocalhost };
+  return { slug, appType, isLocalhost: isLocalhost || isCloudPlatform };
 }
 
 export * from './tenant';

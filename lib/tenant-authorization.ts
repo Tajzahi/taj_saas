@@ -133,6 +133,7 @@ export function normalizeRequestHost(hostHeader: string): NormalizedRequestHost 
   const hostname = hostWithoutPort.replace(/\.$/, ''); // strip trailing dot
 
   const isLocal = hostname.endsWith('.localhost') || hostname === 'localhost' || hostname === '127.0.0.1';
+  const isCloudPlatform = hostname.endsWith('.a.run.app') || hostname.endsWith('.run.app') || hostname.endsWith('.netlify.app') || hostname.endsWith('.vercel.app');
 
   if (isLocal) {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
@@ -146,6 +147,22 @@ export function normalizeRequestHost(hostHeader: string): NormalizedRequestHost 
       return { rawHost: clean, hostname, port, appType: parts[0] as 'admin' | 'owner', lookupType: 'slug', lookupValue: parts[1] };
     }
     return { rawHost: clean, hostname, port, appType: 'customer', lookupType: 'slug', lookupValue: parts[0] };
+  }
+
+  if (isCloudPlatform) {
+    // Cloud Run / Staging environments (e.g. taj-customer-*.a.run.app, taj-admin-*.a.run.app, taj-owner-*.a.run.app)
+    const defaultSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
+    let appType: 'customer' | 'admin' | 'owner' = 'customer';
+
+    if (hostname.startsWith('taj-admin') || hostname.startsWith('admin.') || hostname.includes('-admin-') || hostname.includes('-admin.')) {
+      appType = 'admin';
+    } else if (hostname.startsWith('taj-owner') || hostname.startsWith('owner.') || hostname.includes('-owner-') || hostname.includes('-owner.')) {
+      appType = 'owner';
+    } else {
+      appType = 'customer';
+    }
+
+    return { rawHost: clean, hostname, port, appType, lookupType: 'slug', lookupValue: defaultSlug };
   }
 
   // Production Custom Domains (e.g. admin.martabakpakde.com or martabakpakde.com)
@@ -182,7 +199,7 @@ export async function resolveTenantFromRequestHost(
     );
   }
 
-  const tenantResult = await db
+  let tenantResult = await db
     .select()
     .from(schema.tenants)
     .where(
@@ -191,6 +208,15 @@ export async function resolveTenantFromRequestHost(
         : eq(schema.tenants.domain, norm.lookupValue)
     )
     .limit(1);
+
+  // Fallback to slug if domain match returns empty
+  if (tenantResult.length === 0 && norm.lookupType === 'domain') {
+    tenantResult = await db
+      .select()
+      .from(schema.tenants)
+      .where(eq(schema.tenants.slug, norm.lookupValue))
+      .limit(1);
+  }
 
   const tenant = tenantResult[0];
 

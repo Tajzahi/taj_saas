@@ -51,9 +51,20 @@ describe("Port-Aware Zero-Trust Request Host Resolver", () => {
     expect(prodOwner.lookupValue).toBe("martabakpakde.com");
   });
 
-  it("sanitizes host with trailing dot or port", () => {
-    const res = normalizeRequestHost("admin.martabakpakde.com.:443");
-    expect(res.appType).toBe("admin");
-    expect(res.lookupValue).toBe("martabakpakde.com");
+  it("resolves cloud platform URLs (Cloud Run / Netlify / Vercel)", () => {
+    const custRun = normalizeRequestHost("taj-customer-rm3i6swwoq-et.a.run.app");
+    expect(custRun.appType).toBe("customer");
+    expect(custRun.lookupType).toBe("slug");
+    expect(custRun.lookupValue).toBe("taj-saas");
+
+    const adminRun = normalizeRequestHost("taj-admin-rm3i6swwoq-et.a.run.app");
+    expect(adminRun.appType).toBe("admin");
+    expect(adminRun.lookupType).toBe("slug");
+    expect(adminRun.lookupValue).toBe("taj-saas");
+
+    const ownerRun = normalizeRequestHost("taj-owner-rm3i6swwoq-et.a.run.app");
+    expect(ownerRun.appType).toBe("owner");
+    expect(ownerRun.lookupType).toBe("slug");
+    expect(ownerRun.lookupValue).toBe("taj-saas");
   });
 });

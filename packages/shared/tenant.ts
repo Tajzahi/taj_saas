@@ -1,5 +1,5 @@
 import { db, schema } from '@taj-saas/db';
-import { eq } from 'drizzle-orm';
+import { eq, or } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { parseTenantFromHostname } from './index';
@@ -95,8 +95,8 @@ export async function resolveTenantMiddleware(
   const hostname = request.headers.get('host') || '';
   const { slug, appType, isLocalhost } = parseTenantFromHostname(hostname);
 
-  // Development redirects between ports
-  if (isLocalhost) {
+  // Development redirects between ports (localhost only)
+  if (isLocalhost && !hostname.includes('.run.app') && !hostname.includes('.netlify.app') && !hostname.includes('.vercel.app')) {
     if (appType !== currentApp) {
       const url = request.nextUrl.clone();
       if (appType === 'customer') url.port = '3000';
@@ -133,7 +133,7 @@ export async function resolveTenantMiddleware(
       .where(
         isLocalhost
           ? eq(schema.tenants.slug, slug)
-          : eq(schema.tenants.domain, slug)
+          : or(eq(schema.tenants.domain, slug), eq(schema.tenants.slug, slug))
       )
       .limit(1);
 
