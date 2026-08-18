@@ -1,7 +1,7 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { auth } from "@/../../lib/auth";
+import { auth } from "@lib/auth";
 import { eq } from "drizzle-orm";
 
 interface RegisterParams {

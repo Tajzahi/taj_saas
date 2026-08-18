@@ -434,7 +434,7 @@ export async function acceptEmployeeInvitationAction(token: string, password: st
       return { success: false, error: "Tautan undangan sudah kedaluwarsa (masa berlaku 48 jam)." };
     }
 
-    const { auth } = await import("@/../../lib/auth");
+    const { auth } = await import("@lib/auth");
 
     // 1. Sign up user via Better Auth
     const userRes = await auth.api.signUpEmail({
