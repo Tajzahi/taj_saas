@@ -50,6 +50,11 @@ export default function Checkout() {
       .catch((err) => {
         console.error('Error fetching store settings:', err);
       });
+
+    // Cleanup legacy localStorage key with raw PII (R2-016)
+    try {
+      localStorage.removeItem('a6nyuss-orders');
+    } catch {}
   }, []);
 
   const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('takeaway');
@@ -78,6 +83,7 @@ export default function Checkout() {
   const [showQrisModal, setShowQrisModal] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [pendingAttempt, setPendingAttempt] = useState<{ idemKey: string; token: string } | null>(null);
 
   // When the map reports a result, update state
   const handleMapLocationSelect = useCallback((result: DeliveryMapResult | null) => {
@@ -232,11 +238,16 @@ export default function Checkout() {
         ? `${address}${addressNote ? ` (${addressNote})` : ''}${mapResult ? ` [Koordinat: ${mapResult.lat.toFixed(6)},${mapResult.lng.toFixed(6)}]` : ''}`
         : undefined;
 
-      // Siapkan client-side idempotency key & customer token
-      const clientToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
-        .map((b) => b.toString(16).padStart(2, '0'))
-        .join('');
-      const idemKey = `IDEM-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+      // Siapkan client-side idempotency key & customer token (pertahankan attempt yang sama saat retry)
+      let attempt = pendingAttempt;
+      if (!attempt) {
+        const clientToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+          .map((b) => b.toString(16).padStart(2, '0'))
+          .join('');
+        const idemKey = `IDEM-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+        attempt = { idemKey, token: clientToken };
+        setPendingAttempt(attempt);
+      }
 
       // Siapkan payload: hanya slug + quantity + variant modifier (NO harga dari frontend)
       const orderPayload = {
@@ -257,8 +268,8 @@ export default function Checkout() {
         promoCode: promoCode || undefined,
         notes: generalNote || undefined,
         paymentMethod,
-        idempotencyKey: idemKey,
-        customerToken: clientToken,
+        idempotencyKey: attempt.idemKey,
+        customerToken: attempt.token,
       };
 
       const res = await fetch('/api/orders', {
@@ -273,10 +284,13 @@ export default function Checkout() {
         throw new Error(result.error || 'Gagal membuat pesanan');
       }
 
+      // Berhasil: reset pending attempt
+      setPendingAttempt(null);
+
       // Gunakan total yang dikonfirmasi server (bukan kalkulasi client)
       const serverTotal = result.total;
       const serverOrderCode = result.orderCode;
-      const effectiveToken = result.customerToken || clientToken;
+      const effectiveToken = result.customerToken || attempt.token;
 
       if (effectiveToken) {
         try {

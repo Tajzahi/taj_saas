@@ -4,6 +4,15 @@ import { and, eq } from "drizzle-orm";
 import crypto from "crypto";
 import { resolveTenantFromRequestHost, requireTenantSession } from "@lib/tenant-authorization";
 
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const host = request.headers.get("host") || "";
@@ -22,7 +31,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       return new NextResponse("File tidak ditemukan", { status: 404 });
     }
 
-    // ── Authorization Check (SEC-006 / Point 1) ──
+    // ── Authorization Check (R2-006) ──
     let isAuthorized = false;
 
     // 1. Check if requester has a valid staff session for this tenant
@@ -38,7 +47,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
       // Not a staff member, fall through to check customer ownership
     }
 
-    // 2. If not staff, verify customer token against linked order
+    // 2. If not staff, verify customer token against linked order using constant-time comparison
     if (!isAuthorized && file.orderId) {
       const [order] = await db
         .select({
@@ -61,7 +70,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         const providedToken = headerToken || cookieToken || "";
         if (providedToken) {
           const providedHash = crypto.createHash("sha256").update(providedToken).digest("hex");
-          if (providedHash === order.customerTokenHash) {
+          if (timingSafeEqualHex(providedHash, order.customerTokenHash)) {
             isAuthorized = true;
           }
         }

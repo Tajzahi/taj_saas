@@ -1,5 +1,5 @@
 import { db, schema } from "@taj-saas/db";
-import { eq, and, inArray } from "drizzle-orm";
+import { eq, and, inArray, or, SQL } from "drizzle-orm";
 
 export interface PricingOrderItemInput {
   menuItemId?: string;
@@ -80,6 +80,8 @@ export function calculateHaversineDistanceKm(
   return Number((R * c).toFixed(2));
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // ─── PRICING SERVICE ENGINE ─────────────────────────────────────────────────
 
 export async function calculateOrderPricing(
@@ -110,6 +112,10 @@ export async function calculateOrderPricing(
 
   let selectedBranch = branches.find((b) => b.id === branchId);
 
+  if (selectedBranch && deliveryType === "delivery" && !selectedBranch.acceptsOnlineOrders) {
+    throw new Error(`Cabang '${selectedBranch.name}' saat ini tidak melayani pemesanan online / delivery.`);
+  }
+
   if (!selectedBranch && customerLat !== undefined && customerLng !== undefined) {
     // Recommend nearest online branch
     const onlineBranches = branches.filter((b) => b.acceptsOnlineOrders);
@@ -134,11 +140,38 @@ export async function calculateOrderPricing(
     selectedBranch = branches.find((b) => b.isPrimary) || branches[0];
   }
 
-  // 3. Fetch canonical menu items from database (Never trust client prices)
-  const itemIdsOrSlugs = items.map((i) => i.menuItemId || i.menuItemSlug).filter(Boolean) as string[];
-
-  if (itemIdsOrSlugs.length === 0) {
+  // 3. Fetch canonical menu items from database (R2-001: Separate UUID from Slugs)
+  if (!items || items.length === 0) {
     throw new Error("Daftar item pesanan kosong.");
+  }
+
+  const itemIds: string[] = [];
+  const itemSlugs: string[] = [];
+
+  for (const i of items) {
+    if (i.menuItemId && UUID_REGEX.test(i.menuItemId)) {
+      itemIds.push(i.menuItemId);
+    } else if (i.menuItemId) {
+      itemSlugs.push(i.menuItemId);
+    }
+    if (i.menuItemSlug) {
+      itemSlugs.push(i.menuItemSlug);
+    }
+  }
+
+  const distinctIds = Array.from(new Set(itemIds));
+  const distinctSlugs = Array.from(new Set(itemSlugs));
+
+  const queryOrConditions: SQL[] = [];
+  if (distinctIds.length > 0) {
+    queryOrConditions.push(inArray(schema.menuItems.id, distinctIds));
+  }
+  if (distinctSlugs.length > 0) {
+    queryOrConditions.push(inArray(schema.menuItems.slug, distinctSlugs));
+  }
+
+  if (queryOrConditions.length === 0) {
+    throw new Error("Daftar item pesanan tidak valid.");
   }
 
   const dbMenuItems = await db
@@ -155,7 +188,7 @@ export async function calculateOrderPricing(
     .where(
       and(
         eq(schema.menuItems.tenantId, tenantId),
-        inArray(schema.menuItems.id, itemIdsOrSlugs)
+        or(...queryOrConditions)
       )
     );
 
@@ -173,7 +206,8 @@ export async function calculateOrderPricing(
   let subtotal = 0;
 
   for (const item of items) {
-    const dbItem = (item.menuItemId ? itemMapById.get(item.menuItemId) : null) ||
+    const dbItem =
+      (item.menuItemId ? itemMapById.get(item.menuItemId) || itemMapBySlug.get(item.menuItemId) : null) ||
       (item.menuItemSlug ? itemMapBySlug.get(item.menuItemSlug) : null);
 
     if (!dbItem) {
@@ -186,13 +220,23 @@ export async function calculateOrderPricing(
 
     let unitPrice = Number(dbItem.price);
 
-    // Validate variant price modifiers from DB configuration
+    // R2-002: Comprehensive Variant Modifier Resolution
     if (item.variantName && dbItem.variants && Array.isArray(dbItem.variants)) {
-      const matchedVariant = dbItem.variants.find(
-        (v: any) => v.name?.toLowerCase() === item.variantName?.toLowerCase()
-      );
-      if (matchedVariant?.priceModifier) {
-        unitPrice += Math.max(0, Number(matchedVariant.priceModifier));
+      const selectedNames = item.variantName.split(",").map((s) => s.trim().toLowerCase());
+
+      for (const variantGroup of dbItem.variants as any[]) {
+        // Case A: Nested structure with options array [{ name, priceModifier }]
+        if (Array.isArray(variantGroup.options)) {
+          for (const opt of variantGroup.options) {
+            if (opt?.name && selectedNames.includes(opt.name.toLowerCase())) {
+              unitPrice += Math.max(0, Number(opt.priceModifier || 0));
+            }
+          }
+        }
+        // Case B: Flat variant object [{ name, priceModifier }]
+        else if (variantGroup?.name && selectedNames.includes(variantGroup.name.toLowerCase())) {
+          unitPrice += Math.max(0, Number(variantGroup.priceModifier || 0));
+        }
       }
     }
 
@@ -265,40 +309,43 @@ export async function calculateOrderPricing(
     }
   }
 
-  // 5. Server-Authoritative Delivery Fee Calculation (SEC-005, Point 7)
+  // 5. Server-Authoritative Delivery Fee Calculation (R2-003: Strict distance and coordinates enforcement)
   let deliveryFee = 0;
   let distanceKm: number | undefined = undefined;
 
   if (deliveryType === "delivery") {
-    if (
-      selectedBranch &&
-      selectedBranch.outletLat &&
-      selectedBranch.outletLng &&
-      customerLat !== undefined &&
-      customerLng !== undefined
-    ) {
-      const bLat = Number(selectedBranch.outletLat);
-      const bLng = Number(selectedBranch.outletLng);
-      distanceKm = calculateHaversineDistanceKm(bLat, bLng, customerLat, customerLng);
+    if (customerLat === undefined || customerLng === undefined) {
+      throw new Error("Koordinat lokasi pengiriman (lat/lng) wajib disertakan untuk pesanan delivery.");
+    }
 
-      const zones = selectedBranch.deliveryZones || [];
-      if (zones.length > 0) {
-        const matchingZone = zones.find((z) => distanceKm! <= z.maxDistanceKm);
-        if (matchingZone) {
-          deliveryFee = matchingZone.baseFee + Math.round(distanceKm! * matchingZone.perKmFee);
-        } else {
-          const maxZone = zones[zones.length - 1];
-          if (maxZone && distanceKm! > maxZone.maxDistanceKm + 5) {
-            throw new Error(`Lokasi pengiriman (${distanceKm} km) berada di luar jangkauan layanan cabang.`);
-          }
-          deliveryFee = maxZone ? maxZone.baseFee + Math.round(distanceKm! * maxZone.perKmFee) : 15000;
-        }
+    if (!selectedBranch || !selectedBranch.outletLat || !selectedBranch.outletLng) {
+      throw new Error("Cabang belum memiliki koordinat lokasi gerai yang valid untuk kalkulasi pengiriman.");
+    }
+
+    const bLat = Number(selectedBranch.outletLat);
+    const bLng = Number(selectedBranch.outletLng);
+    distanceKm = calculateHaversineDistanceKm(bLat, bLng, customerLat, customerLng);
+
+    const zones = selectedBranch.deliveryZones || [];
+    if (zones.length > 0) {
+      const maxAllowedDistance = Math.max(...zones.map((z) => z.maxDistanceKm));
+      if (distanceKm > maxAllowedDistance) {
+        throw new Error(
+          `Lokasi pengiriman (${distanceKm} km) melebihi jangkauan maksimal layanan cabang (${maxAllowedDistance} km).`
+        );
+      }
+
+      const matchingZone = zones.find((z) => distanceKm! <= z.maxDistanceKm);
+      if (matchingZone) {
+        deliveryFee = matchingZone.baseFee + Math.round(distanceKm * matchingZone.perKmFee);
       } else {
-        // Flat delivery configured on tenant
-        deliveryFee = Number(branding.flatDeliveryFee || 10000);
+        throw new Error(`Tidak ditemukan zona pengiriman yang sesuai untuk jarak ${distanceKm} km.`);
       }
     } else {
-      // Fallback to tenant configured flat delivery fee (never trust client)
+      // Flat delivery configured on tenant (Strict radius max 10 km)
+      if (distanceKm > 10) {
+        throw new Error(`Lokasi pengiriman (${distanceKm} km) melebihi radius maksimal toko (10 km).`);
+      }
       deliveryFee = Number(branding.flatDeliveryFee || 10000);
     }
   }

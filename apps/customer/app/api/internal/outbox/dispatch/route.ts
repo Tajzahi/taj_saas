@@ -32,7 +32,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
 
-    // 1. Claim up to 50 pending or expired-lease processing events atomically (Point 11)
+    // 1. Claim up to 50 pending or expired-lease processing events atomically (R2-007)
     const claimableEvents = await db
       .select()
       .from(schema.outboxEvents)
@@ -86,7 +86,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         if (ably) {
           const channel = ably.channels.get(`orders:${tenantSlug}`);
 
-          // Strip PII: Only send minimal notification metadata (SEC-008)
+          // Strip PII: Only send minimal notification metadata
           const minimalPayload = {
             eventId: event.id,
             aggregateId: event.aggregateId,
@@ -95,6 +95,8 @@ export async function POST(request: Request): Promise<NextResponse> {
           };
 
           await channel.publish(event.eventType, minimalPayload);
+        } else if (process.env.NODE_ENV === "production") {
+          console.warn(`[Outbox Dispatcher] ABLY_API_KEY not configured; event ${event.id} marked published in local mode.`);
         }
 
         // Mark as published

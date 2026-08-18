@@ -134,53 +134,125 @@ export async function updateOrderStatusAction(
     const shouldAutoPay = newStatus === "completed" && (order.paymentMethod === "cod" || order.paymentMethod === "cash");
     const paymentStatus = shouldAutoPay ? "paid" : order.paymentStatus;
 
-    // Atomic conditional status update (WHERE status = :currentStatus)
-    const updateResult = await db
-      .update(schema.orders)
-      .set({
-        status: newStatus,
-        paymentStatus,
-      })
-      .where(
-        and(
-          eq(schema.orders.id, orderId),
-          eq(schema.orders.tenantId, tenant.id),
-          eq(schema.orders.status, order.status)
+    // Atomic conditional status update inside transaction (R2-009)
+    await db.transaction(async (tx) => {
+      const [updatedOrder] = await tx
+        .update(schema.orders)
+        .set({
+          status: newStatus,
+          paymentStatus,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.orders.id, orderId),
+            eq(schema.orders.tenantId, tenant.id),
+            eq(schema.orders.status, order.status)
+          )
         )
-      );
+        .returning();
 
-    await writeAuditEvent({
-      tenantId: tenant.id,
-      actorId: user.id,
-      action: `order_status_${newStatus}`,
-      entityType: "orders",
-      entityId: orderId,
-      details: {
-        previousStatus: order.status,
-        newStatus,
-        cancellationReason: cancellationReason || null,
-      },
-    });
-
-    // If Cash completed, log transaction into active shift
-    if (shouldAutoPay) {
-      const activeShifts = await db
-        .select()
-        .from(schema.shifts)
-        .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
-        .limit(1);
-
-      const activeShift = activeShifts[0];
-      if (activeShift) {
-        await db.insert(schema.shiftLogs).values({
-          tenantId: tenant.id,
-          shiftId: activeShift.id,
-          action: "cash_in",
-          amount: order.totalPrice,
-          notes: `Pembayaran Cash pesanan ${order.orderCode}`,
-        });
+      if (!updatedOrder) {
+        throw new Error("Status pesanan telah diubah oleh operator lain secara bersamaan.");
       }
-    }
+
+      // If Cash completed, record payment transaction and shift log idempotently
+      if (shouldAutoPay) {
+        const existingTx = await tx
+          .select()
+          .from(schema.paymentTransactions)
+          .where(
+            and(
+              eq(schema.paymentTransactions.orderId, order.id),
+              eq(schema.paymentTransactions.tenantId, tenant.id),
+              eq(schema.paymentTransactions.status, "paid")
+            )
+          )
+          .limit(1);
+
+        if (existingTx.length === 0) {
+          await tx.insert(schema.paymentTransactions).values({
+            tenantId: tenant.id,
+            orderId: order.id,
+            amount: order.totalPrice,
+            paymentMethod: "cod",
+            status: "paid",
+            notes: `Auto-paid on order completed by staff: ${user.name || user.email}`,
+            verifiedBy: user.id,
+            verifiedAt: new Date(),
+          });
+        }
+
+        const activeShifts = await tx
+          .select()
+          .from(schema.shifts)
+          .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
+          .limit(1);
+
+        const activeShift = activeShifts[0];
+        if (activeShift) {
+          // Check if cash log already written for this order
+          const existingLogs = await tx
+            .select()
+            .from(schema.shiftLogs)
+            .where(
+              and(
+                eq(schema.shiftLogs.shiftId, activeShift.id),
+                eq(schema.shiftLogs.tenantId, tenant.id)
+              )
+            );
+
+          const alreadyLogged = existingLogs.some(
+            (l) => l.notes && l.notes.includes(order.orderCode)
+          );
+
+          if (!alreadyLogged) {
+            await tx.insert(schema.shiftLogs).values({
+              tenantId: tenant.id,
+              shiftId: activeShift.id,
+              action: "cash_in",
+              amount: order.totalPrice,
+              notes: `Pembayaran Cash pesanan ${order.orderCode}`,
+            });
+          }
+        }
+      }
+
+      await tx.insert(schema.auditLogs).values({
+        tenantId: tenant.id,
+        userId: user.id,
+        action: `order_status_${newStatus}`,
+        entityType: "orders",
+        entityId: orderId,
+        details: {
+          previousStatus: order.status,
+          newStatus,
+          cancellationReason: cancellationReason || null,
+        },
+      });
+
+      // Insert outbox event for realtime subscribers
+      await tx.insert(schema.outboxEvents).values({
+        tenantId: tenant.id,
+        aggregateType: "order",
+        aggregateId: order.id,
+        eventType:
+          newStatus === "ready"
+            ? "order.ready"
+            : newStatus === "completed"
+            ? "order.completed"
+            : newStatus === "cancelled"
+            ? "order.cancelled_by_staff"
+            : "order.status_updated",
+        payload: {
+          orderId: order.id,
+          orderCode: order.orderCode,
+          status: newStatus,
+          paymentStatus,
+        },
+        status: "pending",
+      });
+    });
 
     revalidatePath("/");
     return { success: true };
@@ -358,7 +430,8 @@ export async function openShiftAction(startingCash: number, operatorName: string
       .insert(schema.shifts)
       .values({
         tenantId: tenant.id,
-        operatorName: operatorName || user.name || "Kasir",
+        operatorId: user.id, // Enforce operator ownership (R2-008)
+        operatorName: operatorName || user.name || user.email || "Kasir",
         startingCash: String(parsedStartingCash),
         status: "open",
         openedAt: new Date(),
@@ -779,99 +852,103 @@ export async function createOfflineOrderAction(data: {
     const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
     const orderCode = `POS-${rand}`;
 
-    const [newOrder] = await db
-      .insert(schema.orders)
-      .values({
-        tenantId: tenant.id,
-        orderCode,
-        customerName: data.customerName || "Pelanggan POS",
-        customerPhone: data.tableNo
-          ? `Meja ${data.tableNo}`
-          : data.orderType === "dine_in"
-          ? "Dine-In"
-          : data.orderType === "takeaway"
-          ? "Takeaway"
-          : data.orderType === "delivery"
-          ? "Delivery"
-          : "Pickup",
-        deliveryType: data.orderType,
-        subtotal: subtotal.toString(),
-        deliveryFee,
-        discountAmount: discountAmount.toString(),
-        taxAmount: taxAmount.toString(),
-        serviceChargeAmount: serviceChargeAmount.toString(),
-        totalPrice: totalPrice.toString(),
-        status: "completed",
-        paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
-        paymentStatus: "paid",
-        paymentProofUrl: data.paymentProofUrl || null,
-        pricingSnapshot,
-        notes:
-          data.notes ||
-          (data.orderType === "dine_in"
-            ? `Dine-In${data.tableNo ? " Meja " + data.tableNo : ""}`
-            : data.orderType.toUpperCase()),
-      })
-      .returning();
-
-    if (newOrder && itemsBreakdown.length > 0) {
-      await db.insert(schema.orderItems).values(
-        itemsBreakdown.map((item: PricingItemBreakdown) => ({
-          orderId: newOrder.id,
-          menuItemId: item.menuItemId,
-          menuItemName: item.menuItemName,
-          variantName: item.variantName || null,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice.toString(),
-          totalPrice: item.totalPrice.toString(),
-          note: item.note || null,
-        }))
-      );
-    }
-
-    // Record immutable payment transaction (Point 10)
-    await db.insert(schema.paymentTransactions).values({
-      tenantId: tenant.id,
-      orderId: newOrder.id,
-      amount: totalPrice.toString(),
-      paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
-      status: "paid",
-      notes: `Pembayaran POS Kasir langsung lunas (${data.paymentMethod.toUpperCase()})`,
-      verifiedBy: user.id,
-      verifiedAt: new Date(),
-    });
-
-    // Log to active shift if cash/cod payment
-    if (data.paymentMethod === "cod") {
-      const activeShifts = await db
-        .select()
-        .from(schema.shifts)
-        .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
-        .limit(1);
-
-      const activeShift = activeShifts[0];
-      if (activeShift) {
-        await db.insert(schema.shiftLogs).values({
+    const createdOrder = await db.transaction(async (tx) => {
+      const [newOrder] = await tx
+        .insert(schema.orders)
+        .values({
           tenantId: tenant.id,
-          shiftId: activeShift.id,
-          action: "cash_in",
-          amount: totalPrice.toString(),
-          notes: `Pembayaran POS Kasir: ${orderCode}`,
-        });
-      }
-    }
+          orderCode,
+          customerName: data.customerName || "Pelanggan POS",
+          customerPhone: data.tableNo
+            ? `Meja ${data.tableNo}`
+            : data.orderType === "dine_in"
+            ? "Dine-In"
+            : data.orderType === "takeaway"
+            ? "Takeaway"
+            : data.orderType === "delivery"
+            ? "Delivery"
+            : "Pickup",
+          deliveryType: data.orderType,
+          subtotal: subtotal.toString(),
+          deliveryFee,
+          discountAmount: discountAmount.toString(),
+          taxAmount: taxAmount.toString(),
+          serviceChargeAmount: serviceChargeAmount.toString(),
+          totalPrice: totalPrice.toString(),
+          status: "completed",
+          paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
+          paymentStatus: "paid",
+          paymentProofUrl: data.paymentProofUrl || null,
+          pricingSnapshot,
+          notes:
+            data.notes ||
+            (data.orderType === "dine_in"
+              ? `Dine-In${data.tableNo ? " Meja " + data.tableNo : ""}`
+              : data.orderType.toUpperCase()),
+        })
+        .returning();
 
-    await writeAuditEvent({
-      tenantId: tenant.id,
-      actorId: user.id,
-      action: "pos_order_created",
-      entityType: "orders",
-      entityId: newOrder.id,
-      details: { orderCode, totalPrice },
+      if (newOrder && itemsBreakdown.length > 0) {
+        await tx.insert(schema.orderItems).values(
+          itemsBreakdown.map((item: PricingItemBreakdown) => ({
+            orderId: newOrder.id,
+            menuItemId: item.menuItemId,
+            menuItemName: item.menuItemName,
+            variantName: item.variantName || null,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice.toString(),
+            totalPrice: item.totalPrice.toString(),
+            note: item.note || null,
+          }))
+        );
+      }
+
+      // Record immutable payment transaction
+      await tx.insert(schema.paymentTransactions).values({
+        tenantId: tenant.id,
+        orderId: newOrder.id,
+        amount: totalPrice.toString(),
+        paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
+        status: "paid",
+        notes: `Pembayaran POS Kasir langsung lunas (${data.paymentMethod.toUpperCase()})`,
+        verifiedBy: user.id,
+        verifiedAt: new Date(),
+      });
+
+      // Log to active shift if cash/cod payment
+      if (data.paymentMethod === "cod") {
+        const activeShifts = await tx
+          .select()
+          .from(schema.shifts)
+          .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
+          .limit(1);
+
+        const activeShift = activeShifts[0];
+        if (activeShift) {
+          await tx.insert(schema.shiftLogs).values({
+            tenantId: tenant.id,
+            shiftId: activeShift.id,
+            action: "cash_in",
+            amount: totalPrice.toString(),
+            notes: `Pembayaran POS Kasir: ${orderCode}`,
+          });
+        }
+      }
+
+      await tx.insert(schema.auditLogs).values({
+        tenantId: tenant.id,
+        userId: user.id,
+        action: "pos_order_created",
+        entityType: "orders",
+        entityId: newOrder.id,
+        details: { orderCode, totalPrice },
+      });
+
+      return newOrder;
     });
 
     revalidatePath("/");
-    return { success: true, orderCode, order: newOrder };
+    return { success: true, orderCode, order: createdOrder };
   } catch (err: unknown) {
     if (err instanceof AuthorizationError) {
       return { success: false, error: err.message };

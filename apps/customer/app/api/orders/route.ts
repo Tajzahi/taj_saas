@@ -23,6 +23,15 @@ export interface CreateOrderRequest {
   customerToken?: string;
 }
 
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+  } catch {
+    return false;
+  }
+}
+
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     // 1. Zero-trust tenant resolution
@@ -113,17 +122,82 @@ export async function POST(request: Request): Promise<NextResponse> {
       branch,
     } = pricingResult;
 
-    // 5. Idempotency Fingerprint & Concurrency Check (SEC-009, Point 3 & 4)
+    // 5. Customer Token Resolution (Client-provided or generated)
+    const effectiveCustomerToken =
+      clientCustomerToken ||
+      request.headers.get("x-customer-token") ||
+      crypto.randomBytes(32).toString("hex");
+
+    const customerTokenHash = crypto.createHash("sha256").update(effectiveCustomerToken).digest("hex");
+    const storedPaymentMethod = paymentMethod === "qris" ? "transfer" : paymentMethod;
+
+    // 6. Comprehensive Canonical Fingerprint & Idempotency Check (R2-004)
     const effectiveIdempotencyKey = idempotencyKey?.trim() || `IDEM-${crypto.randomUUID()}`;
     const payloadCanonicalString = JSON.stringify({
       tenantId: tenant.id,
       branchId: branch?.id || null,
+      customerName: customerName.trim(),
       phone: cleanPhone,
-      items: itemsBreakdown.map((i) => ({ id: i.menuItemId, qty: i.quantity, price: i.unitPrice })),
+      orderType,
+      deliveryAddress: deliveryAddress?.trim() || null,
+      deliveryLat: customerLat ?? null,
+      deliveryLng: customerLng ?? null,
+      paymentMethod: storedPaymentMethod,
+      promoCode: promoCode?.trim() || null,
+      notes: notes?.trim() || null,
+      items: itemsBreakdown.map((i) => ({
+        id: i.menuItemId,
+        slug: i.slug,
+        qty: i.quantity,
+        price: i.unitPrice,
+        variant: i.variantName || null,
+      })),
+      subtotal,
+      deliveryFee,
+      discountAmount,
+      taxAmount,
+      serviceChargeAmount,
       total: totalPrice,
       idemKey: effectiveIdempotencyKey,
     });
     const idempotencyRequestHash = crypto.createHash("sha256").update(payloadCanonicalString).digest("hex");
+
+    // Helper for safe idempotent replay
+    const formatReplayResponse = (order: typeof schema.orders.$inferSelect) => {
+      // Replay verification: verify customer token & fingerprint hash
+      if (
+        order.idempotencyRequestHash &&
+        !timingSafeEqualHex(order.idempotencyRequestHash, idempotencyRequestHash)
+      ) {
+        return NextResponse.json(
+          { error: "Idempotency key sudah digunakan untuk payload pemesanan yang berbeda." },
+          { status: 409 }
+        );
+      }
+
+      if (
+        order.customerTokenHash &&
+        !timingSafeEqualHex(order.customerTokenHash, customerTokenHash)
+      ) {
+        return NextResponse.json(
+          { error: "Otorisasi token tidak cocok dengan pesanan idempotency yang sudah ada." },
+          { status: 403 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        isIdempotentReplay: true,
+        orderCode: order.orderCode,
+        subtotal: Number(order.subtotal),
+        deliveryFee: Number(order.deliveryFee || 0),
+        discountAmount: Number(order.discountAmount || 0),
+        taxAmount: Number(order.taxAmount || 0),
+        serviceChargeAmount: Number(order.serviceChargeAmount || 0),
+        total: Number(order.totalPrice),
+        status: order.status,
+      });
+    };
 
     // Check if order with this idempotency key already exists
     const existingOrders = await db
@@ -138,43 +212,12 @@ export async function POST(request: Request): Promise<NextResponse> {
       .limit(1);
 
     if (existingOrders.length > 0) {
-      const existingOrder = existingOrders[0];
-      // Validate fingerprint mismatch
-      if (
-        existingOrder.idempotencyRequestHash &&
-        existingOrder.idempotencyRequestHash !== idempotencyRequestHash
-      ) {
-        return NextResponse.json(
-          { error: "Idempotency key sudah digunakan untuk payload pemesanan yang berbeda." },
-          { status: 409 }
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-        isIdempotentReplay: true,
-        orderCode: existingOrder.orderCode,
-        subtotal: Number(existingOrder.subtotal),
-        deliveryFee: Number(existingOrder.deliveryFee || 0),
-        discountAmount: Number(existingOrder.discountAmount || 0),
-        taxAmount: Number(existingOrder.taxAmount || 0),
-        serviceChargeAmount: Number(existingOrder.serviceChargeAmount || 0),
-        total: Number(existingOrder.totalPrice),
-        status: existingOrder.status,
-      });
+      return formatReplayResponse(existingOrders[0]);
     }
 
-    // 6. Customer Token Resolution (Client-provided or generated)
-    const effectiveCustomerToken =
-      clientCustomerToken ||
-      request.headers.get("x-customer-token") ||
-      crypto.randomBytes(32).toString("hex");
-
-    const customerTokenHash = crypto.createHash("sha256").update(effectiveCustomerToken).digest("hex");
     const orderCode = generateOrderCode();
-    const storedPaymentMethod = paymentMethod === "qris" ? "transfer" : paymentMethod;
 
-    // 7. Atomic Transaction with 23505 Duplicate Key Catch
+    // 7. Atomic Transaction with 23505 Duplicate Key Catch (R2-004)
     let newOrder;
     try {
       newOrder = await db.transaction(async (tx) => {
@@ -221,7 +264,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
         await tx.insert(schema.orderItems).values(orderItemValues);
 
-        // Transactional Outbox Event (SEC-008)
+        // Transactional Outbox Event
         await tx.insert(schema.outboxEvents).values({
           tenantId: tenant.id,
           aggregateType: "order",
@@ -255,18 +298,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           .limit(1);
 
         if (replayed) {
-          return NextResponse.json({
-            success: true,
-            isIdempotentReplay: true,
-            orderCode: replayed.orderCode,
-            subtotal: Number(replayed.subtotal),
-            deliveryFee: Number(replayed.deliveryFee || 0),
-            discountAmount: Number(replayed.discountAmount || 0),
-            taxAmount: Number(replayed.taxAmount || 0),
-            serviceChargeAmount: Number(replayed.serviceChargeAmount || 0),
-            total: Number(replayed.totalPrice),
-            status: replayed.status,
-          });
+          return formatReplayResponse(replayed);
         }
       }
       throw insertErr;
@@ -288,7 +320,6 @@ export async function POST(request: Request): Promise<NextResponse> {
       {
         success: true,
         orderCode,
-        customerToken: effectiveCustomerToken,
         subtotal,
         deliveryFee,
         discountAmount,

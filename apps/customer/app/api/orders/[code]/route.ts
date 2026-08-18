@@ -5,6 +5,15 @@ import crypto from "crypto";
 import { resolveTenantFromRequestHost } from "@lib/tenant-authorization";
 import { rateLimiter } from "@lib/server/rate-limiter";
 
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  try {
+    return crypto.timingSafeEqual(Buffer.from(a, "hex"), Buffer.from(b, "hex"));
+  } catch {
+    return false;
+  }
+}
+
 // Get order tracking details with customer token authorization
 export async function GET(
   request: Request,
@@ -39,7 +48,7 @@ export async function GET(
       return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
     }
 
-    // Strict customer token ownership check (NO bypass for null customerTokenHash)
+    // Strict customer token ownership check (timing-safe)
     const cookieToken = request.headers
       .get("cookie")
       ?.split(";")
@@ -50,10 +59,14 @@ export async function GET(
     const headerToken = request.headers.get("x-customer-token");
     const providedToken = headerToken || cookieToken || "";
 
+    const providedHash = providedToken
+      ? crypto.createHash("sha256").update(providedToken).digest("hex")
+      : "";
+
     const isAuthorized =
       Boolean(order.customerTokenHash) &&
-      Boolean(providedToken) &&
-      crypto.createHash("sha256").update(providedToken).digest("hex") === order.customerTokenHash;
+      Boolean(providedHash) &&
+      timingSafeEqualHex(providedHash, order.customerTokenHash!);
 
     if (isAuthorized) {
       // Fetch full order items for authorized owner
@@ -98,7 +111,7 @@ export async function GET(
       });
     }
 
-    // Public minimal tracking status (Zero PII, No items, No prices) (SEC-001)
+    // Public minimal tracking status (Zero PII, No items, No prices)
     return NextResponse.json({
       isAuthorized: false,
       orderCode: order.orderCode,
@@ -112,7 +125,7 @@ export async function GET(
   }
 }
 
-// Request cancellation or refund for customer order (SEC-011)
+// Request cancellation or refund for customer order (R2-005, R2-006)
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ code: string }> }
@@ -147,7 +160,14 @@ export async function POST(
       return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
     }
 
-    // Strict token verification
+    // Strict token verification (R2-005: legacy orders without tokenHash MUST be rejected)
+    if (!order.customerTokenHash) {
+      return NextResponse.json(
+        { error: "Pesanan ini tidak memiliki otorisasi token online. Silakan hubungi kasir/staf restoran." },
+        { status: 403 }
+      );
+    }
+
     const providedToken =
       customerToken ||
       request.headers.get("x-customer-token") ||
@@ -159,12 +179,12 @@ export async function POST(
         ?.split("=")[1] ||
       "";
 
-    if (!order.customerTokenHash || !providedToken) {
+    if (!providedToken) {
       return NextResponse.json({ error: "Otorisasi token pesanan diperlukan." }, { status: 403 });
     }
 
     const providedHash = crypto.createHash("sha256").update(providedToken).digest("hex");
-    if (providedHash !== order.customerTokenHash) {
+    if (!timingSafeEqualHex(providedHash, order.customerTokenHash)) {
       return NextResponse.json({ error: "Otorisasi token pesanan tidak valid." }, { status: 403 });
     }
 
@@ -197,7 +217,7 @@ export async function POST(
       });
     }
 
-    // Paid or in-kitchen order: Create cancellation request for staff review (SEC-011)
+    // Paid or in-kitchen order: Create cancellation request for staff review
     const [cancellationReq] = await db
       .insert(schema.orderCancellationRequests)
       .values({

@@ -4,19 +4,31 @@ import { db, schema } from "@taj-saas/db";
 import { eq, and, gte, lte, SQL } from "drizzle-orm";
 import { requireTenantPermission, AuthorizationError } from "@lib/tenant-authorization";
 
-function resolveDateFilter(dateRange?: string, customStart?: string, customEnd?: string): { start: Date; end: Date } | null {
+// Resolve date filter in Asia/Jakarta timezone (UTC+7)
+function resolveDateFilter(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string
+): { start: Date; end: Date } | null {
   const now = new Date();
+  // Jakarta offset: UTC + 7 hours
+  const jakartaOffsetMs = 7 * 60 * 60 * 1000;
+  const nowWib = new Date(now.getTime() + jakartaOffsetMs);
+
   if (dateRange === "today") {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    return { start, end: now };
+    // Start of day in WIB
+    const startWib = new Date(Date.UTC(nowWib.getUTCFullYear(), nowWib.getUTCMonth(), nowWib.getUTCDate(), 0, 0, 0));
+    const startUtc = new Date(startWib.getTime() - jakartaOffsetMs);
+    return { start: startUtc, end: now };
   }
   if (dateRange === "week") {
-    const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return { start, end: now };
+    const startUtc = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return { start: startUtc, end: now };
   }
   if (dateRange === "month") {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    return { start, end: now };
+    const startWib = new Date(Date.UTC(nowWib.getUTCFullYear(), nowWib.getUTCMonth(), 1, 0, 0, 0));
+    const startUtc = new Date(startWib.getTime() - jakartaOffsetMs);
+    return { start: startUtc, end: now };
   }
   if (dateRange === "custom" && customStart && customEnd) {
     const start = new Date(customStart);
@@ -28,7 +40,12 @@ function resolveDateFilter(dateRange?: string, customStart?: string, customEnd?:
   return null;
 }
 
-export async function getRevenueOverviewAction(dateRange?: string, customStart?: string, customEnd?: string) {
+export async function getRevenueOverviewAction(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string,
+  branchId?: string
+) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
     const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
@@ -38,6 +55,10 @@ export async function getRevenueOverviewAction(dateRange?: string, customStart?:
       eq(schema.orders.status, "completed"),
       eq(schema.orders.paymentStatus, "paid"),
     ];
+
+    if (branchId && branchId.trim()) {
+      conditions.push(eq(schema.orders.branchId, branchId.trim()));
+    }
 
     if (dateFilter) {
       conditions.push(gte(schema.orders.createdAt, dateFilter.start));
@@ -96,7 +117,12 @@ export async function getRevenueOverviewAction(dateRange?: string, customStart?:
   }
 }
 
-export async function getHourlyHeatmapAction(dateRange?: string, customStart?: string, customEnd?: string) {
+export async function getHourlyHeatmapAction(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string,
+  branchId?: string
+) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
     const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
@@ -144,6 +170,10 @@ export async function getHourlyHeatmapAction(dateRange?: string, customStart?: s
       eq(schema.orders.paymentStatus, "paid"),
     ];
 
+    if (branchId && branchId.trim()) {
+      conditions.push(eq(schema.orders.branchId, branchId.trim()));
+    }
+
     if (dateFilter) {
       conditions.push(gte(schema.orders.createdAt, dateFilter.start));
       conditions.push(lte(schema.orders.createdAt, dateFilter.end));
@@ -190,7 +220,12 @@ export async function getHourlyHeatmapAction(dateRange?: string, customStart?: s
   }
 }
 
-export async function getSalesByTimeAnalyticsAction(dateRange?: string, customStart?: string, customEnd?: string) {
+export async function getSalesByTimeAnalyticsAction(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string,
+  branchId?: string
+) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
     const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
@@ -200,6 +235,10 @@ export async function getSalesByTimeAnalyticsAction(dateRange?: string, customSt
       eq(schema.orders.status, "completed"),
       eq(schema.orders.paymentStatus, "paid"),
     ];
+
+    if (branchId && branchId.trim()) {
+      conditions.push(eq(schema.orders.branchId, branchId.trim()));
+    }
 
     if (dateFilter) {
       conditions.push(gte(schema.orders.createdAt, dateFilter.start));
@@ -234,7 +273,12 @@ export async function getSalesByTimeAnalyticsAction(dateRange?: string, customSt
   }
 }
 
-export async function getSalesChannelAnalyticsAction(dateRange?: string, customStart?: string, customEnd?: string) {
+export async function getSalesChannelAnalyticsAction(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string,
+  branchId?: string
+) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
     const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
@@ -244,6 +288,10 @@ export async function getSalesChannelAnalyticsAction(dateRange?: string, customS
       eq(schema.orders.status, "completed"),
       eq(schema.orders.paymentStatus, "paid"),
     ];
+
+    if (branchId && branchId.trim()) {
+      conditions.push(eq(schema.orders.branchId, branchId.trim()));
+    }
 
     if (dateFilter) {
       conditions.push(gte(schema.orders.createdAt, dateFilter.start));
@@ -288,7 +336,12 @@ export async function getSalesChannelAnalyticsAction(dateRange?: string, customS
   }
 }
 
-export async function getTopMenusAction(dateRange?: string, customStart?: string, customEnd?: string) {
+export async function getTopMenusAction(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string,
+  branchId?: string
+) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
     const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
@@ -299,6 +352,10 @@ export async function getTopMenusAction(dateRange?: string, customStart?: string
       eq(schema.orders.status, "completed"),
       eq(schema.orders.paymentStatus, "paid"),
     ];
+
+    if (branchId && branchId.trim()) {
+      conditions.push(eq(schema.orders.branchId, branchId.trim()));
+    }
 
     if (dateFilter) {
       conditions.push(gte(schema.orders.createdAt, dateFilter.start));
@@ -336,9 +393,14 @@ export async function getTopMenusAction(dateRange?: string, customStart?: string
   }
 }
 
-export async function getMenuEngineeringAction(dateRange?: string, customStart?: string, customEnd?: string) {
+export async function getMenuEngineeringAction(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string,
+  branchId?: string
+) {
   try {
-    const res = await getTopMenusAction(dateRange, customStart, customEnd);
+    const res = await getTopMenusAction(dateRange, customStart, customEnd, branchId);
     if (!res.success || !res.data || res.data.length === 0) return { success: true, data: [] };
 
     const items = res.data;
@@ -373,7 +435,12 @@ export async function getMenuEngineeringAction(dateRange?: string, customStart?:
   }
 }
 
-export async function getTopCustomersAction(dateRange?: string, customStart?: string, customEnd?: string) {
+export async function getTopCustomersAction(
+  dateRange?: string,
+  customStart?: string,
+  customEnd?: string,
+  branchId?: string
+) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
     const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
@@ -383,6 +450,10 @@ export async function getTopCustomersAction(dateRange?: string, customStart?: st
       eq(schema.orders.status, "completed"),
       eq(schema.orders.paymentStatus, "paid"),
     ];
+
+    if (branchId && branchId.trim()) {
+      conditions.push(eq(schema.orders.branchId, branchId.trim()));
+    }
 
     if (dateFilter) {
       conditions.push(gte(schema.orders.createdAt, dateFilter.start));
