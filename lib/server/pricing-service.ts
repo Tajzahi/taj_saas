@@ -18,7 +18,6 @@ export interface PricingCalculationRequest {
   promoCode?: string;
   customerLat?: number;
   customerLng?: number;
-  claimedDeliveryFee?: number;
 }
 
 export interface PricingItemBreakdown {
@@ -99,101 +98,109 @@ export async function calculateOrderPricing(
     throw new Error("Tenant tidak ditemukan.");
   }
 
-  const branding = tenant.branding || {};
-  const taxRateBps = Number(branding.taxRateBps ?? (branding.taxRate ? Math.round(branding.taxRate * 100) : 0));
-  const serviceChargeRateBps = Number(
-    branding.serviceChargeRateBps ??
-      (branding.serviceChargeRate ? Math.round(branding.serviceChargeRate * 100) : 0)
-  );
+  const branding = (tenant.branding || {}) as Record<string, unknown>;
+  const taxRateBps = Number(branding.taxRateBps ?? 0); // 1000 = 10%
+  const serviceChargeRateBps = Number(branding.serviceChargeRateBps ?? 0); // 500 = 5%
 
-  // 2. Fetch active branch
-  let selectedBranch: typeof schema.branches.$inferSelect | null = null;
-  if (branchId) {
-    const [b] = await db
-      .select()
-      .from(schema.branches)
-      .where(and(eq(schema.branches.id, branchId), eq(schema.branches.tenantId, tenantId)))
-      .limit(1);
-    selectedBranch = b || null;
+  // 2. Resolve Active Branch
+  const branches = await db
+    .select()
+    .from(schema.branches)
+    .where(and(eq(schema.branches.tenantId, tenantId), eq(schema.branches.status, "active")));
+
+  let selectedBranch = branches.find((b) => b.id === branchId);
+
+  if (!selectedBranch && customerLat !== undefined && customerLng !== undefined) {
+    // Recommend nearest online branch
+    const onlineBranches = branches.filter((b) => b.acceptsOnlineOrders);
+    let minDistance = Infinity;
+    for (const b of onlineBranches) {
+      if (b.outletLat && b.outletLng) {
+        const d = calculateHaversineDistanceKm(
+          Number(b.outletLat),
+          Number(b.outletLng),
+          customerLat,
+          customerLng
+        );
+        if (d < minDistance) {
+          minDistance = d;
+          selectedBranch = b;
+        }
+      }
+    }
   }
 
   if (!selectedBranch) {
-    // Fallback to primary branch or first active branch
-    const branchList = await db
-      .select()
-      .from(schema.branches)
-      .where(and(eq(schema.branches.tenantId, tenantId), eq(schema.branches.status, "active")))
-      .limit(1);
-    selectedBranch = branchList[0] || null;
+    selectedBranch = branches.find((b) => b.isPrimary) || branches[0];
   }
 
-  // 3. Resolve and validate menu items & categories from DB
-  const itemSlugs = items.map((i) => i.menuItemSlug).filter(Boolean) as string[];
-  const itemIds = items.map((i) => i.menuItemId).filter(Boolean) as string[];
+  // 3. Fetch canonical menu items from database (Never trust client prices)
+  const itemIdsOrSlugs = items.map((i) => i.menuItemId || i.menuItemSlug).filter(Boolean) as string[];
 
-  const dbCategories = await db
-    .select()
-    .from(schema.categories)
-    .where(eq(schema.categories.tenantId, tenantId));
-  const categoryMap = new Map(dbCategories.map((c) => [c.id, c.slug]));
+  if (itemIdsOrSlugs.length === 0) {
+    throw new Error("Daftar item pesanan kosong.");
+  }
 
   const dbMenuItems = await db
-    .select()
+    .select({
+      id: schema.menuItems.id,
+      slug: schema.menuItems.slug,
+      name: schema.menuItems.name,
+      price: schema.menuItems.price,
+      isAvailable: schema.menuItems.isAvailable,
+      categoryId: schema.menuItems.categoryId,
+      variants: schema.menuItems.variants,
+    })
     .from(schema.menuItems)
     .where(
       and(
         eq(schema.menuItems.tenantId, tenantId),
-        itemSlugs.length > 0
-          ? inArray(schema.menuItems.slug, itemSlugs)
-          : inArray(schema.menuItems.id, itemIds)
+        inArray(schema.menuItems.id, itemIdsOrSlugs)
       )
     );
 
-  const menuItemMap = new Map(
-    dbMenuItems.map((m) => [m.slug, m])
-  );
-  const menuItemIdMap = new Map(
-    dbMenuItems.map((m) => [m.id, m])
-  );
+  // Map database categories
+  const categories = await db
+    .select({ id: schema.categories.id, slug: schema.categories.slug })
+    .from(schema.categories)
+    .where(eq(schema.categories.tenantId, tenantId));
+  const categoryMap = new Map(categories.map((c) => [c.id, c.slug]));
 
-  let subtotal = 0;
+  const itemMapById = new Map(dbMenuItems.map((item) => [item.id, item]));
+  const itemMapBySlug = new Map(dbMenuItems.map((item) => [item.slug, item]));
+
   const itemsBreakdown: PricingItemBreakdown[] = [];
+  let subtotal = 0;
 
   for (const item of items) {
-    const dbItem = (item.menuItemSlug ? menuItemMap.get(item.menuItemSlug) : null) ||
-      (item.menuItemId ? menuItemIdMap.get(item.menuItemId) : null);
+    const dbItem = (item.menuItemId ? itemMapById.get(item.menuItemId) : null) ||
+      (item.menuItemSlug ? itemMapBySlug.get(item.menuItemSlug) : null);
 
     if (!dbItem) {
-      throw new Error(`Menu "${item.menuItemName || item.menuItemSlug || item.menuItemId}" tidak ditemukan.`);
+      throw new Error(`Menu item '${item.menuItemName || item.menuItemId || item.menuItemSlug}' tidak ditemukan.`);
     }
+
     if (!dbItem.isAvailable) {
-      throw new Error(`Menu "${dbItem.name}" sedang tidak tersedia.`);
+      throw new Error(`Menu '${dbItem.name}' saat ini sedang tidak tersedia.`);
     }
 
-    const qty = Math.max(1, Math.min(99, Math.floor(item.quantity || 1)));
-    let unitPrice = Number(dbItem.price) || 0;
+    let unitPrice = Number(dbItem.price);
 
-    // Calculate variant options price adjustment if any
-    let variantPriceModifier = 0;
+    // Validate variant price modifiers from DB configuration
     if (item.variantName && dbItem.variants && Array.isArray(dbItem.variants)) {
-      const selectedNames = item.variantName.split(",").map((s) => s.trim().toLowerCase());
-      const allOptions = dbItem.variants.flatMap((v: any) => v.options || []);
-      for (const opt of allOptions) {
-        if (
-          opt &&
-          (selectedNames.includes(String(opt.name).trim().toLowerCase()) ||
-            selectedNames.includes(String(opt.id).trim().toLowerCase()))
-        ) {
-          variantPriceModifier += Number(opt.priceModifier) || 0;
-        }
+      const matchedVariant = dbItem.variants.find(
+        (v: any) => v.name?.toLowerCase() === item.variantName?.toLowerCase()
+      );
+      if (matchedVariant?.priceModifier) {
+        unitPrice += Math.max(0, Number(matchedVariant.priceModifier));
       }
     }
 
-    unitPrice += variantPriceModifier;
+    const qty = Math.max(1, Math.min(99, item.quantity));
     const itemTotal = unitPrice * qty;
     subtotal += itemTotal;
 
-    const categorySlug = dbItem.categoryId ? categoryMap.get(dbItem.categoryId) || "lainnya" : "lainnya";
+    const categorySlug = dbItem.categoryId ? categoryMap.get(dbItem.categoryId) : undefined;
 
     itemsBreakdown.push({
       menuItemId: dbItem.id,
@@ -258,7 +265,7 @@ export async function calculateOrderPricing(
     }
   }
 
-  // 5. Delivery fee calculation
+  // 5. Server-Authoritative Delivery Fee Calculation (SEC-005, Point 7)
   let deliveryFee = 0;
   let distanceKm: number | undefined = undefined;
 
@@ -274,7 +281,6 @@ export async function calculateOrderPricing(
       const bLng = Number(selectedBranch.outletLng);
       distanceKm = calculateHaversineDistanceKm(bLat, bLng, customerLat, customerLng);
 
-      // Check deliveryZones if configured
       const zones = selectedBranch.deliveryZones || [];
       if (zones.length > 0) {
         const matchingZone = zones.find((z) => distanceKm! <= z.maxDistanceKm);
@@ -282,24 +288,26 @@ export async function calculateOrderPricing(
           deliveryFee = matchingZone.baseFee + Math.round(distanceKm! * matchingZone.perKmFee);
         } else {
           const maxZone = zones[zones.length - 1];
+          if (maxZone && distanceKm! > maxZone.maxDistanceKm + 5) {
+            throw new Error(`Lokasi pengiriman (${distanceKm} km) berada di luar jangkauan layanan cabang.`);
+          }
           deliveryFee = maxZone ? maxZone.baseFee + Math.round(distanceKm! * maxZone.perKmFee) : 15000;
         }
       } else {
-        // Flat delivery fallback
+        // Flat delivery configured on tenant
         deliveryFee = Number(branding.flatDeliveryFee || 10000);
       }
     } else {
-      deliveryFee = req.claimedDeliveryFee !== undefined
-        ? req.claimedDeliveryFee
-        : Number(branding.flatDeliveryFee || 10000);
+      // Fallback to tenant configured flat delivery fee (never trust client)
+      deliveryFee = Number(branding.flatDeliveryFee || 10000);
     }
   }
 
   // 6. Tax & Service Charge (BPS arithmetic)
   const taxableBase = Math.max(0, subtotal - discountAmount);
-  const taxAmount = taxRateBps > 0 ? Math.round((taxableBase * taxRateBps) / 10000) : 0;
+  const taxAmount = taxRateBps > 0 ? computeBpsAmount(taxableBase, taxRateBps) : 0;
   const serviceChargeAmount =
-    serviceChargeRateBps > 0 ? Math.round((taxableBase * serviceChargeRateBps) / 10000) : 0;
+    serviceChargeRateBps > 0 ? computeBpsAmount(taxableBase, serviceChargeRateBps) : 0;
 
   const totalPrice = Math.max(0, taxableBase + deliveryFee + taxAmount + serviceChargeAmount);
 

@@ -132,24 +132,17 @@ export default function Tracking() {
         };
       });
 
-      // Update in Zustand order history
-      const history = useOrderStore.getState().orderHistory;
-      const updatedHistory = history.map((o) =>
-        o.orderCode === order.orderCode
-          ? { ...o, paymentStatus: 'waiting_verification', paymentProofUrl: proofUrl }
-          : o
-      );
-      useOrderStore.setState({
-        orderHistory: updatedHistory,
-        currentOrder:
-          useOrderStore.getState().currentOrder?.orderCode === order.orderCode
-            ? {
-                ...useOrderStore.getState().currentOrder!,
-                paymentStatus: 'waiting_verification',
-                paymentProofUrl: proofUrl,
-              }
-            : useOrderStore.getState().currentOrder,
-      });
+      // Update in Zustand order state
+      const curr = useOrderStore.getState().currentOrder;
+      if (curr && curr.orderCode === order.orderCode) {
+        useOrderStore.setState({
+          currentOrder: {
+            ...curr,
+            paymentStatus: 'waiting_verification',
+            paymentProofUrl: proofUrl,
+          },
+        });
+      }
 
       toast.success('Bukti transfer berhasil diunggah! Menunggu verifikasi admin.');
       setUploadFile(null);
@@ -267,17 +260,18 @@ export default function Tracking() {
     setSearchingPhone(true);
     setPhoneSearched(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      // Search from local order history
-      const localHistory = useOrderStore.getState().orderHistory;
-      const filtered = localHistory.filter((o) => o.customerPhone.replace(/\s/g, '') === trimmedPhone);
-      
-      const mapped = filtered.map(o => ({
-        order_code: o.orderCode,
-        status: o.status,
-        created_at: o.createdAt,
-        total_price: o.total,
-      }));
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      const currentOrder = useOrderStore.getState().currentOrder;
+      const mapped: Array<{ order_code: string; status: string; created_at: string; total_price: number }> = [];
+
+      if (currentOrder && currentOrder.customerPhone.replace(/\s/g, '') === trimmedPhone) {
+        mapped.push({
+          order_code: currentOrder.orderCode,
+          status: currentOrder.status,
+          created_at: currentOrder.createdAt,
+          total_price: currentOrder.total,
+        });
+      }
       setFoundOrders(mapped);
     } catch (err: any) {
       console.error('Error searching orders by phone:', err);

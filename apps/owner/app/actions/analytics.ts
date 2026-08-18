@@ -1,12 +1,48 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lte, SQL } from "drizzle-orm";
 import { requireTenantPermission, AuthorizationError } from "@lib/tenant-authorization";
 
-export async function getRevenueOverviewAction(dateRange?: string) {
+function resolveDateFilter(dateRange?: string, customStart?: string, customEnd?: string): { start: Date; end: Date } | null {
+  const now = new Date();
+  if (dateRange === "today") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    return { start, end: now };
+  }
+  if (dateRange === "week") {
+    const start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    return { start, end: now };
+  }
+  if (dateRange === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start, end: now };
+  }
+  if (dateRange === "custom" && customStart && customEnd) {
+    const start = new Date(customStart);
+    const end = new Date(customEnd);
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
+      return { start, end };
+    }
+  }
+  return null;
+}
+
+export async function getRevenueOverviewAction(dateRange?: string, customStart?: string, customEnd?: string) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
+    const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
+
+    const conditions: SQL[] = [
+      eq(schema.orders.tenantId, tenant.id),
+      eq(schema.orders.status, "completed"),
+      eq(schema.orders.paymentStatus, "paid"),
+    ];
+
+    if (dateFilter) {
+      conditions.push(gte(schema.orders.createdAt, dateFilter.start));
+      conditions.push(lte(schema.orders.createdAt, dateFilter.end));
+    }
 
     const orders = await db
       .select({
@@ -15,13 +51,7 @@ export async function getRevenueOverviewAction(dateRange?: string) {
         createdAt: schema.orders.createdAt,
       })
       .from(schema.orders)
-      .where(
-        and(
-          eq(schema.orders.tenantId, tenant.id),
-          eq(schema.orders.status, "completed"),
-          eq(schema.orders.paymentStatus, "paid")
-        )
-      );
+      .where(and(...conditions));
 
     const totalRevenue = orders.reduce((sum, o) => sum + (Number(o.totalPrice) || 0), 0);
     const totalSubtotal = orders.reduce((sum, o) => sum + (Number(o.subtotal) || 0), 0);
@@ -66,9 +96,10 @@ export async function getRevenueOverviewAction(dateRange?: string) {
   }
 }
 
-export async function getHourlyHeatmapAction() {
+export async function getHourlyHeatmapAction(dateRange?: string, customStart?: string, customEnd?: string) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
+    const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
 
     const shifts = await db
       .select({
@@ -107,16 +138,21 @@ export async function getHourlyHeatmapAction() {
 
     const operatingHours = hoursArr.map((h) => String(h).padStart(2, "0"));
 
+    const conditions: SQL[] = [
+      eq(schema.orders.tenantId, tenant.id),
+      eq(schema.orders.status, "completed"),
+      eq(schema.orders.paymentStatus, "paid"),
+    ];
+
+    if (dateFilter) {
+      conditions.push(gte(schema.orders.createdAt, dateFilter.start));
+      conditions.push(lte(schema.orders.createdAt, dateFilter.end));
+    }
+
     const orders = await db
       .select({ createdAt: schema.orders.createdAt })
       .from(schema.orders)
-      .where(
-        and(
-          eq(schema.orders.tenantId, tenant.id),
-          eq(schema.orders.status, "completed"),
-          eq(schema.orders.paymentStatus, "paid")
-        )
-      );
+      .where(and(...conditions));
 
     const days = ["Ahad", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"];
     const matrix: Record<string, Record<string, number>> = {};
@@ -154,20 +190,26 @@ export async function getHourlyHeatmapAction() {
   }
 }
 
-export async function getSalesByTimeAnalyticsAction() {
+export async function getSalesByTimeAnalyticsAction(dateRange?: string, customStart?: string, customEnd?: string) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
+    const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
+
+    const conditions: SQL[] = [
+      eq(schema.orders.tenantId, tenant.id),
+      eq(schema.orders.status, "completed"),
+      eq(schema.orders.paymentStatus, "paid"),
+    ];
+
+    if (dateFilter) {
+      conditions.push(gte(schema.orders.createdAt, dateFilter.start));
+      conditions.push(lte(schema.orders.createdAt, dateFilter.end));
+    }
 
     const orders = await db
       .select({ createdAt: schema.orders.createdAt })
       .from(schema.orders)
-      .where(
-        and(
-          eq(schema.orders.tenantId, tenant.id),
-          eq(schema.orders.status, "completed"),
-          eq(schema.orders.paymentStatus, "paid")
-        )
-      );
+      .where(and(...conditions));
 
     const slots = ["16.00", "17.00", "18.00", "19.00", "20.00", "21.00", "22.00", "23.00", "00.00"];
     const counts: Record<string, number> = {};
@@ -192,20 +234,26 @@ export async function getSalesByTimeAnalyticsAction() {
   }
 }
 
-export async function getSalesChannelAnalyticsAction() {
+export async function getSalesChannelAnalyticsAction(dateRange?: string, customStart?: string, customEnd?: string) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
+    const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
+
+    const conditions: SQL[] = [
+      eq(schema.orders.tenantId, tenant.id),
+      eq(schema.orders.status, "completed"),
+      eq(schema.orders.paymentStatus, "paid"),
+    ];
+
+    if (dateFilter) {
+      conditions.push(gte(schema.orders.createdAt, dateFilter.start));
+      conditions.push(lte(schema.orders.createdAt, dateFilter.end));
+    }
 
     const orders = await db
       .select({ deliveryType: schema.orders.deliveryType, totalPrice: schema.orders.totalPrice })
       .from(schema.orders)
-      .where(
-        and(
-          eq(schema.orders.tenantId, tenant.id),
-          eq(schema.orders.status, "completed"),
-          eq(schema.orders.paymentStatus, "paid")
-        )
-      );
+      .where(and(...conditions));
 
     const totalRev = orders.reduce((s, o) => s + (Number(o.totalPrice) || 0), 0);
 
@@ -240,11 +288,23 @@ export async function getSalesChannelAnalyticsAction() {
   }
 }
 
-export async function getTopMenusAction() {
+export async function getTopMenusAction(dateRange?: string, customStart?: string, customEnd?: string) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
+    const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
 
-    // Only count completed and paid orders (BUG-019)
+    const conditions: SQL[] = [
+      eq(schema.orderItems.orderId, schema.orders.id),
+      eq(schema.orders.tenantId, tenant.id),
+      eq(schema.orders.status, "completed"),
+      eq(schema.orders.paymentStatus, "paid"),
+    ];
+
+    if (dateFilter) {
+      conditions.push(gte(schema.orders.createdAt, dateFilter.start));
+      conditions.push(lte(schema.orders.createdAt, dateFilter.end));
+    }
+
     const items = await db
       .select({
         menuItemName: schema.orderItems.menuItemName,
@@ -252,15 +312,7 @@ export async function getTopMenusAction() {
         totalPrice: schema.orderItems.totalPrice,
       })
       .from(schema.orderItems)
-      .innerJoin(
-        schema.orders,
-        and(
-          eq(schema.orderItems.orderId, schema.orders.id),
-          eq(schema.orders.tenantId, tenant.id),
-          eq(schema.orders.status, "completed"),
-          eq(schema.orders.paymentStatus, "paid")
-        )
-      );
+      .innerJoin(schema.orders, and(...conditions));
 
     const aggregated: Record<string, { name: string; totalQty: number; totalRevenue: number }> = {};
     for (const item of items) {
@@ -284,9 +336,9 @@ export async function getTopMenusAction() {
   }
 }
 
-export async function getMenuEngineeringAction() {
+export async function getMenuEngineeringAction(dateRange?: string, customStart?: string, customEnd?: string) {
   try {
-    const res = await getTopMenusAction();
+    const res = await getTopMenusAction(dateRange, customStart, customEnd);
     if (!res.success || !res.data || res.data.length === 0) return { success: true, data: [] };
 
     const items = res.data;
@@ -321,9 +373,21 @@ export async function getMenuEngineeringAction() {
   }
 }
 
-export async function getTopCustomersAction() {
+export async function getTopCustomersAction(dateRange?: string, customStart?: string, customEnd?: string) {
   try {
     const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
+    const dateFilter = resolveDateFilter(dateRange, customStart, customEnd);
+
+    const conditions: SQL[] = [
+      eq(schema.orders.tenantId, tenant.id),
+      eq(schema.orders.status, "completed"),
+      eq(schema.orders.paymentStatus, "paid"),
+    ];
+
+    if (dateFilter) {
+      conditions.push(gte(schema.orders.createdAt, dateFilter.start));
+      conditions.push(lte(schema.orders.createdAt, dateFilter.end));
+    }
 
     const orders = await db
       .select({
@@ -333,13 +397,7 @@ export async function getTopCustomersAction() {
         createdAt: schema.orders.createdAt,
       })
       .from(schema.orders)
-      .where(
-        and(
-          eq(schema.orders.tenantId, tenant.id),
-          eq(schema.orders.status, "completed"),
-          eq(schema.orders.paymentStatus, "paid")
-        )
-      );
+      .where(and(...conditions));
 
     const customerMap: Record<string, { name: string; orders: number; spend: number; lastVisit: Date }> = {};
     for (const o of orders) {

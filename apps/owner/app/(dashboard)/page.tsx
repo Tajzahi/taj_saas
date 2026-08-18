@@ -304,7 +304,11 @@ export default function ExecutiveCockpit() {
 
   const activeBranchCount = branchesList.filter(b => b.status === "active").length;
   const totalBranchCount = branchesList.length;
-  const branchChartData = branchesList.map(b => ({ name: b.name, revenue: 0, target: 0 }));
+  const branchChartData = branchesList.map(b => ({
+    name: b.name,
+    revenue: b.revenue || 0,
+    target: b.revenue ? Math.round(b.revenue * 1.2) : 10000000,
+  }));
 
   const getPeriodLabel = () => {
     switch (dateRange) {

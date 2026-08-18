@@ -111,6 +111,7 @@ export default function Checkout() {
       reader.onload = async () => {
         try {
           const base64Data = reader.result;
+          const token = typeof window !== 'undefined' ? localStorage.getItem(`cust_tok_${orderCode}`) || '' : '';
           const res = await fetch('/api/upload-proof', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -118,7 +119,8 @@ export default function Checkout() {
               fileBase64: base64Data,
               fileName: uploadFile.name,
               fileType: uploadFile.type,
-              orderCode
+              orderCode,
+              customerToken: token,
             })
           });
           const result = await res.json();
@@ -128,7 +130,7 @@ export default function Checkout() {
           toast.success('Bukti transfer berhasil diunggah! Menunggu verifikasi admin.');
           clearCart();
           setShowQrisModal(false);
-          router.push(`/tracking/${orderCode}`);
+          router.push('/tracking?new=true');
         } catch (err: any) {
           toast.error(`Gagal mengunggah bukti: ${err.message || 'Terjadi kesalahan'}`);
           setUploading(false);
@@ -230,6 +232,12 @@ export default function Checkout() {
         ? `${address}${addressNote ? ` (${addressNote})` : ''}${mapResult ? ` [Koordinat: ${mapResult.lat.toFixed(6)},${mapResult.lng.toFixed(6)}]` : ''}`
         : undefined;
 
+      // Siapkan client-side idempotency key & customer token
+      const clientToken = Array.from(crypto.getRandomValues(new Uint8Array(32)))
+        .map((b) => b.toString(16).padStart(2, '0'))
+        .join('');
+      const idemKey = `IDEM-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+
       // Siapkan payload: hanya slug + quantity + variant modifier (NO harga dari frontend)
       const orderPayload = {
         items: items.map((item) => ({
@@ -238,17 +246,19 @@ export default function Checkout() {
           variantName: item.selectedVariants.length > 0
             ? item.selectedVariants.map((v) => v.option.name).join(', ')
             : undefined,
-          // Total modifier dari variant (extra topping Rp5.000, dll) — server akan clamp ke batas aman
-          variantPriceModifier: item.selectedVariants.reduce((sum, v) => sum + v.option.priceModifier, 0),
           quantity: item.quantity,
         })),
         customerName: name,
         customerPhone: phone,
         orderType,
         deliveryAddress: fullAddress,
-        deliveryFee: orderType === 'delivery' ? (mapResult?.fee ?? 0) : 0,
+        customerLat: mapResult?.lat,
+        customerLng: mapResult?.lng,
         promoCode: promoCode || undefined,
+        notes: generalNote || undefined,
         paymentMethod,
+        idempotencyKey: idemKey,
+        customerToken: clientToken,
       };
 
       const res = await fetch('/api/orders', {
@@ -266,9 +276,11 @@ export default function Checkout() {
       // Gunakan total yang dikonfirmasi server (bukan kalkulasi client)
       const serverTotal = result.total;
       const serverOrderCode = result.orderCode;
-      if (result.customerToken) {
+      const effectiveToken = result.customerToken || clientToken;
+
+      if (effectiveToken) {
         try {
-          localStorage.setItem(`cust_tok_${serverOrderCode}`, result.customerToken);
+          localStorage.setItem(`cust_tok_${serverOrderCode}`, effectiveToken);
         } catch {}
       }
 
@@ -292,7 +304,7 @@ export default function Checkout() {
         promoDiscount: result.promoDiscount || undefined,
       };
 
-      setCurrentOrder(order);
+      setCurrentOrder(order, effectiveToken);
 
       if (paymentMethod === 'qris') {
         setCreatedOrderCode(serverOrderCode);

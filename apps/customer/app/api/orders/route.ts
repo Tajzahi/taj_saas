@@ -17,9 +17,10 @@ export interface CreateOrderRequest {
   customerLat?: number;
   customerLng?: number;
   promoCode?: string;
+  notes?: string;
   paymentMethod: "cod" | "qris" | "transfer";
   idempotencyKey?: string;
-  claimedDeliveryFee?: number;
+  customerToken?: string;
 }
 
 export async function POST(request: Request): Promise<NextResponse> {
@@ -56,9 +57,10 @@ export async function POST(request: Request): Promise<NextResponse> {
       customerLat,
       customerLng,
       promoCode,
+      notes,
       paymentMethod,
       idempotencyKey,
-      claimedDeliveryFee,
+      customerToken: clientCustomerToken,
     } = body;
 
     // 3. Basic input validation
@@ -82,7 +84,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: "Metode pembayaran tidak valid." }, { status: 400 });
     }
 
-    // 4. Server-Side Pricing Verification
+    // 4. Server-Side Canonical Pricing Verification
     let pricingResult;
     try {
       pricingResult = await calculateOrderPricing({
@@ -93,7 +95,6 @@ export async function POST(request: Request): Promise<NextResponse> {
         promoCode,
         customerLat,
         customerLng,
-        claimedDeliveryFee,
       });
     } catch (pricingErr: unknown) {
       const msg = pricingErr instanceof Error ? pricingErr.message : "Gagal menghitung harga pesanan";
@@ -112,7 +113,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       branch,
     } = pricingResult;
 
-    // 5. Idempotency Fingerprint Check (SEC-009)
+    // 5. Idempotency Fingerprint & Concurrency Check (SEC-009, Point 3 & 4)
     const effectiveIdempotencyKey = idempotencyKey?.trim() || `IDEM-${crypto.randomUUID()}`;
     const payloadCanonicalString = JSON.stringify({
       tenantId: tenant.id,
@@ -125,7 +126,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     const idempotencyRequestHash = crypto.createHash("sha256").update(payloadCanonicalString).digest("hex");
 
     // Check if order with this idempotency key already exists
-    const existingOrderResult = await db
+    const existingOrders = await db
       .select()
       .from(schema.orders)
       .where(
@@ -136,8 +137,19 @@ export async function POST(request: Request): Promise<NextResponse> {
       )
       .limit(1);
 
-    if (existingOrderResult.length > 0) {
-      const existingOrder = existingOrderResult[0];
+    if (existingOrders.length > 0) {
+      const existingOrder = existingOrders[0];
+      // Validate fingerprint mismatch
+      if (
+        existingOrder.idempotencyRequestHash &&
+        existingOrder.idempotencyRequestHash !== idempotencyRequestHash
+      ) {
+        return NextResponse.json(
+          { error: "Idempotency key sudah digunakan untuk payload pemesanan yang berbeda." },
+          { status: 409 }
+        );
+      }
+
       return NextResponse.json({
         success: true,
         isIdempotentReplay: true,
@@ -152,79 +164,115 @@ export async function POST(request: Request): Promise<NextResponse> {
       });
     }
 
-    // 6. Generate Customer Token (SEC-001)
-    const customerToken = crypto.randomBytes(32).toString("hex");
-    const customerTokenHash = crypto.createHash("sha256").update(customerToken).digest("hex");
+    // 6. Customer Token Resolution (Client-provided or generated)
+    const effectiveCustomerToken =
+      clientCustomerToken ||
+      request.headers.get("x-customer-token") ||
+      crypto.randomBytes(32).toString("hex");
 
+    const customerTokenHash = crypto.createHash("sha256").update(effectiveCustomerToken).digest("hex");
     const orderCode = generateOrderCode();
     const storedPaymentMethod = paymentMethod === "qris" ? "transfer" : paymentMethod;
 
-    // 7. Atomic Multi-Statement Transaction
-    const newOrder = await db.transaction(async (tx) => {
-      const [insertedOrder] = await tx
-        .insert(schema.orders)
-        .values({
-          tenantId: tenant.id,
-          branchId: branch?.id || null,
-          orderCode,
-          customerName: customerName.trim(),
-          customerPhone: cleanPhone,
-          customerTokenHash,
-          idempotencyKey: effectiveIdempotencyKey,
-          idempotencyRequestHash,
-          deliveryType: orderType,
-          deliveryAddress: deliveryAddress?.trim() || null,
-          deliveryDistance: branch?.distanceKm ? String(branch.distanceKm) : null,
-          deliveryLat: customerLat ? String(customerLat) : null,
-          deliveryLng: customerLng ? String(customerLng) : null,
-          deliveryFee: deliveryFee ?? 0,
-          subtotal: String(subtotal),
-          discountAmount: String(discountAmount),
-          taxAmount: String(taxAmount),
-          serviceChargeAmount: String(serviceChargeAmount),
-          totalPrice: String(totalPrice),
-          status: "received",
-          paymentMethod: storedPaymentMethod,
-          paymentStatus: "pending",
-          pricingSnapshot,
-          notes: itemsBreakdown.map((i) => i.note).filter(Boolean).join(" | ") || null,
-        })
-        .returning();
+    // 7. Atomic Transaction with 23505 Duplicate Key Catch
+    let newOrder;
+    try {
+      newOrder = await db.transaction(async (tx) => {
+        const [insertedOrder] = await tx
+          .insert(schema.orders)
+          .values({
+            tenantId: tenant.id,
+            branchId: branch?.id || null,
+            orderCode,
+            customerName: customerName.trim(),
+            customerPhone: cleanPhone,
+            customerTokenHash,
+            idempotencyKey: effectiveIdempotencyKey,
+            idempotencyRequestHash,
+            deliveryType: orderType,
+            deliveryAddress: deliveryAddress?.trim() || null,
+            deliveryDistance: branch?.distanceKm ? String(branch.distanceKm) : null,
+            deliveryLat: customerLat ? String(customerLat) : null,
+            deliveryLng: customerLng ? String(customerLng) : null,
+            deliveryFee: deliveryFee ?? 0,
+            subtotal: String(subtotal),
+            discountAmount: String(discountAmount),
+            taxAmount: String(taxAmount),
+            serviceChargeAmount: String(serviceChargeAmount),
+            totalPrice: String(totalPrice),
+            status: "received",
+            paymentMethod: storedPaymentMethod,
+            paymentStatus: "pending",
+            pricingSnapshot,
+            notes: (notes || itemsBreakdown.map((i) => i.note).filter(Boolean).join(" | ")).trim().slice(0, 500) || null,
+          })
+          .returning();
 
-      const orderItemValues = itemsBreakdown.map((item) => ({
-        orderId: insertedOrder.id,
-        menuItemId: item.menuItemId,
-        menuItemName: item.menuItemName,
-        variantName: item.variantName || null,
-        quantity: item.quantity,
-        unitPrice: String(item.unitPrice),
-        totalPrice: String(item.totalPrice),
-        note: item.note || null,
-      }));
-
-      await tx.insert(schema.orderItems).values(orderItemValues);
-
-      // Insert transactional Outbox Event (SEC-008)
-      await tx.insert(schema.outboxEvents).values({
-        tenantId: tenant.id,
-        aggregateType: "order",
-        aggregateId: insertedOrder.id,
-        eventType: "order.created",
-        payload: {
+        const orderItemValues = itemsBreakdown.map((item) => ({
           orderId: insertedOrder.id,
-          orderCode: insertedOrder.orderCode,
-          branchId: branch?.id || null,
-          deliveryType: orderType,
-          totalPrice,
-          paymentMethod: storedPaymentMethod,
-        },
-        status: "pending",
+          menuItemId: item.menuItemId,
+          menuItemName: item.menuItemName,
+          variantName: item.variantName || null,
+          quantity: item.quantity,
+          unitPrice: String(item.unitPrice),
+          totalPrice: String(item.totalPrice),
+          note: item.note || null,
+        }));
+
+        await tx.insert(schema.orderItems).values(orderItemValues);
+
+        // Transactional Outbox Event (SEC-008)
+        await tx.insert(schema.outboxEvents).values({
+          tenantId: tenant.id,
+          aggregateType: "order",
+          aggregateId: insertedOrder.id,
+          eventType: "order.created",
+          payload: {
+            orderId: insertedOrder.id,
+            orderCode: insertedOrder.orderCode,
+            branchId: branch?.id || null,
+            deliveryType: orderType,
+            totalPrice,
+            paymentMethod: storedPaymentMethod,
+          },
+          status: "pending",
+        });
+
+        return insertedOrder;
       });
+    } catch (insertErr: any) {
+      // Catch concurrent unique constraint violation on idempotency_key (PostgreSQL error 23505)
+      if (insertErr?.code === "23505" || insertErr?.message?.includes("unique")) {
+        const [replayed] = await db
+          .select()
+          .from(schema.orders)
+          .where(
+            and(
+              eq(schema.orders.tenantId, tenant.id),
+              eq(schema.orders.idempotencyKey, effectiveIdempotencyKey)
+            )
+          )
+          .limit(1);
 
-      return insertedOrder;
-    });
+        if (replayed) {
+          return NextResponse.json({
+            success: true,
+            isIdempotentReplay: true,
+            orderCode: replayed.orderCode,
+            subtotal: Number(replayed.subtotal),
+            deliveryFee: Number(replayed.deliveryFee || 0),
+            discountAmount: Number(replayed.discountAmount || 0),
+            taxAmount: Number(replayed.taxAmount || 0),
+            serviceChargeAmount: Number(replayed.serviceChargeAmount || 0),
+            total: Number(replayed.totalPrice),
+            status: replayed.status,
+          });
+        }
+      }
+      throw insertErr;
+    }
 
-    // 8. Trigger asynchronous outbox dispatch (non-blocking)
+    // 8. Trigger non-blocking outbox dispatch
     try {
       fetch(`${new URL(request.url).origin}/api/internal/outbox/dispatch`, {
         method: "POST",
@@ -233,14 +281,14 @@ export async function POST(request: Request): Promise<NextResponse> {
         },
       }).catch(() => {});
     } catch {
-      // Background dispatch failure is safely recovered by scheduled sweeper
+      // Handled by scheduled sweeper
     }
 
     const response = NextResponse.json(
       {
         success: true,
         orderCode,
-        customerToken,
+        customerToken: effectiveCustomerToken,
         subtotal,
         deliveryFee,
         discountAmount,
@@ -253,7 +301,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     );
 
     // Set secure HttpOnly cookie for order ownership
-    response.cookies.set(`cust_tok_${orderCode}`, customerToken, {
+    response.cookies.set(`cust_tok_${orderCode}`, effectiveCustomerToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

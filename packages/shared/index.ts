@@ -1,3 +1,5 @@
+export { z } from "zod";
+
 export interface ParsedTenant {
   slug: string | null;
   appType: 'customer' | 'admin' | 'owner';

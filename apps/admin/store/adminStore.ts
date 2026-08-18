@@ -326,67 +326,55 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         const channel = ably.channels.get(`orders:${tenantSlug}`);
         set({ connectionStatus: 'connected' });
       
-        // Listen for new orders
-        channel.subscribe('new-order', (message) => {
-          const orderData = message.data.order;
-          console.log('[Ably] Realtime order received:', orderData);
+        // Listen for new orders (outbox format + legacy)
+        const handleNewOrder = async (message: any) => {
+          console.log('[Ably] Realtime new order event:', message.name, message.data);
+          await get().fetchOrders();
+          get().playAlarm();
+          const code = message.data?.orderCode || message.data?.aggregateId || 'Baru';
+          toast.success(`🔔 Pesanan Baru Masuk: ${code}`, {
+            duration: 6000,
+            style: { background: '#1a0a0a', color: '#fff', borderLeft: '4px solid #E05009' },
+          });
+        };
 
-          const newOrder: AdminOrder = {
-            id: orderData.id,
-            orderCode: orderData.orderCode,
-            customerName: orderData.customerName,
-            customerPhone: orderData.customerPhone,
-            deliveryType: orderData.deliveryType,
-            deliveryAddress: orderData.deliveryAddress,
-            deliveryDistance: null,
-            deliveryFee: Number(orderData.deliveryFee || 0),
-            subtotal: Number(orderData.subtotal),
-            discount: 0,
-            couponCode: null,
-            totalPrice: Number(orderData.totalPrice),
-            status: orderData.status,
-            paymentMethod: orderData.paymentMethod,
-            paymentStatus: orderData.paymentStatus,
-            paymentProofUrl: orderData.paymentProofUrl || null,
-            notes: orderData.notes,
-            cancellationReason: null,
-            items: orderData.items.map((item: any, idx: number) => ({
-              id: item.menuItemId || `item-${idx}`,
-              name: item.menuItemName,
-              quantity: item.quantity,
-              price: Number(item.unitPrice),
-              variant: item.variantName || undefined
-            })),
-            createdAt: orderData.createdAt
-          };
+        channel.subscribe('order.created', handleNewOrder);
+        channel.subscribe('new-order', handleNewOrder);
 
-          if (get().activeShift) {
-            get().addNewOrder(newOrder);
-            toast.success(`🔔 Pesanan Baru Masuk: ${orderData.orderCode}`, {
-              duration: 5000,
-              style: { background: '#1a0a0a', color: '#fff', borderLeft: '4px solid #E05009' }
-            });
-          }
-        });
-
-        // Listen for payment updates (proof uploaded)
-        channel.subscribe('order-updated', async (message) => {
+        // Listen for payment proof upload
+        const handlePaymentUpdate = async (message: any) => {
           console.log('[Ably] Realtime payment update received:', message.data);
           await get().fetchOrders();
-          toast(`📸 Bukti Pembayaran Diunggah untuk ${message.data.orderCode}`, {
+          const code = message.data?.orderCode || 'Pesanan';
+          toast(`📸 Bukti Pembayaran Diunggah (${code})`, {
             icon: '📝',
-            style: { background: '#1a0a0a', color: '#fff' }
+            style: { background: '#1a0a0a', color: '#fff' },
           });
-        });
+        };
 
-        // Listen for order cancellations from customer tracking page
-        channel.subscribe('order-cancelled', async (message) => {
-          console.log('[Ably] Realtime cancellation received:', message.data);
+        channel.subscribe('order.payment_proof_uploaded', handlePaymentUpdate);
+        channel.subscribe('order-updated', handlePaymentUpdate);
+
+        // Listen for customer cancellations & cancellation requests
+        const handleCancellation = async (message: any) => {
+          console.log('[Ably] Realtime cancellation event received:', message.name, message.data);
           await get().fetchOrders();
-          toast.error(`❌ Pesanan ${message.data.orderCode} dibatalkan oleh pelanggan.`, {
-            duration: 6000
-          });
-        });
+          const code = message.data?.orderCode || 'Pesanan';
+          if (message.name === 'order.cancellation_requested') {
+            toast(`⚠️ Pengajuan pembatalan untuk ${code}`, {
+              icon: '⏳',
+              style: { background: '#1a0a0a', color: '#fff' },
+            });
+          } else {
+            toast.error(`❌ Pesanan ${code} dibatalkan.`, { duration: 6000 });
+          }
+        };
+
+        channel.subscribe('order.cancelled_by_customer', handleCancellation);
+        channel.subscribe('order.cancellation_requested', handleCancellation);
+        channel.subscribe('order.cancellation_approved', handleCancellation);
+        channel.subscribe('order.refunded', handleCancellation);
+        channel.subscribe('order-cancelled', handleCancellation);
 
         set({ subscription: { ably, channel } });
       } catch (err) {

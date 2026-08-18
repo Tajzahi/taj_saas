@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
 import { db, schema } from "@taj-saas/db";
-import { eq, and, sql, inArray } from "drizzle-orm";
+import { eq, and, sql, inArray, or, lt } from "drizzle-orm";
 import crypto from "crypto";
 import Ably from "ably";
 
 function verifyCronSecret(request: Request): boolean {
   const cronSecret = process.env.CRON_SECRET;
   if (!cronSecret) {
-    // If no secret configured in local dev, allow localhost
     return process.env.NODE_ENV !== "production";
   }
 
@@ -31,28 +30,43 @@ export async function POST(request: Request): Promise<NextResponse> {
   }
 
   try {
-    // 1. Claim up to 50 pending events atomically
-    const pendingEvents = await db
+    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000);
+
+    // 1. Claim up to 50 pending or expired-lease processing events atomically (Point 11)
+    const claimableEvents = await db
       .select()
       .from(schema.outboxEvents)
-      .where(and(eq(schema.outboxEvents.status, "pending"), sql`${schema.outboxEvents.retryCount} < 5`))
+      .where(
+        and(
+          sql`${schema.outboxEvents.retryCount} < 5`,
+          or(
+            eq(schema.outboxEvents.status, "pending"),
+            and(
+              eq(schema.outboxEvents.status, "processing"),
+              lt(schema.outboxEvents.createdAt, twoMinutesAgo)
+            )
+          )
+        )
+      )
       .orderBy(schema.outboxEvents.createdAt)
       .limit(50);
 
-    if (pendingEvents.length === 0) {
+    if (claimableEvents.length === 0) {
       return NextResponse.json({ processed: 0, message: "No pending events." });
     }
 
-    const eventIds = pendingEvents.map((e) => e.id);
+    const eventIds = claimableEvents.map((e) => e.id);
 
     // Mark as processing
     await db
       .update(schema.outboxEvents)
-      .set({ status: "processing" })
+      .set({
+        status: "processing",
+      })
       .where(inArray(schema.outboxEvents.id, eventIds));
 
     // 2. Fetch tenant slugs for channel addressing
-    const tenantIds = Array.from(new Set(pendingEvents.map((e) => e.tenantId)));
+    const tenantIds = Array.from(new Set(claimableEvents.map((e) => e.tenantId)));
     const tenants = await db
       .select({ id: schema.tenants.id, slug: schema.tenants.slug })
       .from(schema.tenants)
@@ -65,7 +79,7 @@ export async function POST(request: Request): Promise<NextResponse> {
     let successCount = 0;
     let failedCount = 0;
 
-    for (const event of pendingEvents) {
+    for (const event of claimableEvents) {
       const tenantSlug = tenantSlugMap.get(event.tenantId) || "taj-saas";
 
       try {
@@ -112,7 +126,7 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return NextResponse.json({
       success: true,
-      processed: pendingEvents.length,
+      processed: claimableEvents.length,
       published: successCount,
       failed: failedCount,
     });

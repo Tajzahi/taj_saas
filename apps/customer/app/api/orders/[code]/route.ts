@@ -5,19 +5,6 @@ import crypto from "crypto";
 import { resolveTenantFromRequestHost } from "@lib/tenant-authorization";
 import { rateLimiter } from "@lib/server/rate-limiter";
 
-function maskName(name: string): string {
-  if (!name) return "";
-  const parts = name.trim().split(" ");
-  return parts
-    .map((p) => (p.length > 2 ? `${p[0]}${"*".repeat(p.length - 2)}${p[p.length - 1]}` : p))
-    .join(" ");
-}
-
-function maskPhone(phone: string): string {
-  if (!phone || phone.length < 8) return phone;
-  return `${phone.slice(0, 4)}****${phone.slice(-4)}`;
-}
-
 // Get order tracking details with customer token authorization
 export async function GET(
   request: Request,
@@ -52,8 +39,10 @@ export async function GET(
       return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
     }
 
-    // Check customer token ownership
-    const cookieToken = request.headers.get("cookie")?.split(";")
+    // Strict customer token ownership check (NO bypass for null customerTokenHash)
+    const cookieToken = request.headers
+      .get("cookie")
+      ?.split(";")
       .map((c) => c.trim())
       .find((c) => c.startsWith(`cust_tok_${cleanCode}=`))
       ?.split("=")[1];
@@ -62,31 +51,30 @@ export async function GET(
     const providedToken = headerToken || cookieToken || "";
 
     const isAuthorized =
-      !order.customerTokenHash ||
-      (providedToken &&
-        crypto.createHash("sha256").update(providedToken).digest("hex") === order.customerTokenHash);
-
-    // Fetch order items
-    const dbItems = await db
-      .select()
-      .from(schema.orderItems)
-      .where(eq(schema.orderItems.orderId, order.id));
-
-    const items = dbItems.map((item) => ({
-      cartId: item.id,
-      menuItem: {
-        id: item.menuItemId || "",
-        name: item.menuItemName,
-        price: Number(item.unitPrice),
-      },
-      variantName: item.variantName || null,
-      quantity: item.quantity,
-      note: item.note || "",
-      totalPrice: Number(item.totalPrice),
-    }));
+      Boolean(order.customerTokenHash) &&
+      Boolean(providedToken) &&
+      crypto.createHash("sha256").update(providedToken).digest("hex") === order.customerTokenHash;
 
     if (isAuthorized) {
-      // Return full detailed order object
+      // Fetch full order items for authorized owner
+      const dbItems = await db
+        .select()
+        .from(schema.orderItems)
+        .where(eq(schema.orderItems.orderId, order.id));
+
+      const items = dbItems.map((item) => ({
+        cartId: item.id,
+        menuItem: {
+          id: item.menuItemId || "",
+          name: item.menuItemName,
+          price: Number(item.unitPrice),
+        },
+        variantName: item.variantName || null,
+        quantity: item.quantity,
+        note: item.note || "",
+        totalPrice: Number(item.totalPrice),
+      }));
+
       return NextResponse.json({
         isAuthorized: true,
         orderCode: order.orderCode,
@@ -110,22 +98,13 @@ export async function GET(
       });
     }
 
-    // Masked public status (SEC-001)
+    // Public minimal tracking status (Zero PII, No items, No prices) (SEC-001)
     return NextResponse.json({
       isAuthorized: false,
       orderCode: order.orderCode,
-      customerName: maskName(order.customerName),
-      customerPhone: maskPhone(order.customerPhone),
-      orderType: order.deliveryType,
-      total: Number(order.totalPrice),
       status: order.status,
       paymentStatus: order.paymentStatus,
       createdAt: order.createdAt.toISOString(),
-      items: items.map((i) => ({
-        menuItem: { name: i.menuItem.name, price: i.menuItem.price },
-        quantity: i.quantity,
-        totalPrice: i.totalPrice,
-      })),
     });
   } catch (err: unknown) {
     console.error("[GET /api/orders/[code]] Error:", err);
@@ -168,21 +147,25 @@ export async function POST(
       return NextResponse.json({ error: "Pesanan tidak ditemukan." }, { status: 404 });
     }
 
-    // Verify token authorization
-    if (order.customerTokenHash) {
-      const providedToken =
-        customerToken ||
-        request.headers.get("x-customer-token") ||
-        request.headers.get("cookie")?.split(";")
-          .map((c) => c.trim())
-          .find((c) => c.startsWith(`cust_tok_${cleanCode}=`))
-          ?.split("=")[1] ||
-        "";
+    // Strict token verification
+    const providedToken =
+      customerToken ||
+      request.headers.get("x-customer-token") ||
+      request.headers
+        .get("cookie")
+        ?.split(";")
+        .map((c) => c.trim())
+        .find((c) => c.startsWith(`cust_tok_${cleanCode}=`))
+        ?.split("=")[1] ||
+      "";
 
-      const providedHash = crypto.createHash("sha256").update(providedToken).digest("hex");
-      if (providedHash !== order.customerTokenHash) {
-        return NextResponse.json({ error: "Otorisasi token pesanan tidak valid." }, { status: 403 });
-      }
+    if (!order.customerTokenHash || !providedToken) {
+      return NextResponse.json({ error: "Otorisasi token pesanan diperlukan." }, { status: 403 });
+    }
+
+    const providedHash = crypto.createHash("sha256").update(providedToken).digest("hex");
+    if (providedHash !== order.customerTokenHash) {
+      return NextResponse.json({ error: "Otorisasi token pesanan tidak valid." }, { status: 403 });
     }
 
     if (order.status === "cancelled" || order.status === "completed") {

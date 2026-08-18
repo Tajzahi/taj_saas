@@ -10,6 +10,7 @@ import {
   writeAuditEvent,
   AuthorizationError,
 } from "@lib/tenant-authorization";
+import { calculateOrderPricing, PricingItemBreakdown } from "@lib/server/pricing-service";
 
 // ─── STATE MACHINE DEFINITIONS ──────────────────────────────────────────────
 
@@ -212,23 +213,54 @@ export async function verifyPaymentStatusAction(orderId: string, isPaid: boolean
 
     const newPaymentStatus = isPaid ? "paid" : "failed";
 
-    await db
-      .update(schema.orders)
-      .set({
-        paymentStatus: newPaymentStatus,
-      })
-      .where(and(eq(schema.orders.id, orderId), eq(schema.orders.tenantId, tenant.id)));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(schema.orders)
+        .set({
+          paymentStatus: newPaymentStatus,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(schema.orders.id, orderId), eq(schema.orders.tenantId, tenant.id)));
 
-    await writeAuditEvent({
-      tenantId: tenant.id,
-      actorId: user.id,
-      action: `verify_payment_${newPaymentStatus}`,
-      entityType: "orders",
-      entityId: orderId,
-      details: {
-        previousPaymentStatus: order.paymentStatus,
-        newPaymentStatus,
-      },
+      // Record immutable ledger entry idempotently (Point 10)
+      if (isPaid) {
+        const existingTx = await tx
+          .select()
+          .from(schema.paymentTransactions)
+          .where(
+            and(
+              eq(schema.paymentTransactions.orderId, order.id),
+              eq(schema.paymentTransactions.tenantId, tenant.id),
+              eq(schema.paymentTransactions.status, "paid")
+            )
+          )
+          .limit(1);
+
+        if (existingTx.length === 0) {
+          await tx.insert(schema.paymentTransactions).values({
+            tenantId: tenant.id,
+            orderId: order.id,
+            amount: order.totalPrice,
+            paymentMethod: order.paymentMethod,
+            status: "paid",
+            notes: `Payment verified by staff: ${user.name || user.email}`,
+            verifiedBy: user.id,
+            verifiedAt: new Date(),
+          });
+        }
+      }
+
+      await tx.insert(schema.auditLogs).values({
+        tenantId: tenant.id,
+        userId: user.id,
+        action: `verify_payment_${newPaymentStatus}`,
+        entityType: "orders",
+        entityId: orderId,
+        details: {
+          previousPaymentStatus: order.paymentStatus,
+          newPaymentStatus,
+        },
+      });
     });
 
     revalidatePath("/");
@@ -378,7 +410,7 @@ export async function openShiftAction(startingCash: number, operatorName: string
 // Close active shift
 export async function closeShiftAction(shiftId: string, actualCash: number) {
   try {
-    const { tenant, user } = await requireTenantPermission("shifts:manage-own", {
+    const { tenant, user, profile } = await requireTenantPermission("shifts:manage-own", {
       expectedApp: "admin",
     });
 
@@ -391,6 +423,11 @@ export async function closeShiftAction(shiftId: string, actualCash: number) {
     const shift = shiftResult[0];
     if (!shift || shift.status !== "open") {
       return { success: false, error: "Shift tidak ditemukan atau sudah ditutup." };
+    }
+
+    // Scoping enforcement: Kasir can only close their OWN shift (Point 9)
+    if (profile.role === "kasir" && shift.operatorId && shift.operatorId !== user.id) {
+      return { success: false, error: "Anda hanya diizinkan menutup shift milik Anda sendiri." };
     }
 
     // Calculate expected physical cash strictly from shiftLogs
@@ -717,24 +754,27 @@ export async function createOfflineOrderAction(data: {
       expectedApp: "admin",
     });
 
-    // Validate item menu IDs belong to this tenant
-    const itemIds = data.items.map((i) => i.id).filter((id) => id && id.length === 36);
-    let verifiedSubtotal = 0;
+    // Server-Side Canonical Pricing Calculation (Point 8)
+    const pricingResult = await calculateOrderPricing({
+      tenantId: tenant.id,
+      items: data.items.map((i) => ({
+        menuItemId: i.id.length === 36 ? i.id : undefined,
+        menuItemName: i.name,
+        quantity: i.qty,
+      })),
+      deliveryType: data.orderType || "pickup",
+    });
 
-    if (itemIds.length > 0) {
-      const dbMenuItems = await db
-        .select()
-        .from(schema.menuItems)
-        .where(and(inArray(schema.menuItems.id, itemIds), eq(schema.menuItems.tenantId, tenant.id)));
-
-      const priceMap = new Map(dbMenuItems.map((m) => [m.id, Number(m.price)]));
-      for (const item of data.items) {
-        const unitPrice = priceMap.get(item.id) ?? item.price;
-        verifiedSubtotal += unitPrice * item.qty;
-      }
-    } else {
-      verifiedSubtotal = data.items.reduce((sum, item) => sum + item.price * item.qty, 0);
-    }
+    const {
+      subtotal,
+      deliveryFee,
+      discountAmount,
+      taxAmount,
+      serviceChargeAmount,
+      totalPrice,
+      itemsBreakdown,
+      pricingSnapshot,
+    } = pricingResult;
 
     const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
     const orderCode = `POS-${rand}`;
@@ -755,12 +795,17 @@ export async function createOfflineOrderAction(data: {
           ? "Delivery"
           : "Pickup",
         deliveryType: data.orderType,
-        subtotal: verifiedSubtotal.toString(),
-        totalPrice: verifiedSubtotal.toString(),
+        subtotal: subtotal.toString(),
+        deliveryFee,
+        discountAmount: discountAmount.toString(),
+        taxAmount: taxAmount.toString(),
+        serviceChargeAmount: serviceChargeAmount.toString(),
+        totalPrice: totalPrice.toString(),
         status: "completed",
         paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
         paymentStatus: "paid",
         paymentProofUrl: data.paymentProofUrl || null,
+        pricingSnapshot,
         notes:
           data.notes ||
           (data.orderType === "dine_in"
@@ -769,18 +814,32 @@ export async function createOfflineOrderAction(data: {
       })
       .returning();
 
-    if (newOrder && data.items.length > 0) {
+    if (newOrder && itemsBreakdown.length > 0) {
       await db.insert(schema.orderItems).values(
-        data.items.map((item) => ({
+        itemsBreakdown.map((item: PricingItemBreakdown) => ({
           orderId: newOrder.id,
-          menuItemId: item.id.length === 36 ? item.id : null,
-          menuItemName: item.name,
-          quantity: item.qty,
-          unitPrice: item.price.toString(),
-          totalPrice: (item.price * item.qty).toString(),
+          menuItemId: item.menuItemId,
+          menuItemName: item.menuItemName,
+          variantName: item.variantName || null,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice.toString(),
+          totalPrice: item.totalPrice.toString(),
+          note: item.note || null,
         }))
       );
     }
+
+    // Record immutable payment transaction (Point 10)
+    await db.insert(schema.paymentTransactions).values({
+      tenantId: tenant.id,
+      orderId: newOrder.id,
+      amount: totalPrice.toString(),
+      paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
+      status: "paid",
+      notes: `Pembayaran POS Kasir langsung lunas (${data.paymentMethod.toUpperCase()})`,
+      verifiedBy: user.id,
+      verifiedAt: new Date(),
+    });
 
     // Log to active shift if cash/cod payment
     if (data.paymentMethod === "cod") {
@@ -796,7 +855,7 @@ export async function createOfflineOrderAction(data: {
           tenantId: tenant.id,
           shiftId: activeShift.id,
           action: "cash_in",
-          amount: verifiedSubtotal.toString(),
+          amount: totalPrice.toString(),
           notes: `Pembayaran POS Kasir: ${orderCode}`,
         });
       }
@@ -808,7 +867,7 @@ export async function createOfflineOrderAction(data: {
       action: "pos_order_created",
       entityType: "orders",
       entityId: newOrder.id,
-      details: { orderCode, totalPrice: verifiedSubtotal },
+      details: { orderCode, totalPrice },
     });
 
     revalidatePath("/");

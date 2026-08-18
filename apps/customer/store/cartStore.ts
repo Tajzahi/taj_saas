@@ -142,34 +142,40 @@ export interface Order {
 
 interface OrderState {
   currentOrder: Order | null;
-  orderHistory: Order[];
-  setCurrentOrder: (order: Order) => void;
+  savedTokens: Record<string, string>; // orderCode -> token
+  recentCodes: string[];
+  setCurrentOrder: (order: Order, token?: string) => void;
   getOrderByCode: (code: string) => Order | undefined;
   updateOrderStatus: (code: string, status: Order['status']) => void;
+  getTokenForOrder: (code: string) => string | undefined;
 }
 
 export const useOrderStore = create<OrderState>()(
   persist(
     (set, get) => ({
       currentOrder: null,
-      orderHistory: [],
+      savedTokens: {},
+      recentCodes: [],
 
-      setCurrentOrder: (order) => {
+      setCurrentOrder: (order, token) => {
         set((state) => ({
           currentOrder: order,
-          orderHistory: [order, ...state.orderHistory.filter((o) => o.orderCode !== order.orderCode)],
+          savedTokens: token ? { ...state.savedTokens, [order.orderCode]: token } : state.savedTokens,
+          recentCodes: [order.orderCode, ...state.recentCodes.filter((c) => c !== order.orderCode)].slice(0, 10),
         }));
       },
 
       getOrderByCode: (code) => {
-        return get().orderHistory.find((o) => o.orderCode === code);
+        if (get().currentOrder?.orderCode === code) return get().currentOrder!;
+        return undefined;
+      },
+
+      getTokenForOrder: (code) => {
+        return get().savedTokens[code];
       },
 
       updateOrderStatus: (code, status) => {
         set((state) => ({
-          orderHistory: state.orderHistory.map((o) =>
-            o.orderCode === code ? { ...o, status } : o
-          ),
           currentOrder:
             state.currentOrder?.orderCode === code
               ? { ...state.currentOrder, status }
@@ -178,7 +184,11 @@ export const useOrderStore = create<OrderState>()(
       },
     }),
     {
-      name: 'a6nyuss-orders',
+      name: 'a6nyuss-orders-meta',
+      partialize: (state) => ({
+        savedTokens: state.savedTokens,
+        recentCodes: state.recentCodes,
+      }),
     }
   )
 );
