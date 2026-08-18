@@ -1,6 +1,8 @@
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle, NeonDatabase } from 'drizzle-orm/neon-serverless';
 import * as schema from './schema';
+import fs from 'fs';
+import path from 'path';
 
 // Robust WebSocket constructor resolution for Node.js / Edge / Serverless runtimes
 if (typeof window === 'undefined') {
@@ -14,9 +16,29 @@ if (typeof window === 'undefined') {
       // WebSocket fallback
     }
   }
+
+  // Auto-discover and load .env if DATABASE_URL is not yet populated
+  if (!process.env.DATABASE_URL && typeof process.loadEnvFile === 'function') {
+    const candidateEnvPaths = [
+      path.resolve(process.cwd(), '.env'),
+      path.resolve(process.cwd(), '../../.env'),
+      path.resolve(process.cwd(), '../.env'),
+      path.resolve(__dirname, '../../.env'),
+    ];
+    for (const envPath of candidateEnvPaths) {
+      try {
+        if (fs.existsSync(envPath)) {
+          process.loadEnvFile(envPath);
+          if (process.env.DATABASE_URL) break;
+        }
+      } catch {
+        // continue
+      }
+    }
+  }
 }
 
-const databaseUrl = process.env.DATABASE_URL;
+const databaseUrl = process.env.DATABASE_URL?.trim();
 
 if (typeof window === 'undefined' && !databaseUrl) {
   console.warn('[db/index] DATABASE_URL environment variable is not defined.');
