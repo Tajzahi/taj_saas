@@ -259,9 +259,37 @@ export async function requireTenantSession(options?: {
     )
     .limit(1);
 
-  const profile = profileResult[0];
+  let profile = profileResult[0];
 
   if (!profile) {
+    // Single-domain staging fallback for owner/admin:
+    // If exact tenantId match fails (e.g. staging Cloud Run where host resolves to default 'taj-saas' slug),
+    // look up the user's primary profile directly to resolve their tenant.
+    const userProfileResult = await db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, session.user.id))
+      .limit(1);
+
+    if (userProfileResult.length > 0) {
+      profile = userProfileResult[0];
+      if (profile.tenantId) {
+        const actualTenantResult = await db
+          .select()
+          .from(schema.tenants)
+          .where(eq(schema.tenants.id, profile.tenantId))
+          .limit(1);
+
+        if (actualTenantResult.length > 0) {
+          return {
+            tenant: actualTenantResult[0],
+            user: session.user,
+            profile,
+          };
+        }
+      }
+    }
+
     throw new AuthorizationError('FORBIDDEN', 403, 'Akses ke tenant ini ditolak');
   }
 

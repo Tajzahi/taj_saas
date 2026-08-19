@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { resolveTenantMiddleware } from '@taj-saas/shared';
+import { auth } from '@lib/auth';
 
 export const middleware = async (request: NextRequest) => {
   const { pathname } = request.nextUrl;
@@ -26,16 +27,20 @@ export const middleware = async (request: NextRequest) => {
   // Auth check
   let session: any = null;
   try {
-    const res = await fetch(`${request.nextUrl.origin}/api/auth/get-session`, {
-      headers: {
-        cookie: request.headers.get("cookie") || "",
-      },
+    session = await auth.api.getSession({
+      headers: request.headers,
     });
-    if (res.ok) {
-      session = await res.json();
-    }
   } catch (err) {
-    console.error("Middleware session fetch failed:", err);
+    try {
+      const res = await fetch(`${request.nextUrl.origin}/api/auth/get-session`, {
+        headers: new Headers(request.headers),
+      });
+      if (res.ok) {
+        session = await res.json();
+      }
+    } catch (fetchErr) {
+      console.error("Middleware session fetch failed:", fetchErr);
+    }
   }
 
   if (!isAuthRoute) {
