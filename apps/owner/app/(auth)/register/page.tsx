@@ -45,14 +45,23 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2. Instant client-side login session creation
-      const loginRes = await authClient.signIn.email({
+      // 2. Instant client-side login session creation with auto-retry
+      let loginRes = await authClient.signIn.email({
         email,
         password,
       });
 
       if (loginRes.error) {
-        toast.success("Pendaftaran bisnis berhasil! Silakan login.");
+        // Small delay and retry once to allow server user creation index propagation
+        await new Promise((resolve) => setTimeout(resolve, 600));
+        loginRes = await authClient.signIn.email({
+          email,
+          password,
+        });
+      }
+
+      if (loginRes.error) {
+        toast.error("Pendaftaran berhasil, silakan masuk dengan akun baru Anda.");
         window.location.href = "/login";
         return;
       }
