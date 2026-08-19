@@ -9,9 +9,14 @@ if (!process.env.BETTER_AUTH_SECRET) {
   );
 }
 
+const rawBaseUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const baseURL = (process.env.NODE_ENV === "production" && !rawBaseUrl.includes("localhost"))
+  ? rawBaseUrl.replace(/^http:\/\//i, "https://")
+  : rawBaseUrl;
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
-  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
+  baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   emailAndPassword: { enabled: true },
   trustedOrigins: [
