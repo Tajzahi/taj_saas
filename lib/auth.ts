@@ -14,6 +14,15 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL || "http://localhost:3000",
   secret: process.env.BETTER_AUTH_SECRET,
   emailAndPassword: { enabled: true },
+  trustedOrigins: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+    "https://*.a.run.app",
+    "https://*.run.app",
+    "https://*.netlify.app",
+    "https://*.vercel.app",
+  ],
   user: {
     additionalFields: {
       role: {
@@ -26,6 +35,7 @@ export const auth = betterAuth({
   },
   advanced: {
     generateId: () => crypto.randomUUID(),
+    useSecureCookies: process.env.NODE_ENV === "production",
     ...(process.env.COOKIE_DOMAIN ? {
       crossSubDomainCookies: {
         enabled: true,

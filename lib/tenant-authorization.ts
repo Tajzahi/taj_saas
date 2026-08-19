@@ -290,6 +290,42 @@ export async function requireTenantSession(options?: {
       }
     }
 
+    // Auto-recovery fallback for newly registered owner users:
+    // Fetch user from db to verify if role is owner
+    const dbUser = await db
+      .select()
+      .from(schema.user)
+      .where(eq(schema.user.id, session.user.id))
+      .limit(1);
+
+    if (dbUser.length > 0 && (dbUser[0].role === 'owner' || (session.user as any).role === 'owner')) {
+      const [newProfile] = await db
+        .insert(schema.profiles)
+        .values({
+          id: session.user.id,
+          tenantId: tenant.id,
+          email: session.user.email,
+          role: 'owner',
+          salary: '0',
+        })
+        .onConflictDoNothing()
+        .returning();
+
+      return {
+        tenant,
+        user: session.user,
+        profile: newProfile || {
+          id: session.user.id,
+          tenantId: tenant.id,
+          email: session.user.email,
+          role: 'owner',
+          salary: '0',
+          branchId: null,
+          createdAt: new Date(),
+        },
+      };
+    }
+
     throw new AuthorizationError('FORBIDDEN', 403, 'Akses ke tenant ini ditolak');
   }
 
