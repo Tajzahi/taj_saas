@@ -14,6 +14,14 @@ const baseURL = (process.env.NODE_ENV === "production" && !rawBaseUrl.includes("
   ? rawBaseUrl.replace(/^http:\/\//i, "https://")
   : rawBaseUrl;
 
+const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
+// Do NOT set custom cookie domain on Cloud Run staging (*.a.run.app) as browser rejects mismatching Domain attribute
+const shouldEnableCrossDomain = Boolean(
+  cookieDomain &&
+  !cookieDomain.includes("localhost") &&
+  !(process.env.K_SERVICE || process.env.CLOUD_RUN_JOB)
+);
+
 export const auth = betterAuth({
   database: drizzleAdapter(db, { provider: "pg", schema }),
   baseURL,
@@ -41,10 +49,10 @@ export const auth = betterAuth({
   advanced: {
     generateId: () => crypto.randomUUID(),
     useSecureCookies: process.env.NODE_ENV === "production",
-    ...(process.env.COOKIE_DOMAIN ? {
+    ...(shouldEnableCrossDomain ? {
       crossSubDomainCookies: {
         enabled: true,
-        domain: process.env.COOKIE_DOMAIN
+        domain: cookieDomain
       }
     } : {})
   }

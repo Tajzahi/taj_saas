@@ -27,8 +27,12 @@ export const middleware = async (request: NextRequest) => {
   // Auth check
   let session: any = null;
   try {
+    const reqHeaders = new Headers(request.headers);
+    if (!reqHeaders.get("x-forwarded-proto") && request.nextUrl.protocol === "https:") {
+      reqHeaders.set("x-forwarded-proto", "https");
+    }
     session = await auth.api.getSession({
-      headers: request.headers,
+      headers: reqHeaders,
     });
   } catch (err) {
     try {
