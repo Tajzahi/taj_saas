@@ -1,3 +1,32 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: SERVER ACTION PENDAFTARAN OWNER BARU (REGISTER OWNER ACTION)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Berkas ini adalah "Server Action / Mesin Pendaftaran Toko Baru" yang dieksekusi saat Owner mendaftar bisnis baru.
+ * Otomatis membuatkan Tenant Toko baru, Cabang Utama, Akun User Better Auth, dan Profil Pemilik (Owner Profile) dalam 1 alur terintegrasi.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. INPUT (Baris 35-45)    : Form Pendaftaran (Nama Owner, Nama Bisnis, Email, Password).
+ * 2. CEK DUPLIKAT (Baris 48-58): Cek apakah email sudah terdaftar di database `schema.user`.
+ * 3. ANGKAT SLUG (Baris 60-80) : Membuat slug URL unik (misal: "kopi-kenangan" -> `kopi-kenangan.com`).
+ * 4. ISIAN TENANT & CABANG (Baris 82-110): Memasukkan record baru ke `schema.tenants` & `schema.branches`.
+ * 5. SELESAI AUTH & PROFIL (Baris 112-135): Daftarkan User via Better Auth (`signUpEmail`) & set `schema.profiles.role = 'owner'`.
+ * 6. COMPENSATING ROLLBACK (Baris 140-155): Jika step 5 gagal, hapus tenant & cabang yang sempat dibuat agar database tidak kotor.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Dikerjakan oleh Form UI: `apps/owner/app/(auth)/register/page.tsx`
+ * - Membaca Skema Database: `packages/db` (`schema.tenants`, `schema.branches`, `schema.profiles`, `schema.user`)
+ * - Terhubung ke Autentikasi: `lib/auth.ts` (`auth.api.signUpEmail`)
+ * 
+ * 🛠️ PETUNJUK PEMECAHAN MASALAH (TROUBLESHOOTING):
+ * - Jika Pendaftaran Gagal "Email Sudah Terdaftar" -> Cek Baris 48-58.
+ * - Jika Tenant Pemilik Tidak Terhubung ke Dashboard -> Cek Baris 125-135 (`schema.profiles` insert).
+ * - Jika Terjadi Gagal Tengah Jalan (Partial Insert) -> Cek Baris 140-155 (Rollback logic).
+ * =========================================================================================
+ */
+
 "use server";
 
 import { db, schema } from "@taj-saas/db";
@@ -14,6 +43,7 @@ interface RegisterParams {
 export async function registerOwnerAction(params: RegisterParams) {
   const { name, businessName, email, password } = params;
 
+  // [BARIS 35-45]: TAHAP 1 - VALIDASI FORMULIR AWAL
   if (!name || !businessName || !email || !password) {
     return { success: false, error: "Harap isi semua kolom pendaftaran." };
   }
@@ -25,7 +55,7 @@ export async function registerOwnerAction(params: RegisterParams) {
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
-    // 1. Preflight check: prevent duplicate user registration before creating tenant
+    // [BARIS 48-58]: TAHAP 2 - PREFLIGHT CHECK (CEK EMAIL DUPLIKAT)
     const existingUser = await db
       .select({ id: schema.user.id })
       .from(schema.user)
@@ -36,7 +66,8 @@ export async function registerOwnerAction(params: RegisterParams) {
       return { success: false, error: "Email sudah terdaftar. Silakan gunakan email lain atau login." };
     }
 
-    // 2. Generate unique slug from business name
+    // [BARIS 60-80]: TAHAP 3 - GENERATE SLUG UNIK DARI NAMA BISNIS
+    // Mengubah "Warung Kopi" -> "warung-kopi". Jika sudah ada, menambahkan nomor (-1, -2)
     let baseSlug = businessName
       .toLowerCase()
       .trim()
@@ -48,7 +79,6 @@ export async function registerOwnerAction(params: RegisterParams) {
     let slug = baseSlug;
     let count = 1;
 
-    // Check for existing slug collisions (limit 20 iterations)
     while (count <= 20) {
       const existing = await db
         .select({ id: schema.tenants.id })
@@ -60,7 +90,7 @@ export async function registerOwnerAction(params: RegisterParams) {
       slug = `${baseSlug}-${count++}`;
     }
 
-    // 3. Insert new Tenant for this business owner
+    // [BARIS 82-100]: TAHAP 4 - INJEKSI TENANT BARU KE DATABASE
     const [newTenant] = await db
       .insert(schema.tenants)
       .values({
@@ -82,7 +112,7 @@ export async function registerOwnerAction(params: RegisterParams) {
     let createdUserId: string | null = null;
 
     try {
-      // 4. Create default branch for this new tenant
+      // [BARIS 103-110]: TAHAP 5 - MEMBUAT CABANG UTAMA DEFAULT UNTUK TENANT
       await db.insert(schema.branches).values({
         tenantId: newTenant.id,
         name: "Cabang Utama",
@@ -90,7 +120,7 @@ export async function registerOwnerAction(params: RegisterParams) {
         status: "active",
       });
 
-      // 5. Create User via Better Auth API
+      // [BARIS 112-124]: TAHAP 6 - PENDAFTARAN AKUN USER DI ENGINE BETTER AUTH
       const userRes = await auth.api.signUpEmail({
         body: {
           email: normalizedEmail,
@@ -105,7 +135,7 @@ export async function registerOwnerAction(params: RegisterParams) {
 
       createdUserId = userRes.user.id;
 
-      // 6. Update user role and insert profile row explicitly for this tenant
+      // [BARIS 125-136]: TAHAP 7 - ASSIGN ROLE 'OWNER' & PROFIL TENANT PERMANEN
       await db.update(schema.user).set({ role: "owner" }).where(eq(schema.user.id, createdUserId));
 
       await db.insert(schema.profiles).values({
@@ -122,7 +152,7 @@ export async function registerOwnerAction(params: RegisterParams) {
         user: userRes.user,
       };
     } catch (innerError) {
-      // Compensating rollback cleanup on user creation failure
+      // [BARIS 140-155]: TAHAP 8 - ROLLBACK OTOMATIS JIKA TERJADI EROR DI TENGAH JALAN
       console.error("[registerOwnerAction] Inner failure, rolling back tenant:", innerError);
       if (createdUserId) {
         await db.delete(schema.profiles).where(eq(schema.profiles.id, createdUserId));

@@ -1,3 +1,29 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: HALAMAN LOGIN OWNER (LOGIN PAGE CLIENT UI)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Antarmuka pengguna (UI) Client Component untuk autentikasi masuk Pemilik Toko (Owner).
+ * Menerima masukan email & kata sandi, mengeksekusi sign-in ke auth client, dan me-redirect ke Dashboard.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. INPUT (Baris 38-52)   : User mengetik email & password pada form HTML.
+ * 2. SUBMIT (Baris 54-70)  : Tombol "Sign in" memicu fungsi `handleLogin`.
+ * 3. PROSES (Baris 58-67)  : Memanggil `authClient.signIn.email({ email, password })`.
+ * 4. REDIRECT (Baris 69-72): Jika sukses, me-refresh halaman ke Dashboard utama `/`.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Menggunakan Client Auth  : `apps/owner/lib/authClient.ts`
+ * - Diproteksi oleh Middleware: `apps/owner/middleware.ts`
+ * - Link ke Pendaftaran     : `apps/owner/app/(auth)/register/page.tsx`
+ * 
+ * 🛠️ PETUNJUK PEMECAHAN MASALAH (TROUBLESHOOTING):
+ * - Jika Klik Login Tidak Ada Respon -> Periksa Baris 58-67 (`authClient.signIn.email`).
+ * - Jika Gagal Mengalihkan Halaman  -> Periksa Baris 69-72 (`window.location.href = "/"`).
+ * =========================================================================================
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -9,16 +35,20 @@ import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  
+  // [BARIS 38-42]: STATE CLIENT UNTUK FORMULIR LOGIN
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  // [BARIS 44-73]: FUNGSI EKSEKUSI LOGIN (HANDLE LOGIN)
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      // Panggilan API Client ke Better Auth Server
       const { data, error } = await authClient.signIn.email({
         email,
         password,
@@ -31,6 +61,7 @@ export default function LoginPage() {
       }
 
       toast.success("Login berhasil!");
+      // Me-refresh sesi dan me-redirect ke Dashboard /
       window.location.href = "/";
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat login.");
@@ -38,6 +69,7 @@ export default function LoginPage() {
     }
   };
 
+  // [BARIS 75-150]: STRUKTUR TAMPILAN VISUAL UI (TAILWIND FORM)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl">

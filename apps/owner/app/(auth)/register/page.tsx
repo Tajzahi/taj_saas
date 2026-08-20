@@ -1,3 +1,31 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: HALAMAN PENDAFTARAN OWNER BARU (REGISTER PAGE CLIENT UI)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Antarmuka pengguna (UI) Client Component untuk pendaftaran Bisnis/Toko Baru milik Pemilik (Owner).
+ * Menerima masukan Nama Owner, Nama Toko, Email, & Password, lalu mengeksekusi Server Action `registerOwnerAction`
+ * dan otomatis meng-autentikasi (instant sign-in) agar Owner langsung masuk ke Dashboard.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. INPUT (Baris 38-52)   : User mengisi formulir nama lengkap, nama bisnis, email, & password.
+ * 2. ACTION (Baris 58-70)  : Memanggil Server Action `registerOwnerAction` untuk membuat Tenant & User di DB.
+ * 3. AUTO SIGN-IN (Baris 72-85): Mengeksekusi `authClient.signIn.email` otomatis dengan penanganan retry.
+ * 4. REDIRECT (Baris 87-92): Jika sukses, me-refresh halaman langsung ke Dashboard `/`.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Terhubung ke Server Action: `apps/owner/app/actions/authActions.ts` (`registerOwnerAction`)
+ * - Terhubung ke Client Auth  : `apps/owner/lib/authClient.ts`
+ * - Diproteksi oleh Middleware: `apps/owner/middleware.ts`
+ * - Link ke Halaman Login    : `apps/owner/app/(auth)/login/page.tsx`
+ * 
+ * 🛠️ PETUNJUK PEMECAHAN MASALAH (TROUBLESHOOTING):
+ * - Jika Tenant Gagal Dibuat       -> Periksa Baris 58-70 (`registerOwnerAction`).
+ * - Jika Pendaftaran Sukses Tapi Tidak Masuk Dashboard -> Periksa Baris 72-85 (Instant Login Auto-retry).
+ * =========================================================================================
+ */
+
 "use client";
 
 import { useState } from "react";
@@ -11,6 +39,8 @@ import { registerOwnerAction } from "@/app/actions/authActions";
 
 export default function RegisterPage() {
   const router = useRouter();
+  
+  // [BARIS 38-46]: STATE CLIENT UNTUK FORMULIR PENDAFTARAN TOKO
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,6 +48,7 @@ export default function RegisterPage() {
   const [businessName, setBusinessName] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // [BARIS 48-96]: FUNGSI EKSEKUSI PENDAFTARAN & INSTANT SIGN-IN
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !businessName || !email || !password) {
@@ -32,7 +63,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      // 1. Create Tenant (Store) & Owner User in DB
+      // TAHAP 1: Eksekusi Server Action Pembuatan Tenant Toko & User di DB
       const res = await registerOwnerAction({
         name,
         businessName,
@@ -45,14 +76,14 @@ export default function RegisterPage() {
         return;
       }
 
-      // 2. Instant client-side login session creation with auto-retry
+      // TAHAP 2: Instant Client-Side Login dengan Auto-Retry (Mencegah jeda propagasi index)
       let loginRes = await authClient.signIn.email({
         email,
         password,
       });
 
       if (loginRes.error) {
-        // Small delay and retry once to allow server user creation index propagation
+        // Jeda 600ms dan coba sekali lagi jika server index baru dibuat
         await new Promise((resolve) => setTimeout(resolve, 600));
         loginRes = await authClient.signIn.email({
           email,
@@ -66,6 +97,7 @@ export default function RegisterPage() {
         return;
       }
 
+      // TAHAP 3: Pengalihan Sukses Langsung ke Dashboard /
       toast.success(`Selamat datang! Toko ${res.tenant?.name || ""} berhasil terdaftar.`);
       window.location.href = "/";
     } catch (err: any) {
@@ -75,6 +107,7 @@ export default function RegisterPage() {
     }
   };
 
+  // [BARIS 98-190]: STRUKTUR TAMPILAN VISUAL UI PENDAFTARAN (TAILWIND FORM)
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
