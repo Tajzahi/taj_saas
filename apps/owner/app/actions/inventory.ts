@@ -246,3 +246,61 @@ export async function createWasteLogAction(data: {
     return { success: false, error: message };
   }
 }
+
+export async function createPurchaseOrderAction(data: {
+  inventoryId: string;
+  branchId?: string;
+  quantity: number;
+  totalAmount: number;
+  supplierName?: string;
+  notes?: string;
+}) {
+  try {
+    const { tenant, user } = await requireTenantPermission("inventory:manage", { expectedApp: "owner" });
+
+    // 1. Verify inventory item
+    const invResults = await db
+      .select()
+      .from(schema.inventory)
+      .where(and(eq(schema.inventory.id, data.inventoryId), eq(schema.inventory.tenantId, tenant.id)))
+      .limit(1);
+
+    const invItem = invResults[0];
+    const itemName = invItem ? invItem.name : "Bahan Baku";
+
+    // 2. Automatically create a pending Approval Request in schema.approvals
+    const [approval] = await db
+      .insert(schema.approvals)
+      .values({
+        tenantId: tenant.id,
+        branchId: data.branchId || null,
+        type: "purchase_order",
+        title: `PO: ${itemName} (${data.quantity} ${invItem?.unit || "unit"})`,
+        requestedBy: user.name || "Staf Gudang",
+        amount: String(data.totalAmount),
+        priority: "medium",
+        status: "pending",
+        notes: data.notes || `Pengajuan Purchase Order untuk supplier ${data.supplierName || "Default Supplier"}`,
+      })
+      .returning();
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "create_po_approval",
+      entityType: "approvals",
+      entityId: approval.id,
+      details: { itemName, quantity: data.quantity, totalAmount: data.totalAmount },
+    });
+
+    revalidatePath("/persetujuan");
+    revalidatePath("/persediaan");
+    return { success: true, data: approval };
+  } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
+    const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
+    return { success: false, error: message };
+  }
+}

@@ -1,3 +1,25 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: HALAMAN DASHBOARD UTAMA OVERVIEW (`/`)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Halaman Cockpit Eksekutif Owner yang menampilkan statistik performa bisnis secara real-time.
+ * Menyajikan 8 KPI Cards (Omzet, Gross Profit, Modal Bahan, Gaji, Waste, Orders, AOV, Cabang),
+ * Grafik Tren Pendapatan, Omzet per Cabang, Tabel Top 10 Menu, dan Sales Heatmap Jam Ramai.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. FETCH DATA (Baris 280-310) : Polling data dari Server Actions (`getRevenueOverviewAction`, `getBranchesAction`, dll).
+ * 2. KPI CARDS (Baris 370-470)  : Menampilkan 8 kartu ringkasan keuangan & operasional.
+ * 3. GRAFIK (Baris 480-550)     : Recharts AreaChart (Tren Omzet vs Target) & BarChart (Omzet per Cabang).
+ * 4. TABEL & HEATMAP (560-680)  : Tabel Top 10 Menu & Visualisasi Matriks Jam Ramai Shift.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Server Actions : `apps/owner/app/actions/analytics.ts` & `branches.ts`
+ * - State Store    : `apps/owner/store/ownerStore.ts` (`dateRange`, `selectedBranchId`)
+ * =========================================================================================
+ */
+
 "use client";
 
 import React, { useState, useEffect } from "react";

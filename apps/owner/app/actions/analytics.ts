@@ -1,3 +1,24 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: SERVER ACTIONS ANALITIK & DASHBOARD (ANALYTICS ACTIONS)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Berkas ini mengelola kalkulasi analitik bisnis untuk Dashboard Utama Overview (`/`).
+ * Menghitung Total Pendapatan, Laba Kotor, Modal Bahan (COGS), Gaji Pegawai, Bahan Terbuang (Waste),
+ * Tren Omzet Harian, Matriks Jam Ramai (Heatmap), dan Top 10 Menu Terlaris secara real-time dari database.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. REVENUE OVERVIEW (Baris 50-135) : Hitung total omzet, AOV, Gross Profit, COGS %, Labor %, & Waste %.
+ * 2. HOURLY HEATMAP (Baris 140-235)  : Petakan jam operasional kasir & jumlah transaksi per jam x hari.
+ * 3. TOP MENUS (Baris 360-410)        : Aggregasi tabel `orderItems` untuk 10 produk terbanyak terjual.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Halaman Client UI: `apps/owner/app/(dashboard)/page.tsx`
+ * - Skema Database  : `packages/db/schema.ts` (`schema.orders`, `schema.orderItems`, `schema.shifts`, `schema.profiles`, `schema.inventoryTransactions`)
+ * =========================================================================================
+ */
+
 "use server";
 
 import { db, schema } from "@taj-saas/db";
@@ -79,11 +100,11 @@ export async function getRevenueOverviewAction(
     const orderCount = orders.length;
     const aov = orderCount > 0 ? totalRevenue / orderCount : 0;
 
-    const cogsRate = Number(tenant.branding?.cogsRate || 0.30);
+    const cogsRate = Number(tenant.branding?.cogsRate || 0);
     const totalCogs = totalSubtotal * cogsRate;
     const grossProfit = totalRevenue - totalCogs;
     const grossProfitMargin = totalRevenue > 0 ? Number(((grossProfit / totalRevenue) * 100).toFixed(1)) : 0;
-    const cogsPercentage = totalRevenue > 0 ? Number(((totalCogs / totalRevenue) * 100).toFixed(1)) : Number((cogsRate * 100).toFixed(1));
+    const cogsPercentage = totalRevenue > 0 ? Number(((totalCogs / totalRevenue) * 100).toFixed(1)) : (cogsRate > 0 ? Number((cogsRate * 100).toFixed(1)) : 0);
 
     // Calculate labor percentage from employee profiles
     const profiles = await db
@@ -99,7 +120,7 @@ export async function getRevenueOverviewAction(
       .from(schema.inventoryTransactions)
       .where(and(eq(schema.inventoryTransactions.tenantId, tenant.id), eq(schema.inventoryTransactions.type, "waste")));
     const totalWasteCost = wasteLogs.reduce((sum, w) => sum + (Number(w.cost) || 0), 0);
-    const wastePercentage = totalRevenue > 0 ? Number(((totalWasteCost / totalRevenue) * 100).toFixed(1)) : 0.8;
+    const wastePercentage = totalRevenue > 0 ? Number(((totalWasteCost / totalRevenue) * 100).toFixed(1)) : 0;
 
     // Group orders by day of week
     const dayMap: Record<string, number> = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
@@ -111,7 +132,7 @@ export async function getRevenueOverviewAction(
     });
 
     const avgRevenue = totalRevenue / 7;
-    const targetBase = avgRevenue > 0 ? avgRevenue * 1.15 : 250000;
+    const targetBase = avgRevenue > 0 ? avgRevenue * 1.15 : 0;
     const trend = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => {
       const rev = Math.round(dayMap[d] || 0);
       return {
