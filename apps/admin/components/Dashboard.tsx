@@ -4,9 +4,10 @@ import OrderQueue from './OrderQueue';
 import OrderDetail from './OrderDetail';
 import StoreToggleModal from './StoreToggleModal';
 import POSOfflineModal from './POSOfflineModal';
-import { LogOut, Store, StoreIcon, Volume2, VolumeX, Bell, ChevronLeft, ChefHat, X, RefreshCw, Clock, AlertTriangle, User, ClipboardList, Utensils, ShoppingCart } from 'lucide-react';
+import { LogOut, Store, StoreIcon, Volume2, VolumeX, Bell, ChevronLeft, ChefHat, X, RefreshCw, Clock, AlertTriangle, User, ClipboardList, Utensils, ShoppingCart, FileCheck } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { formatRupiah } from '../utils/format';
+import { createAdminApprovalAction } from '../app/actions';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -49,6 +50,15 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
   const [startingCashInput, setStartingCashInput] = useState('200000'); // default modal awal wajar
   const [operatorNameInput, setOperatorNameInput] = useState(username);
   const [isOpeningShift, setIsOpeningShift] = useState(false);
+
+  // State untuk Modal Pengajuan Persetujuan ke Owner
+  const [isApprovalModalOpen, setIsApprovalModalOpen] = useState(false);
+  const [approvalType, setApprovalType] = useState<'purchase_order' | 'discount' | 'refund' | 'transfer'>('discount');
+  const [approvalTitle, setApprovalTitle] = useState('');
+  const [approvalAmount, setApprovalAmount] = useState('');
+  const [approvalPriority, setApprovalPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
+  const [approvalNotes, setApprovalNotes] = useState('');
+  const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
 
   // Real-time clock
   useEffect(() => {
@@ -284,6 +294,21 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
           >
             <ClipboardList className="w-3.5 h-3.5" />
             <span className="hidden sm:inline ml-1.5">Rekap Harian</span>
+          </button>
+
+          {/* Tombol Pengajuan ke Owner */}
+          <button
+            onClick={() => {
+              setApprovalTitle('');
+              setApprovalAmount('');
+              setApprovalNotes('');
+              setIsApprovalModalOpen(true);
+            }}
+            className="flex items-center justify-center p-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-black transition-all border bg-amber-500/20 border-amber-400/40 text-amber-100 hover:bg-amber-500/30 shrink-0 shadow-sm cursor-pointer"
+            title="Pengajuan Persetujuan ke Owner"
+          >
+            <FileCheck className="w-3.5 h-3.5 text-amber-300" />
+            <span className="hidden sm:inline ml-1.5">Pengajuan</span>
           </button>
 
           {/* Store Status */}
@@ -925,6 +950,144 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
         onClose={() => setIsPOSOfflineOpen(false)}
         username={username}
       />
+    )}
+
+    {/* Modal Form Pengajuan Persetujuan ke Owner */}
+    {isApprovalModalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 shadow-2xl max-w-lg w-full p-6 space-y-4 text-slate-800 dark:text-slate-100">
+          <div className="flex items-center justify-between border-b border-gray-100 dark:border-slate-800 pb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center text-amber-600">
+                <FileCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold leading-tight">Pengajuan Persetujuan ke Owner</h3>
+                <p className="text-[11px] text-gray-500">Kirim permohonan otorisasi diskon, PO, refund, atau kas ke Owner</p>
+              </div>
+            </div>
+            <button onClick={() => setIsApprovalModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
+          </div>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!approvalTitle.trim()) {
+                toast.error("Harap isi judul pengajuan!");
+                return;
+              }
+              const parsedAmt = approvalAmount ? Number(approvalAmount.replace(/\./g, '').replace(/,/g, '.')) : 0;
+              setIsSubmittingApproval(true);
+              const res = await createAdminApprovalAction({
+                type: approvalType,
+                title: approvalTitle.trim(),
+                requestedBy: username || "Operator Kasir",
+                amount: isNaN(parsedAmt) ? 0 : parsedAmt,
+                priority: approvalPriority,
+                notes: approvalNotes.trim(),
+              });
+              setIsSubmittingApproval(false);
+
+              if (res.success) {
+                toast.success("Pengajuan persetujuan berhasil terkirim ke Owner!");
+                setIsApprovalModalOpen(false);
+              } else {
+                toast.error("Gagal mengirim pengajuan: " + (res.error || "Kesalahan sistem"));
+              }
+            }}
+            className="space-y-3 text-xs"
+          >
+            <div>
+              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Tipe Permohonan</label>
+              <select
+                value={approvalType}
+                onChange={(e) => setApprovalType(e.target.value as any)}
+                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+              >
+                <option value="discount">🏷️ Diskon Khusus Kasir</option>
+                <option value="refund">↩️ Refund / Void Nota Transaksi</option>
+                <option value="purchase_order">📦 Purchase Order (PO Restock Bahan)</option>
+                <option value="transfer">🔄 Transfer / Kas Keluar Operasional</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Judul Pengajuan</label>
+              <input
+                type="text"
+                placeholder="Contoh: Diskon 20% Rombongan / PO Daging 10kg"
+                value={approvalTitle}
+                onChange={(e) => setApprovalTitle(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+                required
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Operator Pengaju</label>
+                <input
+                  type="text"
+                  value={username}
+                  disabled
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-100 dark:bg-slate-800 p-2.5 font-bold text-gray-600 dark:text-slate-400"
+                />
+              </div>
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Nominal (Rp)</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  value={approvalAmount}
+                  onChange={(e) => setApprovalAmount(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Tingkat Urgensi</label>
+              <select
+                value={approvalPriority}
+                onChange={(e) => setApprovalPriority(e.target.value as any)}
+                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+              >
+                <option value="critical">🔴 Kritis (Darurat - Butuh Respon Segera)</option>
+                <option value="high">🟠 Tinggi</option>
+                <option value="medium">🔵 Sedang (Normal)</option>
+                <option value="low">⚪ Rendah</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Catatan / Alasan</label>
+              <textarea
+                rows={3}
+                placeholder="Jelaskan alasan pengajuan ini untuk pertimbangan Owner..."
+                value={approvalNotes}
+                onChange={(e) => setApprovalNotes(e.target.value)}
+                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+              />
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsApprovalModalOpen(false)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 font-bold hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-300"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmittingApproval}
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 font-bold text-white shadow-md disabled:opacity-50"
+              >
+                {isSubmittingApproval ? "Sending..." : "Kirim Pengajuan"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     )}
     </>
   );

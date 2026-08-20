@@ -1111,3 +1111,53 @@ export async function reviewCancellationRequestAction(
     return { success: false, error: "Gagal memproses review pembatalan" };
   }
 }
+
+export async function createAdminApprovalAction(data: {
+  type: "purchase_order" | "discount" | "refund" | "transfer";
+  title: string;
+  requestedBy: string;
+  amount: number;
+  priority?: "critical" | "high" | "medium" | "low";
+  notes?: string;
+}) {
+  try {
+    const { tenant, user } = await requireTenantPermission("orders:create-pos", { expectedApp: "admin" });
+
+    const trimmedTitle = (data.title || "").trim();
+    if (!trimmedTitle) {
+      return { success: false, error: "Judul pengajuan tidak boleh kosong." };
+    }
+
+    const [newApproval] = await db
+      .insert(schema.approvals)
+      .values({
+        tenantId: tenant.id,
+        type: data.type,
+        title: trimmedTitle,
+        requestedBy: (data.requestedBy || user.name || "Operator Kasir").trim(),
+        amount: String(Math.max(0, Number(data.amount) || 0)),
+        priority: data.priority || "medium",
+        status: "pending",
+        notes: (data.notes || "").trim() || null,
+      })
+      .returning();
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "create_admin_approval",
+      entityType: "approvals",
+      entityId: newApproval.id,
+      details: { title: trimmedTitle, amount: data.amount, type: data.type },
+    });
+
+    revalidatePath("/");
+    return { success: true, data: newApproval };
+  } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return { success: false, error: err.message };
+    }
+    console.error("Error in createAdminApprovalAction:", err);
+    return { success: false, error: "Gagal membuat pengajuan persetujuan" };
+  }
+}
