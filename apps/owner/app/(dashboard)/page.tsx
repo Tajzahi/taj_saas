@@ -296,6 +296,9 @@ export default function ExecutiveCockpit() {
   const ordersValue = liveData ? liveData.orderCount : 0;
   const aovValue = liveData ? liveData.aov : 0;
   const grossMarginValue = liveData ? liveData.grossProfitMargin : 0;
+  const cogsValue = liveData ? (liveData.cogsPercentage || 0) : 0;
+  const laborValue = liveData ? (liveData.laborPercentage || 0) : 0;
+  const wasteValue = liveData ? (liveData.wastePercentage || 0) : 0;
 
   // Render chartData directly from live database trend or zero-state trend
   const chartData = liveData?.trend && liveData.trend.length > 0
@@ -375,7 +378,7 @@ export default function ExecutiveCockpit() {
         />
         <KpiCard
           label="Modal Bahan Baku"
-          value="0.0%"
+          value={formatPercent(cogsValue)}
           change={0}
           isPositiveGood={false}
           iconBg="bg-amber-100 dark:bg-amber-950/30"
@@ -387,7 +390,7 @@ export default function ExecutiveCockpit() {
         />
         <KpiCard
           label="Gaji Pegawai"
-          value="0.0%"
+          value={formatPercent(laborValue)}
           change={0}
           isPositiveGood={false}
           iconBg="bg-blue-100 dark:bg-blue-950/30"
@@ -399,7 +402,7 @@ export default function ExecutiveCockpit() {
         />
         <KpiCard
           label="Bahan Terbuang"
-          value="0.0%"
+          value={formatPercent(wasteValue)}
           change={0}
           isPositiveGood={false}
           iconBg="bg-red-100 dark:bg-red-950/30"
@@ -560,7 +563,7 @@ export default function ExecutiveCockpit() {
                       </td>
                       <td className="py-2.5 text-right">
                         <span className="text-xs font-semibold text-emerald-600">
-                          {formatPercent(60)}
+                          {formatPercent(menu.marginPercent || 70)}
                         </span>
                       </td>
                       <td className="py-2.5 text-center">
@@ -650,8 +653,8 @@ export default function ExecutiveCockpit() {
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 ml-2">
-                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{formatRupiah(0, true)}</p>
-                      <p className="text-xs text-slate-400">0 order</p>
+                      <p className="text-xs font-bold text-slate-800 dark:text-slate-200">{formatRupiah(cabang.revenue || 0, true)}</p>
+                      <p className="text-xs text-slate-400">{cabang.orders || 0} order</p>
                     </div>
                   </div>
                 ))

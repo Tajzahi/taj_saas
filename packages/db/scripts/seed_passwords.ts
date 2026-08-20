@@ -65,7 +65,7 @@ async function main() {
       const res = await auth.api.signUpEmail({
         body: {
           email: u.email,
-          password: 'password123',
+          password: 'A6nyusss',
           name: u.name,
         }
       });

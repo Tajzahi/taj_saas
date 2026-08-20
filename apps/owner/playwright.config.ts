@@ -35,9 +35,9 @@ export default defineConfig({
   webServer: process.env.CI
     ? undefined
     : {
-        command: 'pnpm dev',
-        url: process.env.TEST_BASE_URL || 'http://localhost:3002',
-        reuseExistingServer: !process.env.CI,
+        command: 'npx next dev -p 3002',
+        url: 'http://localhost:3002',
+        reuseExistingServer: true,
         timeout: 120000,
       },
 });

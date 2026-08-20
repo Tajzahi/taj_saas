@@ -83,6 +83,23 @@ export async function getRevenueOverviewAction(
     const totalCogs = totalSubtotal * cogsRate;
     const grossProfit = totalRevenue - totalCogs;
     const grossProfitMargin = totalRevenue > 0 ? Number(((grossProfit / totalRevenue) * 100).toFixed(1)) : 0;
+    const cogsPercentage = totalRevenue > 0 ? Number(((totalCogs / totalRevenue) * 100).toFixed(1)) : Number((cogsRate * 100).toFixed(1));
+
+    // Calculate labor percentage from employee profiles
+    const profiles = await db
+      .select({ salary: schema.profiles.salary })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.tenantId, tenant.id));
+    const totalLaborSalaries = profiles.reduce((sum, p) => sum + (parseFloat(p.salary || "0") || 0), 0);
+    const laborPercentage = totalRevenue > 0 ? Number(((totalLaborSalaries / totalRevenue) * 100).toFixed(1)) : 0;
+
+    // Calculate waste percentage from inventory transactions (if any waste logged)
+    const wasteLogs = await db
+      .select({ quantity: schema.inventoryTransactions.quantity, cost: schema.inventoryTransactions.cost })
+      .from(schema.inventoryTransactions)
+      .where(and(eq(schema.inventoryTransactions.tenantId, tenant.id), eq(schema.inventoryTransactions.type, "waste")));
+    const totalWasteCost = wasteLogs.reduce((sum, w) => sum + (Number(w.cost) || 0), 0);
+    const wastePercentage = totalRevenue > 0 ? Number(((totalWasteCost / totalRevenue) * 100).toFixed(1)) : 0.8;
 
     // Group orders by day of week
     const dayMap: Record<string, number> = { Sun: 0, Mon: 0, Tue: 0, Wed: 0, Thu: 0, Fri: 0, Sat: 0 };
@@ -93,10 +110,16 @@ export async function getRevenueOverviewAction(
       }
     });
 
-    const trend = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => ({
-      date: d,
-      revenue: Math.round(dayMap[d] || 0),
-    }));
+    const avgRevenue = totalRevenue / 7;
+    const targetBase = avgRevenue > 0 ? avgRevenue * 1.15 : 250000;
+    const trend = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => {
+      const rev = Math.round(dayMap[d] || 0);
+      return {
+        date: d,
+        revenue: rev,
+        target: rev > 0 ? Math.round(rev * 1.15) : Math.round(targetBase),
+      };
+    });
 
     return {
       success: true,
@@ -105,6 +128,9 @@ export async function getRevenueOverviewAction(
         orderCount,
         aov: Math.round(aov),
         grossProfitMargin,
+        cogsPercentage,
+        laborPercentage,
+        wastePercentage,
         trend,
       },
     };
@@ -371,10 +397,13 @@ export async function getTopMenusAction(
       .from(schema.orderItems)
       .innerJoin(schema.orders, and(...conditions));
 
-    const aggregated: Record<string, { name: string; totalQty: number; totalRevenue: number }> = {};
+    const cogsRate = Number(tenant.branding?.cogsRate || 0.30);
+    const marginPercent = Number(((1 - cogsRate) * 100).toFixed(1));
+
+    const aggregated: Record<string, { name: string; totalQty: number; totalRevenue: number; marginPercent: number }> = {};
     for (const item of items) {
       if (!aggregated[item.menuItemName]) {
-        aggregated[item.menuItemName] = { name: item.menuItemName, totalQty: 0, totalRevenue: 0 };
+        aggregated[item.menuItemName] = { name: item.menuItemName, totalQty: 0, totalRevenue: 0, marginPercent };
       }
       aggregated[item.menuItemName].totalQty += item.quantity;
       aggregated[item.menuItemName].totalRevenue += Number(item.totalPrice) || 0;
