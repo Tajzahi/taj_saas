@@ -103,12 +103,17 @@ export const tenants = pgTable('tenants', {
 export const profiles = pgTable('profiles', {
   id: varchar('id', { length: 36 }).primaryKey(), // matches auth user id (user.id)
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }),
+  branchId: uuid('branch_id').references(() => branches.id, { onDelete: 'set null' }),
   email: text('email').notNull(),
+  phone: text('phone'),
+  bankAccount: text('bank_account'),
+  shift: text('shift').default('Pagi'),
   role: text('role').notNull().default('kasir'), // owner | manager | kasir
   salary: numeric('salary', { precision: 12, scale: 2 }).default('0'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
-  index("profiles_tenantId_idx").on(table.tenantId)
+  index("profiles_tenantId_idx").on(table.tenantId),
+  index("profiles_branchId_idx").on(table.branchId)
 ]);
 
 export const branches = pgTable('branches', {
@@ -408,6 +413,18 @@ export const employeeInvitations = pgTable('employee_invitations', {
   index("invitations_tokenHash_idx").on(table.tokenHash)
 ]);
 
+export const customRoles = pgTable('custom_roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  code: text('code').notNull(),
+  description: text('description'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index("custom_roles_tenantId_idx").on(table.tenantId),
+  uniqueIndex("custom_roles_tenant_code_idx").on(table.tenantId, table.code)
+]);
+
 export const orderCancellationRequests = pgTable('order_cancellation_requests', {
   id: uuid('id').primaryKey().defaultRandom(),
   tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
@@ -485,7 +502,18 @@ export const productionPlanItems = pgTable('production_plan_items', {
   status: text('status').default('pending').notNull(), // pending | completed
 }, (table) => [
   index("prod_plan_items_planId_idx").on(table.planId),
-  index("prod_plan_items_menuItemId_idx").on(table.menuItemId)
+]);
+
+export const shiftTypes = pgTable('shift_types', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: uuid('tenant_id').references(() => tenants.id, { onDelete: 'cascade' }).notNull(),
+  name: text('name').notNull(),
+  startTime: text('start_time').notNull(),
+  endTime: text('end_time').notNull(),
+  isOff: boolean('is_off').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+}, (table) => [
+  index("shift_types_tenantId_idx").on(table.tenantId)
 ]);
 
 // ==========================================

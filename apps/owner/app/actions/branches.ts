@@ -1,3 +1,24 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: SERVER ACTIONS MANAJEMEN CABANG (BRANCHES ACTIONS)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Berkas ini mengelola operasi data backend untuk Manajemen Cabang Toko (`/cabang`).
+ * Membaca daftar cabang ter-enrich dengan omzet real, mendaftarkan cabang baru, mengedit data,
+ * mengaktifkan/non-aktifkan status cabang (*Active / Maintenance*), serta menghapus cabang.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. GET BRANCHES (Baris 30-75)   : Ambil daftar cabang + aggregasi omzet real dari `schema.orders`.
+ * 2. CREATE BRANCH (Baris 80-150)  : Mendaftarkan cabang baru & set status `active` di `schema.branches`.
+ * 3. UPDATE / TOGGLE (155-255)    : Update profil cabang atau ubah status ke `maintenance` + audit log.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Halaman Client UI: `apps/owner/app/(dashboard)/cabang/page.tsx`
+ * - Skema Database  : `packages/db/schema.ts` (`schema.branches`, `schema.orders`, `schema.auditLogs`)
+ * =========================================================================================
+ */
+
 "use server";
 
 import { db, schema } from "@taj-saas/db";
@@ -49,7 +70,7 @@ export async function getBranchesAction() {
       const bAgg = agg[b.id] || { revenue: 0, orders: 0 };
       const avgOrder = bAgg.orders > 0 ? Math.round(bAgg.revenue / bAgg.orders) : 0;
 
-      const cogsRate = Number(tenant.branding?.cogsRate || 0.30);
+      const cogsRate = Number(tenant.branding?.cogsRate || 0);
       const estimatedCogs = Math.round(bAgg.revenue * cogsRate);
       const foodCostPct = bAgg.revenue > 0 ? Number(((estimatedCogs / bAgg.revenue) * 100).toFixed(1)) : 0;
       const branchLaborShare = branches.length > 0 ? totalLaborSalaries / branches.length : 0;
@@ -162,6 +183,8 @@ export async function updateBranchAction(
     isPrimary?: boolean;
     acceptsOnlineOrders?: boolean;
     deliveryZones?: { maxDistanceKm: number; baseFee: number; perKmFee: number }[];
+    orderingMethods?: string[];
+    paymentMethods?: string[];
     status?: "active" | "maintenance";
   }
 ) {
@@ -189,6 +212,8 @@ export async function updateBranchAction(
           ...(data.isPrimary !== undefined ? { isPrimary: data.isPrimary } : {}),
           ...(data.acceptsOnlineOrders !== undefined ? { acceptsOnlineOrders: data.acceptsOnlineOrders } : {}),
           ...(data.deliveryZones !== undefined ? { deliveryZones: data.deliveryZones } : {}),
+          ...(data.orderingMethods !== undefined ? { orderingMethods: data.orderingMethods } : {}),
+          ...(data.paymentMethods !== undefined ? { paymentMethods: data.paymentMethods } : {}),
           ...(data.status ? { status: data.status } : {}),
           updatedAt: new Date(),
         })

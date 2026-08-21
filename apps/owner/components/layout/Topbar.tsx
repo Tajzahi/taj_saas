@@ -1,3 +1,24 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: LAYOUT TOPBAR HEADER GLOBAL (OWNER APP)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Berkas ini adalah Bilah Navigasi Atas (Topbar Header) untuk Aplikasi Owner.
+ * Menyediakan Filter Cabang Global, Filter Rentang Tanggal, Lonceng Notifikasi Real-Time
+ * (terhubung ke `schema.approvals`), Toggle Mode Gelap/Terang, dan Menu Profil Pengguna.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. FETCH DATA (Baris 120-150)  : Ambil cabang (`getBranchesAction`) & notifikasi (`getApprovalsAction`).
+ * 2. SYNC FILTER (Baris 220-250) : Sinkronisasi `selectedBranchId` & `dateRange` ke `useOwnerStore`.
+ * 3. NOTIF MODAL (Baris 490-540) : Menampilkan pengajuan pending real-time dari DB dengan link ke `/persetujuan`.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Server Actions : `apps/owner/app/actions/branches.ts`, `apps/owner/app/actions/approvals.ts`
+ * - State Store    : `apps/owner/store/ownerStore.ts` (`selectedBranchId`, `dateRange`)
+ * =========================================================================================
+ */
+
 "use client";
 
 import React, { useState, useRef, useEffect } from "react";
@@ -5,6 +26,9 @@ import { usePathname, useRouter } from "next/navigation";
 import { authClient } from "@/lib/authClient";
 import { useOwnerStore } from "@/store/ownerStore";
 import { getBranchesAction } from "@/app/actions/branches";
+import { getApprovalsAction } from "@/app/actions/approvals";
+import { Button } from "@/components/ui/Button";
+import toast from "react-hot-toast";
 
 const pageTitles: Record<string, { title: string; subtitle: string }> = {
   cockpit: { title: "Dashboard Laporan", subtitle: "Ringkasan performa bisnis secara real-time" },
@@ -108,17 +132,40 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
   const { data: session } = authClient.useSession();
   const [mounted, setMounted] = useState(false);
   const [dbBranches, setDbBranches] = useState<any[]>([]);
+  const [dbNotifications, setDbNotifications] = useState<any[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
   
   const profileRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setMounted(true);
+  const fetchBranchesList = () => {
     getBranchesAction().then(res => {
       if (res.success && res.data) {
         setDbBranches(res.data);
       }
     });
+  };
+
+  const fetchNotificationsList = () => {
+    getApprovalsAction().then(res => {
+      if (res.success && res.data) {
+        setDbNotifications(res.data);
+        const pending = res.data.filter((item: any) => item.status === "pending");
+        setUnreadCount(pending.length);
+      }
+    });
+  };
+
+  useEffect(() => {
+    setMounted(true);
+    fetchBranchesList();
+    fetchNotificationsList();
+
+    function handleBranchEvent() {
+      fetchBranchesList();
+      fetchNotificationsList();
+    }
+
     function handleClickOutside(event: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setShowProfile(false);
@@ -128,8 +175,12 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    window.addEventListener("branch-updated", handleBranchEvent);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      window.removeEventListener("branch-updated", handleBranchEvent);
+    };
+  }, [pathname]);
 
   useEffect(() => {
     if (showMobileFilter || showNotif) {
@@ -143,6 +194,14 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
   }, [showMobileFilter, showNotif]);
 
   const { selectedBranchId, setSelectedBranchId, dateRange, setDateRange, customStartDate, customEndDate, setCustomDateRange } = useOwnerStore();
+
+  const [tempStartDate, setTempStartDate] = useState(customStartDate || new Date().toISOString().split("T")[0]);
+  const [tempEndDate, setTempEndDate] = useState(customEndDate || new Date().toISOString().split("T")[0]);
+
+  useEffect(() => {
+    if (customStartDate) setTempStartDate(customStartDate);
+    if (customEndDate) setTempEndDate(customEndDate);
+  }, [customStartDate, customEndDate]);
 
   const user = mounted ? session?.user : null;
   const userName = user?.name || user?.email || "Owner";
@@ -214,7 +273,14 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
             <CustomSelect
               compact
               value={dateRange}
-              onChange={(val) => setDateRange(val as any)}
+              onChange={(val) => {
+                setDateRange(val as any);
+                if (val === "custom") {
+                  setShowDatePicker(true);
+                  setShowNotif(false);
+                  setShowProfile(false);
+                }
+              }}
               options={[
                 { value: "today", label: "Hari ini" },
                 { value: "week", label: "Minggu ini" },
@@ -224,67 +290,15 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
             />
             
             {dateRange === "custom" && (
-              <div ref={datePickerRef} className="relative">
-                <button
-                  onClick={() => { setShowDatePicker(!showDatePicker); setShowNotif(false); setShowProfile(false); }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                >
-                  <svg className="w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  {customStartDate && customEndDate 
-                    ? `${customStartDate} - ${customEndDate}`
-                    : "Pilih Tanggal"}
-                </button>
-
-                {showDatePicker && (
-                  <div className="absolute right-0 top-11 w-[300px] sm:w-72 bg-white dark:bg-slate-900 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 z-50 animate-slide-up p-4">
-                    <div className="mb-3">
-                      <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1">Rentang Tanggal</h4>
-                      <p className="text-xs text-slate-500">Tentukan periode data secara kustom</p>
-                    </div>
-                    
-                    <div className="space-y-3">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Mulai Tanggal</label>
-                        <input 
-                          type="text" 
-                          placeholder="Contoh: 15 Juni 2026"
-                          value={customStartDate || ""}
-                          onChange={(e) => setCustomDateRange(e.target.value, customEndDate)}
-                          className="w-full text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/50 text-slate-800 dark:text-slate-200 transition-all"
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">Sampai Tanggal</label>
-                        <input 
-                          type="text" 
-                          placeholder="Contoh: 20 Juni 2026"
-                          value={customEndDate || ""}
-                          onChange={(e) => setCustomDateRange(customStartDate, e.target.value)}
-                          className="w-full text-sm bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500/50 text-slate-800 dark:text-slate-200 transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex gap-2 justify-end pt-3 border-t border-slate-100 dark:border-slate-800">
-                      <button 
-                        onClick={() => setShowDatePicker(false)}
-                        className="px-3 py-1.5 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-                      >
-                        Batal
-                      </button>
-                      <button 
-                        onClick={() => setShowDatePicker(false)}
-                        className="px-3 py-1.5 bg-orange-500 hover:bg-orange-600 text-white text-xs font-medium rounded-lg shadow-sm transition-colors"
-                      >
-                        Terapkan
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <button
+                onClick={() => { setShowDatePicker(true); setShowNotif(false); setShowProfile(false); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-orange-300 dark:border-orange-800 bg-orange-50/50 dark:bg-orange-950/30 text-xs font-semibold text-orange-600 dark:text-orange-400 hover:bg-orange-100 transition-all shadow-xs"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{customStartDate && customEndDate ? `${customStartDate} s/d ${customEndDate}` : "Atur Kalender"}</span>
+              </button>
             )}
           </div>
         </div>
@@ -321,9 +335,12 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
             <svg className="w-5 h-5 sm:w-5 sm:h-5 w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
             </svg>
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border-2 border-white dark:border-slate-950" />
+            {unreadCount > 0 && (
+              <span className="absolute top-1 right-1 px-1.5 py-0.5 text-[10px] font-bold bg-red-500 text-white rounded-full leading-none shadow-sm animate-pulse">
+                {unreadCount}
+              </span>
+            )}
           </button>
-          {/* Notification dropdown has been moved to a Modal */}
         </div>
 
         {/* User Avatar */}
@@ -347,11 +364,8 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
                 <p className="text-xs text-slate-500 truncate">{userEmail}</p>
               </div>
               
-              <div className="flex items-center justify-between px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" onClick={onToggleDark}>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg leading-none">{isDark ? '🌙' : '☀️'}</span>
-                  <span>Mode</span>
-                </div>
+              <div className="flex items-center justify-between px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer" onClick={onToggleDark}>
+                <span>Mode Tampilan</span>
                 <button
                   className={`w-9 h-5 rounded-full relative transition-colors ${isDark ? 'bg-orange-500' : 'bg-slate-300 dark:bg-slate-600'}`}
                 >
@@ -361,18 +375,16 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
 
               <button
                 onClick={() => { setShowProfile(false); router.push("/pengaturan"); }}
-                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                className="w-full text-left px-4 py-2.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               >
-                <span>⚙️</span>
-                Pengaturan
+                Pengaturan Akun
               </button>
               <div className="border-t border-slate-100 dark:border-slate-800">
                 <button
                   onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
                 >
-                  <span>🚪</span>
-                  Keluar
+                  Keluar Akun
                 </button>
               </div>
             </div>
@@ -488,30 +500,183 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
             </div>
             
             <div className="divide-y divide-slate-100 dark:divide-slate-800 overflow-y-auto flex-1 p-2">
-              {[
-                { icon: "🚨", title: "Stok Minyak Goreng Habis", desc: "Cabang Demak · 10 menit lalu", unread: true },
-                { icon: "✅", title: "4 PO Menunggu Persetujuan", desc: "Head Office · 25 menit lalu", unread: true },
-                { icon: "📊", title: "Laporan Harian Siap", desc: "Semua Cabang · 1 jam lalu", unread: false },
-                { icon: "💬", title: "AI: Insight baru tersedia", desc: "Cabang Demak · 2 jam lalu", unread: false },
-              ].map((n, i) => (
-                <div key={i} className={`flex items-start gap-4 px-4 py-3.5 rounded-lg mb-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors ${n.unread ? "bg-orange-50/50 dark:bg-orange-950/10" : ""}`}>
-                  <span className="text-2xl flex-shrink-0 bg-white dark:bg-slate-800 w-10 h-10 flex items-center justify-center rounded-full shadow-sm border border-slate-100 dark:border-slate-700">{n.icon}</span>
-                  <div className="flex-1 min-w-0 pt-0.5">
-                    <p className={`text-sm text-slate-900 dark:text-slate-100 ${n.unread ? "font-bold" : "font-medium"}`}>{n.title}</p>
-                    <p className="text-xs text-slate-500 mt-1">{n.desc}</p>
-                  </div>
-                  {n.unread && <div className="w-2.5 h-2.5 bg-orange-500 rounded-full mt-1.5 flex-shrink-0 shadow-sm" />}
+              {dbNotifications.length === 0 ? (
+                <div className="py-8 text-center">
+                  <p className="text-sm font-semibold text-slate-500">Tidak ada notifikasi baru</p>
+                  <p className="text-xs text-slate-400 mt-1">Semua sistem dan pengajuan berjalan lancar</p>
                 </div>
-              ))}
+              ) : (
+                dbNotifications.slice(0, 5).map((n: any, i: number) => {
+                  const isPending = n.status === "pending";
+                  return (
+                    <div
+                      key={n.id || i}
+                      onClick={() => {
+                        setShowNotif(false);
+                        router.push("/persetujuan");
+                      }}
+                      className={`flex items-start gap-3 p-3 rounded-xl mb-1 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors ${
+                        isPending ? "bg-orange-50/50 dark:bg-orange-950/20 border border-orange-200/50 dark:border-orange-900/30" : ""
+                      }`}
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-orange-100 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center text-sm font-bold shrink-0">
+                        {n.type === "purchase_order" ? "📦" : n.type === "discount" ? "🏷️" : "📋"}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className={`text-xs ${isPending ? "font-bold text-slate-900 dark:text-slate-100" : "font-medium text-slate-600 dark:text-slate-400"} truncate`}>
+                            {n.title}
+                          </p>
+                          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            n.status === "pending" ? "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300" : "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300"
+                          }`}>
+                            {n.status === "pending" ? "Pending" : n.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                          Pemohon: {n.requestedBy || "Kasir Admin"} · Prioritas: {n.priority || "Medium"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
 
-            <div className="px-5 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 text-center flex-shrink-0">
+            <div className="px-5 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/20 text-center flex-shrink-0 flex items-center gap-2">
+              <button 
+                onClick={() => {
+                  setShowNotif(false);
+                  router.push("/persetujuan");
+                }}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold rounded-lg py-2 shadow-sm transition-colors"
+              >
+                Ke Halaman Persetujuan →
+              </button>
               <button 
                 onClick={() => setShowNotif(false)}
-                className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-semibold rounded-lg py-2.5 shadow-sm transition-colors"
+                className="px-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-lg py-2 shadow-sm transition-colors"
               >
                 Tutup
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Centered Modern Date Picker Modal Dialog */}
+      {showDatePicker && (
+        <div 
+          className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-fade-in"
+          onClick={() => setShowDatePicker(false)}
+        >
+          <div 
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md animate-slide-up p-5 sm:p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 dark:bg-orange-950/40 text-orange-600 flex items-center justify-center text-base font-bold shadow-xs">
+                  📅
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Filter Kalender Kustom</h3>
+                  <p className="text-xs text-slate-500">Pilih periode tanggal awal & akhir untuk data</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowDatePicker(false)}
+                className="p-1 rounded-lg text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-600 transition-colors"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Presets */}
+            <div className="mb-4">
+              <label className="block text-xs font-semibold text-slate-500 mb-2">Preset Cepat</label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date();
+                    const past7 = new Date();
+                    past7.setDate(today.getDate() - 7);
+                    setTempStartDate(past7.toISOString().split("T")[0]);
+                    setTempEndDate(today.toISOString().split("T")[0]);
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-950/30 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-orange-600 rounded-xl border border-slate-200 dark:border-slate-700 transition-all text-center"
+                >
+                  7 Hari Terakhir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date();
+                    const past30 = new Date();
+                    past30.setDate(today.getDate() - 30);
+                    setTempStartDate(past30.toISOString().split("T")[0]);
+                    setTempEndDate(today.toISOString().split("T")[0]);
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-950/30 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-orange-600 rounded-xl border border-slate-200 dark:border-slate-700 transition-all text-center"
+                >
+                  30 Hari Terakhir
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const today = new Date();
+                    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+                    setTempStartDate(firstDay.toISOString().split("T")[0]);
+                    setTempEndDate(today.toISOString().split("T")[0]);
+                  }}
+                  className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 hover:bg-orange-50 dark:hover:bg-orange-950/30 text-xs font-medium text-slate-700 dark:text-slate-300 hover:text-orange-600 rounded-xl border border-slate-200 dark:border-slate-700 transition-all text-center"
+                >
+                  Bulan Ini
+                </button>
+              </div>
+            </div>
+
+            {/* Native Date Picker Controls */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Mulai Tanggal
+                </label>
+                <input
+                  type="date"
+                  value={tempStartDate}
+                  onChange={(e) => setTempStartDate(e.target.value)}
+                  className="w-full text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Sampai Tanggal
+                </label>
+                <input
+                  type="date"
+                  value={tempEndDate}
+                  onChange={(e) => setTempEndDate(e.target.value)}
+                  className="w-full text-xs bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2.5 font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-orange-500/50 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <Button type="button" variant="outline" className="flex-1" onClick={() => setShowDatePicker(false)}>Batal</Button>
+              <Button 
+                type="button" 
+                variant="primary" 
+                className="flex-1" 
+                onClick={() => {
+                  setCustomDateRange(tempStartDate, tempEndDate);
+                  setShowDatePicker(false);
+                  toast.success(`Periode ${tempStartDate} s/d ${tempEndDate} berhasil diterapkan!`);
+                }}
+              >
+                Terapkan Filter
+              </Button>
             </div>
           </div>
         </div>

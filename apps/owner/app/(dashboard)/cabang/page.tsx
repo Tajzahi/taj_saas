@@ -1,3 +1,25 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: HALAMAN MANAJEMEN CABANG / BRANCHES (PAGE CLIENT UI)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Antarmuka Client UI untuk mengelola Multi-Outlets / Cabang Fisik Toko (`/cabang`).
+ * Mendaftarkan cabang baru, mengedit alamat/telepon/koordinat, memantau omzet real per cabang,
+ * mengubah status (*Active / Maintenance*), serta membandingkan omzet via grafik Recharts BarChart.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. FETCH DATA (Baris 75-105)    : Polling data cabang & omzet real via `getBranchesAction`.
+ * 2. SEARCH & VIEWS (Baris 180-210): Pencarian cabang real-time & toggle mode Kartu (Grid) / Tabel (List).
+ * 3. HANDLER AKSI (Baris 110-150)  : Eksekusi `handleAddBranch` & `handleToggleStatus` dengan `toast` feedback.
+ * 4. GRAFIK (Baris 450-520)        : Visualisasi Recharts BarChart perbandingan Omzet vs Target Cabang.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Server Actions : `apps/owner/app/actions/branches.ts`
+ * - State Store    : `apps/owner/store/ownerStore.ts` (`setSelectedBranchId`)
+ * =========================================================================================
+ */
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -6,10 +28,11 @@ import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { formatRupiah, formatPercent } from "@/utils/format";
-import { getBranchesAction, createBranchAction, toggleBranchStatusAction } from "@/app/actions/branches";
+import { getBranchesAction, createBranchAction, updateBranchAction, deleteBranchAction, toggleBranchStatusAction } from "@/app/actions/branches";
 import { ExportDropdown } from "@/components/ui/ExportDropdown";
 import { useRouter } from "next/navigation";
 import { useOwnerStore } from "@/store/ownerStore";
+import toast from "react-hot-toast";
 
 const METRIC_COLORS = ["#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"];
 
@@ -51,6 +74,32 @@ export default function Cabang() {
   const [newOrderingMethods, setNewOrderingMethods] = useState<string[]>(["dine_in", "takeaway", "delivery", "pickup"]);
   const [newPaymentMethods, setNewPaymentMethods] = useState<string[]>(["cod", "qris"]);
 
+  // Form states for editing a branch
+  const [showEdit, setShowEdit] = useState(false);
+  const [editId, setEditId] = useState("");
+  const [editName, setEditName] = useState("");
+  const [editCity, setEditCity] = useState("");
+  const [editAddress, setEditAddress] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [editGmapsUrl, setEditGmapsUrl] = useState("");
+  const [editOrderingMethods, setEditOrderingMethods] = useState<string[]>(["dine_in", "takeaway", "delivery", "pickup"]);
+  const [editPaymentMethods, setEditPaymentMethods] = useState<string[]>(["cod", "qris"]);
+  const [editStatus, setEditStatus] = useState<"active" | "maintenance">("active");
+
+  const handleOpenEdit = (cabang: any) => {
+    setEditId(cabang.id);
+    setEditName(cabang.name);
+    setEditCity(cabang.city);
+    setEditAddress(cabang.address || "");
+    setEditPhone(cabang.phone === "-" ? "" : cabang.phone);
+    setEditGmapsUrl(cabang.googleMapsUrl || "");
+    setEditOrderingMethods(cabang.orderingMethods || ["dine_in", "takeaway", "delivery", "pickup"]);
+    setEditPaymentMethods(cabang.paymentMethods || ["cod", "qris"]);
+    setEditStatus(cabang.status);
+    setSelectedDetailBranch(null);
+    setShowEdit(true);
+  };
+
   const loadBranches = () => {
     setLoading(true);
     getBranchesAction().then(res => {
@@ -87,7 +136,7 @@ export default function Cabang() {
   const handleAddBranch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName || !newCity) {
-      alert("Nama dan Kota wajib diisi.");
+      toast.error("Nama dan Kota wajib diisi.");
       return;
     }
     const res = await createBranchAction({
@@ -109,9 +158,60 @@ export default function Cabang() {
       setNewGmapsUrl("");
       setNewOrderingMethods(["dine_in", "takeaway", "delivery", "pickup"]);
       setNewPaymentMethods(["cod", "qris"]);
+      toast.success("Cabang baru berhasil ditambahkan!");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("branch-updated"));
+      }
       loadBranches();
     } else {
-      alert("Gagal menambahkan cabang: " + res.error);
+      toast.error("Gagal menambahkan cabang: " + res.error);
+    }
+  };
+
+  const handleEditBranch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName || !editCity) {
+      toast.error("Nama dan Kota wajib diisi.");
+      return;
+    }
+    const res = await updateBranchAction(editId, {
+      name: editName,
+      city: editCity,
+      address: editAddress,
+      phone: editPhone,
+      googleMapsUrl: editGmapsUrl,
+      orderingMethods: editOrderingMethods,
+      paymentMethods: editPaymentMethods,
+      status: editStatus,
+    });
+
+    if (res.success) {
+      setShowEdit(false);
+      toast.success("Data cabang berhasil diperbarui!");
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("branch-updated"));
+      }
+      loadBranches();
+    } else {
+      toast.error("Gagal memperbarui cabang: " + res.error);
+    }
+  };
+
+  const handleDeleteBranch = async (id: string, name: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus cabang "${name}"? Tindakan ini tidak dapat dibatalkan.`)) {
+      return;
+    }
+    const res = await deleteBranchAction(id);
+    if (res.success) {
+      setShowEdit(false);
+      setSelectedDetailBranch(null);
+      toast.success(`Cabang "${name}" berhasil dihapus.`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("branch-updated"));
+      }
+      loadBranches();
+    } else {
+      toast.error("Gagal menghapus cabang: " + res.error);
     }
   };
 
@@ -119,9 +219,13 @@ export default function Cabang() {
     const targetStatus = currentStatus === "active" ? "maintenance" : "active";
     const res = await toggleBranchStatusAction(id, targetStatus);
     if (res.success) {
+      toast.success(`Status cabang berhasil diperbarui menjadi ${targetStatus === "active" ? "Aktif" : "Maintenance"}.`);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("branch-updated"));
+      }
       loadBranches();
     } else {
-      alert("Gagal mengubah status cabang: " + res.error);
+      toast.error("Gagal mengubah status cabang: " + res.error);
     }
   };
 
@@ -214,11 +318,16 @@ export default function Cabang() {
                 </div>
                 <button
                   onClick={() => handleToggleStatus(cabang.id, cabang.status)}
-                  className="focus:outline-none"
+                  title={`Klik untuk mengubah status cabang ke ${cabang.status === "active" ? "Maintenance (Tutup)" : "Aktif (Buka)"}`}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer border hover:scale-105 active:scale-95 ${
+                    cabang.status === "active"
+                      ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                      : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                  }`}
                 >
-                  <Badge variant={cabang.status === "active" ? "success" : "warning"}>
-                    {cabang.status === "active" ? "● Aktif" : "⚠ Maint."}
-                  </Badge>
+                  <span className={`w-2 h-2 rounded-full animate-pulse ${cabang.status === "active" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                  <span>{cabang.status === "active" ? "Aktif" : "Maintenance"}</span>
+                  <span className="text-[10px] opacity-70 ml-0.5">⇄</span>
                 </button>
               </div>
 
@@ -320,10 +429,18 @@ export default function Cabang() {
                     </td>
                     <td className="px-4 py-3 text-sm text-slate-600 dark:text-slate-400">{cabang.city}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => handleToggleStatus(cabang.id, cabang.status)}>
-                        <Badge variant={cabang.status === "active" ? "success" : "warning"}>
-                          {cabang.status === "active" ? "Aktif" : "Maintenance"}
-                        </Badge>
+                      <button
+                        onClick={() => handleToggleStatus(cabang.id, cabang.status)}
+                        title={`Klik untuk mengubah status cabang ke ${cabang.status === "active" ? "Maintenance (Tutup)" : "Aktif (Buka)"}`}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold transition-all shadow-xs cursor-pointer border hover:scale-105 active:scale-95 ${
+                          cabang.status === "active"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                            : "bg-amber-50 text-amber-700 border-amber-300 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+                        }`}
+                      >
+                        <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${cabang.status === "active" ? "bg-emerald-500" : "bg-amber-500"}`} />
+                        <span>{cabang.status === "active" ? "Aktif" : "Maintenance"}</span>
+                        <span className="text-[9px] opacity-70 ml-0.5">⇄</span>
                       </button>
                     </td>
                     <td className="px-4 py-3 text-sm font-bold text-slate-800 dark:text-slate-200">{formatRupiah(cabang.revenue, true)}</td>
@@ -585,7 +702,7 @@ export default function Cabang() {
             </div>
 
             <div className="mt-8 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-stretch justify-between gap-3">
-              <Button type="button" variant="outline" className="flex-1 order-2 sm:order-1" onClick={() => setSelectedDetailBranch(null)}>Tutup</Button>
+              <Button type="button" variant="outline" className="flex-1 order-2 sm:order-1" onClick={() => handleOpenEdit(selectedDetailBranch)}>✏️ Edit Cabang Ini</Button>
               <Button 
                 type="button" 
                 variant="primary" 
@@ -598,6 +715,158 @@ export default function Cabang() {
                 Analisis Dashboard Khusus
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Branch Modal */}
+      {showEdit && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowEdit(false)}>
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg p-5 sm:p-6 animate-slide-up max-h-[90vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">✏️ Edit Informasi Cabang</h3>
+              <button onClick={() => setShowEdit(false)} className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200">✕</button>
+            </div>
+            <form onSubmit={handleEditBranch} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Cabang</label>
+                <input
+                  type="text"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Kota</label>
+                  <input
+                    type="text"
+                    value={editCity}
+                    onChange={(e) => setEditCity(e.target.value)}
+                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">No. Telepon</label>
+                  <input
+                    type="text"
+                    value={editPhone}
+                    onChange={(e) => setEditPhone(e.target.value)}
+                    className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Alamat Lengkap</label>
+                <textarea
+                  rows={2}
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Link Google Maps URL</label>
+                <input
+                  type="url"
+                  placeholder="https://maps.google.com/..."
+                  value={editGmapsUrl}
+                  onChange={(e) => setEditGmapsUrl(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                />
+              </div>
+
+              {/* Metode Pemesanan */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  🍽️ Metode Pemesanan yang Diterapkan
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                  {[
+                    { id: "dine_in", label: "Makan di Tempat (Dine-in)" },
+                    { id: "takeaway", label: "Bungkus (Takeaway)" },
+                    { id: "delivery", label: "Pengiriman (Delivery)" },
+                    { id: "pickup", label: "Ambil Mandiri (Pickup)" },
+                  ].map(m => (
+                    <label key={m.id} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editOrderingMethods.includes(m.id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setEditOrderingMethods(prev => [...prev, m.id]);
+                          } else {
+                            setEditOrderingMethods(prev => prev.filter(x => x !== m.id));
+                          }
+                        }}
+                        className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span>{m.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Metode Pembayaran */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  💳 Metode Pembayaran yang Diterapkan
+                </label>
+                <div className="grid grid-cols-2 gap-2 bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-xl border border-slate-200 dark:border-slate-800">
+                  {[
+                    { id: "cod", label: "Tunai (Cash / COD)" },
+                    { id: "qris", label: "QRIS / Transfer Bank" },
+                  ].map(p => (
+                    <label key={p.id} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editPaymentMethods.includes(p.id)}
+                        onChange={e => {
+                          if (e.target.checked) {
+                            setEditPaymentMethods(prev => [...prev, p.id]);
+                          } else {
+                            setEditPaymentMethods(prev => prev.filter(x => x !== p.id));
+                          }
+                        }}
+                        className="rounded border-slate-300 text-orange-500 focus:ring-orange-500"
+                      />
+                      <span>{p.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Status Operasional</label>
+                <select
+                  value={editStatus}
+                  onChange={(e) => setEditStatus(e.target.value as any)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                >
+                  <option value="active">● Aktif (Buka Operasional)</option>
+                  <option value="maintenance">⚠ Maintenance (Tutup Sementara)</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-800 mt-4">
+                <Button
+                  type="button"
+                  variant="danger"
+                  onClick={() => handleDeleteBranch(editId, editName)}
+                >
+                  Hapus Cabang
+                </Button>
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowEdit(false)}>Batal</Button>
+                  <Button type="submit" variant="primary">Simpan Perubahan</Button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}
