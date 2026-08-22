@@ -3,7 +3,7 @@
 import { db, schema } from "@taj-saas/db";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
-import { MenuItem, MenuCategory, menuItems as staticMenuItems, toppingOptions, extraToppingOptions } from "@/data/menu";
+import { MenuItem, MenuCategory, menuItems as staticMenuItems, categories as staticCategories, toppingOptions, extraToppingOptions } from "@/data/menu";
 
 const DEFAULT_OUTLET_LAT = -7.2432537;
 const DEFAULT_OUTLET_LNG = 112.7206275;
@@ -138,19 +138,27 @@ export async function getCategories(): Promise<{ id: MenuCategory; label: string
   const slug = headersList.get('x-tenant-slug') || 'taj-saas';
   
   const tenant = await getTenantBySlug(slug);
-  if (!tenant) return [];
+  if (!tenant) return staticCategories;
 
   const dbCategories = await db.select()
     .from(schema.categories)
     .where(eq(schema.categories.tenantId, tenant.id))
     .orderBy(schema.categories.sortOrder);
 
+  if (!dbCategories || dbCategories.length === 0 || (dbCategories.length === 1 && dbCategories[0].slug === 'lainnya')) {
+    return staticCategories;
+  }
+
   // Map to the frontend type structure
-  return dbCategories.map(c => ({
+  const mapped = dbCategories.map(c => ({
     id: c.slug as MenuCategory,
     label: c.name,
-    icon: c.slug.includes('terang') ? 'Utensils' : 'Coffee' // fallback simple icon
+    icon: c.slug.includes('terang') ? 'Moon' : c.slug.includes('bebek') ? 'Egg' : 'Layers'
   }));
+
+  // Ensure standard categories exist if DB only has custom ones
+  const standardMissing = staticCategories.filter((sc: { id: MenuCategory; label: string; icon: string }) => !mapped.some(m => m.id === sc.id));
+  return [...mapped, ...standardMissing];
 }
 
 export async function getMenuItems(): Promise<MenuItem[]> {
@@ -158,11 +166,16 @@ export async function getMenuItems(): Promise<MenuItem[]> {
   const slug = headersList.get('x-tenant-slug') || 'taj-saas';
   
   const tenant = await getTenantBySlug(slug);
-  if (!tenant) return [];
+  if (!tenant) return staticMenuItems;
 
   const dbItems = await db.select()
     .from(schema.menuItems)
     .where(eq(schema.menuItems.tenantId, tenant.id));
+
+  // If DB items are empty, use static menu items
+  if (!dbItems || dbItems.length === 0) {
+    return staticMenuItems;
+  }
 
   // Fetch dbVariants for this tenant if populated
   const dbVariants = await db.select()
@@ -187,13 +200,38 @@ export async function getMenuItems(): Promise<MenuItem[]> {
 
   const categoryMap = new Map(dbCategories.map(c => [c.id, c.slug]));
   const categoryLabelMap = new Map(dbCategories.map(c => [c.id, c.name]));
-
   const staticMap = new Map(staticMenuItems.map(s => [s.slug, s]));
 
-  return dbItems.map(item => {
-    const categorySlug = (item.categoryId ? categoryMap.get(item.categoryId) : undefined) || 'lainnya';
-    const dbItemTableVariants = variantsMap.get(item.id);
+  const mappedDbItems: MenuItem[] = dbItems.map(item => {
+    let categorySlug = item.categoryId ? categoryMap.get(item.categoryId) : undefined;
+    let categoryLabel = item.categoryId ? categoryLabelMap.get(item.categoryId) : undefined;
     const staticItem = staticMap.get(item.slug);
+
+    // Smart inference if category in DB is missing or 'lainnya'
+    if (!categorySlug || categorySlug === 'lainnya') {
+      if (staticItem) {
+        categorySlug = staticItem.category;
+        categoryLabel = staticItem.categoryLabel;
+      } else {
+        const lowerName = item.name.toLowerCase();
+        const lowerSlug = item.slug.toLowerCase();
+        if (lowerSlug.includes('bebek') || lowerName.includes('bebek')) {
+          categorySlug = 'martabak-telur-bebek';
+          categoryLabel = 'Martabak Telur Bebek';
+        } else if (lowerSlug.includes('ayam') || lowerName.includes('ayam')) {
+          categorySlug = 'martabak-telur-ayam';
+          categoryLabel = 'Martabak Telur Ayam';
+        } else if (lowerSlug.includes('terang') || lowerName.includes('terang bulan')) {
+          categorySlug = 'terang-bulan';
+          categoryLabel = 'Terang Bulan';
+        } else {
+          categorySlug = 'lainnya';
+          categoryLabel = 'Lainnya';
+        }
+      }
+    }
+
+    const dbItemTableVariants = variantsMap.get(item.id);
 
     const variants = resolveMenuItemVariants(
       dbItemTableVariants,
@@ -203,6 +241,8 @@ export async function getMenuItems(): Promise<MenuItem[]> {
       categorySlug
     );
 
+    const badge: MenuItem['badge'] = item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined;
+
     return {
       id: item.id,
       name: item.name,
@@ -211,11 +251,20 @@ export async function getMenuItems(): Promise<MenuItem[]> {
       price: Number(item.price),
       image: item.imageUrl || staticItem?.image || `/assets/menu/placeholder.jpg`,
       category: categorySlug as MenuCategory,
-      categoryLabel: (item.categoryId ? categoryLabelMap.get(item.categoryId) : undefined) || 'Lainnya',
+      categoryLabel: categoryLabel || 'Menu Spesial',
       isAvailable: item.isAvailable,
-      badge: item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined,
+      badge,
       variants,
       relatedSlugs: staticItem?.relatedSlugs,
     };
   });
+
+  // If DB only has a small subset of test items (e.g. < 5), merge with staticMenuItems that are not yet in DB
+  if (mappedDbItems.length < staticMenuItems.length) {
+    const existingSlugs = new Set(mappedDbItems.map(i => i.slug));
+    const supplementalItems = staticMenuItems.filter(s => !existingSlugs.has(s.slug));
+    return [...mappedDbItems, ...supplementalItems];
+  }
+
+  return mappedDbItems;
 }

@@ -24,6 +24,7 @@
 
 import { useState, useEffect } from "react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { AlertTriangle, Info, TrendingUp } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { formatRupiah, formatPercent } from "@/utils/format";
@@ -147,7 +148,7 @@ export default function Keuangan() {
         {[
           { label: "Total Omzet", value: formatRupiah(latestPnL.revenue, true), sub: branchName, color: "orange" },
           { label: "Gross Profit", value: formatRupiah(latestPnL.grossProfit, true), sub: `Margin ${formatPercent(grossMarginPct)}`, color: "emerald" },
-          { label: "Net Profit", value: formatRupiah(latestPnL.netProfit, true), sub: `NPM ${formatPercent(netMarginPct)}`, color: "blue" },
+          { label: "Net Profit", value: formatRupiah(latestPnL.netProfit, true), sub: `NPM ${formatPercent(netMarginPct)}`, color: latestPnL.netProfit < 0 ? "red" : "blue" },
           { label: "HPP", value: formatRupiah(latestPnL.cogs, true), sub: `${formatPercent(cogsPct)} dari omzet`, color: "red" },
         ].map(item => (
           <div key={item.label} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
@@ -157,6 +158,20 @@ export default function Keuangan() {
           </div>
         ))}
       </div>
+
+      {/* Contextual Advisory Banner when Net Profit is negative */}
+      {latestPnL.netProfit < 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 rounded-xl p-4 flex items-start gap-3 text-xs sm:text-sm">
+          <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1 text-amber-900 dark:text-amber-200">
+            <p className="font-bold">Perhatian Finansial: Net Profit Negatif ({formatRupiah(latestPnL.netProfit)})</p>
+            <p className="text-amber-800 dark:text-amber-300 text-xs leading-relaxed">
+              Beban gaji/operasional tetap bulanan (<span className="font-semibold">{formatRupiah(latestPnL.opex)}</span>) saat ini melampaui laba kotor (<span className="font-semibold">{formatRupiah(latestPnL.grossProfit)}</span>). 
+              Tingkatkan volume transaksi penjualan harian atau evaluasi alokasi shift tenaga kerja untuk mencapai titik impas (BEP).
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-fit">

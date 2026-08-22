@@ -27,7 +27,7 @@ const paymentStatusConfig: Record<
   AdminOrder['paymentStatus'],
   { label: string; className: string }
 > = {
-  pending: { label: 'COD', className: 'text-gray-500' },
+  pending: { label: 'Belum Bayar', className: 'text-gray-600 font-semibold' },
   waiting_verification: { label: 'Perlu Verif', className: 'text-amber-600 font-semibold' },
   paid: { label: 'Lunas', className: 'text-green-600 font-semibold' },
   failed: { label: 'Verif Gagal', className: 'text-red-600 font-semibold' },
@@ -212,26 +212,28 @@ export default function OrderCard({ order, isSelected, isNew, isKDSMode: _isKDSM
 
       {/* Bottom row */}
       <div className="flex items-center justify-between gap-2 mt-3.5">
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
           {order.deliveryType === 'delivery' ? (
             <MapPin className="w-3.5 h-3.5 text-blue-500" />
           ) : (
             <ShoppingBag className="w-3.5 h-3.5 text-purple-500" />
           )}
-          <span className={`text-[11px] font-bold ${isKDSMode ? 'text-gray-700' : paymentInfo.className}`}>
-            {isKDSMode
-              ? (order.deliveryType === 'dine_in' ? 'Dine-in' : order.deliveryType === 'takeaway' ? 'Takeaway' : order.deliveryType === 'delivery' ? 'Delivery' : 'Pickup')
-              : (order.deliveryType === 'dine_in'
-                  ? 'Dine-in'
-                  : order.deliveryType === 'takeaway'
-                  ? 'Takeaway'
-                  : order.deliveryType === 'delivery'
-                  ? 'Delivery App'
-                  : 'Pickup / Kasir')}
+          <span className="text-[11px] font-bold text-gray-700">
+            {order.deliveryType === 'dine_in'
+              ? 'Dine-in'
+              : order.deliveryType === 'takeaway'
+              ? 'Takeaway'
+              : order.deliveryType === 'delivery'
+              ? 'Delivery'
+              : 'Pickup / POS'}
           </span>
-          {!isKDSMode && order.paymentMethod === 'transfer' && (
-            <span className={`text-[11px] ${paymentInfo.className}`}>· {paymentInfo.label}</span>
-          )}
+          <span className="text-gray-300 text-xs">·</span>
+          <span className={`text-[11px] font-bold ${order.paymentMethod === 'transfer' ? 'text-blue-600' : 'text-emerald-700'}`}>
+            {order.paymentMethod === 'transfer' ? 'QRIS' : 'COD / Tunai'}
+          </span>
+          <span className={`text-[11px] font-medium ${paymentInfo.className}`}>
+            ({paymentInfo.label})
+          </span>
         </div>
         <span className={`text-[10px] px-2 py-0.5 rounded-full font-black tracking-wide uppercase ${statusInfo.className}`}>
           {statusInfo.label}

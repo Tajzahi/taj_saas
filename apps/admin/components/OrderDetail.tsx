@@ -135,7 +135,7 @@ export default function OrderDetail({ order }: OrderDetailProps) {
   const paymentStatusBadge = () => {
     switch (order.paymentStatus) {
       case 'pending':
-        const labelPending = order.deliveryType === 'pickup' ? 'Tunai' : 'COD';
+        const labelPending = order.paymentMethod === 'transfer' ? 'QRIS' : (order.deliveryType === 'pickup' || order.deliveryType === 'dine_in' ? 'Tunai' : 'COD');
         return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600"><Clock className="w-3 h-3" />Menunggu Bayar ({labelPending})</span>;
       case 'waiting_verification':
         return <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 animate-pulse"><AlertTriangle className="w-3 h-3" />Menunggu Verifikasi</span>;

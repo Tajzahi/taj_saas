@@ -818,6 +818,7 @@ export async function writeAuditLogAction(action: string, details: string, order
 // Create Offline POS Order in Database
 export async function createOfflineOrderAction(data: {
   customerName: string;
+  customerPhone?: string;
   orderType: "dine_in" | "takeaway" | "pickup" | "delivery";
   tableNo?: string;
   items: { id: string; name: string; price: number; qty: number }[];
@@ -856,6 +857,12 @@ export async function createOfflineOrderAction(data: {
     const rand = crypto.randomBytes(3).toString("hex").toUpperCase();
     const orderCode = `POS-${rand}`;
 
+    const formattedNotes = data.notes
+      ? `${data.notes} (${data.orderType === "dine_in" ? `Dine-In${data.tableNo ? ` Meja ${data.tableNo}` : ""}` : data.orderType.toUpperCase()})`
+      : data.orderType === "dine_in"
+      ? `Dine-In${data.tableNo ? ` Meja ${data.tableNo}` : ""}`
+      : data.orderType.toUpperCase();
+
     const createdOrder = await db.transaction(async (tx) => {
       const [newOrder] = await tx
         .insert(schema.orders)
@@ -863,15 +870,7 @@ export async function createOfflineOrderAction(data: {
           tenantId: tenant.id,
           orderCode,
           customerName: data.customerName || "Pelanggan POS",
-          customerPhone: data.tableNo
-            ? `Meja ${data.tableNo}`
-            : data.orderType === "dine_in"
-            ? "Dine-In"
-            : data.orderType === "takeaway"
-            ? "Takeaway"
-            : data.orderType === "delivery"
-            ? "Delivery"
-            : "Pickup",
+          customerPhone: data.customerPhone?.trim() || "-",
           deliveryType: data.orderType,
           subtotal: subtotal.toString(),
           deliveryFee,
@@ -884,11 +883,7 @@ export async function createOfflineOrderAction(data: {
           paymentStatus: "paid",
           paymentProofUrl: data.paymentProofUrl || null,
           pricingSnapshot,
-          notes:
-            data.notes ||
-            (data.orderType === "dine_in"
-              ? `Dine-In${data.tableNo ? " Meja " + data.tableNo : ""}`
-              : data.orderType.toUpperCase()),
+          notes: formattedNotes,
         })
         .returning();
 
