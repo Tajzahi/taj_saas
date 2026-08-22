@@ -170,27 +170,25 @@ export async function calculateOrderPricing(
     queryOrConditions.push(inArray(schema.menuItems.slug, distinctSlugs));
   }
 
-  if (queryOrConditions.length === 0) {
-    throw new Error("Daftar item pesanan tidak valid.");
-  }
-
-  const dbMenuItems = await db
-    .select({
-      id: schema.menuItems.id,
-      slug: schema.menuItems.slug,
-      name: schema.menuItems.name,
-      price: schema.menuItems.price,
-      isAvailable: schema.menuItems.isAvailable,
-      categoryId: schema.menuItems.categoryId,
-      variants: schema.menuItems.variants,
-    })
-    .from(schema.menuItems)
-    .where(
-      and(
-        eq(schema.menuItems.tenantId, tenantId),
-        or(...queryOrConditions)
-      )
-    );
+  const dbMenuItems = queryOrConditions.length > 0
+    ? await db
+        .select({
+          id: schema.menuItems.id,
+          slug: schema.menuItems.slug,
+          name: schema.menuItems.name,
+          price: schema.menuItems.price,
+          isAvailable: schema.menuItems.isAvailable,
+          categoryId: schema.menuItems.categoryId,
+          variants: schema.menuItems.variants,
+        })
+        .from(schema.menuItems)
+        .where(
+          and(
+            eq(schema.menuItems.tenantId, tenantId),
+            or(...queryOrConditions)
+          )
+        )
+    : [];
 
   // Map database categories
   const categories = await db
@@ -202,13 +200,55 @@ export async function calculateOrderPricing(
   const itemMapById = new Map(dbMenuItems.map((item) => [item.id, item]));
   const itemMapBySlug = new Map(dbMenuItems.map((item) => [item.slug, item]));
 
+  const STATIC_CATALOGUE_FALLBACK: Record<string, { id?: string; name: string; price: number; categorySlug?: string }> = {
+    'martabak-telur-ayam-1-telur-20k': { name: 'Martabak Telur Ayam - 1 Telur (Rp 20.000)', price: 20000, categorySlug: 'martabak-telur-ayam' },
+    'martabak-telur-ayam-2-telur-25k': { name: 'Martabak Telur Ayam - 2 Telur (Rp 25.000)', price: 25000, categorySlug: 'martabak-telur-ayam' },
+    'martabak-telur-ayam-2-telur-30k': { name: 'Martabak Telur Ayam - 2 Telur (Rp 30.000)', price: 30000, categorySlug: 'martabak-telur-ayam' },
+    'martabak-telur-ayam-3-telur-35k': { name: 'Martabak Telur Ayam - 3 Telur (Rp 35.000)', price: 35000, categorySlug: 'martabak-telur-ayam' },
+    'martabak-telur-ayam-3-telur-40k': { name: 'Martabak Telur Ayam - 3 Telur (Rp 40.000)', price: 40000, categorySlug: 'martabak-telur-ayam' },
+    'martabak-telur-ayam-4-telur-45k': { name: 'Martabak Telur Ayam - 4 Telur (Rp 45.000)', price: 45000, categorySlug: 'martabak-telur-ayam' },
+    'martabak-telur-ayam-4-telur-50k': { name: 'Martabak Telur Ayam - 4 Telur (Rp 50.000)', price: 50000, categorySlug: 'martabak-telur-ayam' },
+    'martabak-telur-bebek-1-telur-20k': { name: 'Martabak Telur Bebek - 1 Telur (Rp 20.000)', price: 20000, categorySlug: 'martabak-telur-bebek' },
+    'martabak-telur-bebek-2-telur-25k': { name: 'Martabak Telur Bebek - 2 Telur (Rp 25.000)', price: 25000, categorySlug: 'martabak-telur-bebek' },
+    'martabak-telur-bebek-2-telur-30k': { name: 'Martabak Telur Bebek - 2 Telur (Rp 30.000)', price: 30000, categorySlug: 'martabak-telur-bebek' },
+    'martabak-telur-bebek-3-telur-35k': { name: 'Martabak Telur Bebek - 3 Telur (Rp 35.000)', price: 35000, categorySlug: 'martabak-telur-bebek' },
+    'martabak-telur-bebek-3-telur-40k': { name: 'Martabak Telur Bebek - 3 Telur (Rp 40.000)', price: 40000, categorySlug: 'martabak-telur-bebek' },
+    'martabak-telur-bebek-4-telur-45k': { name: 'Martabak Telur Bebek - 4 Telur (Rp 45.000)', price: 45000, categorySlug: 'martabak-telur-bebek' },
+    'martabak-telur-bebek-4-telur-50k': { name: 'Martabak Telur Bebek - 4 Telur (Rp 50.000)', price: 50000, categorySlug: 'martabak-telur-bebek' },
+    'martabak-telur-bebek-5-telur-55k': { name: 'Martabak Telur Bebek - 5 Telur (Rp 55.000)', price: 55000, categorySlug: 'martabak-telur-bebek' },
+    'terang-bulan-2-variant-topping': { name: 'Terang Bulan 2 Variant Topping', price: 20000, categorySlug: 'terang-bulan' },
+    'terang-bulan-milo-1-topping': { name: 'Terang Bulan Milo + 1 Topping', price: 25000, categorySlug: 'terang-bulan' },
+    'terang-bulan-oreo-1-topping': { name: 'Terang Bulan Oreo + 1 Topping', price: 25000, categorySlug: 'terang-bulan' },
+    'terang-bulan-red-velvet-1-topping': { name: 'Terang Bulan Red Velvet + 1 Topping', price: 25000, categorySlug: 'terang-bulan' },
+    'terang-bulan-nutella-1-topping': { name: 'Terang Bulan Nutella + 1 Topping', price: 30000, categorySlug: 'terang-bulan' },
+  };
+
   const itemsBreakdown: PricingItemBreakdown[] = [];
   let subtotal = 0;
 
   for (const item of items) {
-    const dbItem =
+    const rawKey = (item.menuItemSlug || item.menuItemId || "").toLowerCase().trim();
+    let dbItem =
       (item.menuItemId ? itemMapById.get(item.menuItemId) || itemMapBySlug.get(item.menuItemId) : null) ||
       (item.menuItemSlug ? itemMapBySlug.get(item.menuItemSlug) : null);
+
+    // Fallback to static catalogue if not in database
+    if (!dbItem && rawKey) {
+      const fallback = STATIC_CATALOGUE_FALLBACK[rawKey] ||
+        Object.entries(STATIC_CATALOGUE_FALLBACK).find(([k]) => rawKey.includes(k) || k.includes(rawKey))?.[1];
+
+      if (fallback) {
+        dbItem = {
+          id: item.menuItemId && UUID_REGEX.test(item.menuItemId) ? item.menuItemId : crypto.randomUUID(),
+          slug: rawKey,
+          name: fallback.name,
+          price: String(fallback.price),
+          isAvailable: true,
+          categoryId: null,
+          variants: null,
+        };
+      }
+    }
 
     if (!dbItem) {
       throw new Error(`Menu item '${item.menuItemName || item.menuItemId || item.menuItemSlug}' tidak ditemukan.`);
@@ -221,21 +261,32 @@ export async function calculateOrderPricing(
     let unitPrice = Number(dbItem.price);
 
     // R2-002: Comprehensive Variant Modifier Resolution
-    if (item.variantName && dbItem.variants && Array.isArray(dbItem.variants)) {
-      const selectedNames = item.variantName.split(",").map((s) => s.trim().toLowerCase());
+    if (item.variantName) {
+      if (dbItem.variants && Array.isArray(dbItem.variants)) {
+        const selectedNames = item.variantName.split(",").map((s) => s.trim().toLowerCase());
 
-      for (const variantGroup of dbItem.variants as any[]) {
-        // Case A: Nested structure with options array [{ name, priceModifier }]
-        if (Array.isArray(variantGroup.options)) {
-          for (const opt of variantGroup.options) {
-            if (opt?.name && selectedNames.includes(opt.name.toLowerCase())) {
-              unitPrice += Math.max(0, Number(opt.priceModifier || 0));
+        for (const variantGroup of dbItem.variants as any[]) {
+          // Case A: Nested structure with options array [{ name, priceModifier }]
+          if (Array.isArray(variantGroup.options)) {
+            for (const opt of variantGroup.options) {
+              if (opt?.name && selectedNames.includes(opt.name.toLowerCase())) {
+                unitPrice += Math.max(0, Number(opt.priceModifier || 0));
+              }
             }
           }
+          // Case B: Flat variant object [{ name, priceModifier }]
+          else if (variantGroup?.name && selectedNames.includes(variantGroup.name.toLowerCase())) {
+            unitPrice += Math.max(0, Number(variantGroup.priceModifier || 0));
+          }
         }
-        // Case B: Flat variant object [{ name, priceModifier }]
-        else if (variantGroup?.name && selectedNames.includes(variantGroup.name.toLowerCase())) {
-          unitPrice += Math.max(0, Number(variantGroup.priceModifier || 0));
+      } else {
+        // Fallback: parse price modifiers directly from text like "(+Rp 5.000)"
+        const modifierMatches = item.variantName.matchAll(/\(\+Rp\s*([\d\.]+)\)/gi);
+        for (const match of modifierMatches) {
+          const modAmount = Number(match[1].replace(/\./g, ''));
+          if (!isNaN(modAmount) && modAmount > 0) {
+            unitPrice += modAmount;
+          }
         }
       }
     }
