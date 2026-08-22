@@ -968,10 +968,10 @@ export default function MenuResep() {
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
                     />
                     <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
-                      📁 Pilih Gambar dari Perangkat
+                      📁 Pilih Gambar (PNG, JPG, WebP)
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
                         className="hidden"
                         onChange={e => {
                           const file = e.target.files?.[0];
@@ -989,6 +989,7 @@ export default function MenuResep() {
                         }}
                       />
                     </label>
+                    <p className="text-[10px] text-slate-400">Format didukung: <strong>PNG</strong>, <strong>JPG</strong>, <strong>WebP</strong> (Maks. 5 MB)</p>
                   </div>
                 </div>
               </div>
@@ -1094,10 +1095,10 @@ export default function MenuResep() {
                       className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
                     />
                     <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
-                      📁 Pilih Gambar dari Perangkat
+                      📁 Pilih Gambar (PNG, JPG, WebP)
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
                         className="hidden"
                         onChange={e => {
                           const file = e.target.files?.[0];
@@ -1115,6 +1116,7 @@ export default function MenuResep() {
                         }}
                       />
                     </label>
+                    <p className="text-[10px] text-slate-400">Format didukung: <strong>PNG</strong>, <strong>JPG</strong>, <strong>WebP</strong> (Maks. 5 MB)</p>
                   </div>
                 </div>
               </div>

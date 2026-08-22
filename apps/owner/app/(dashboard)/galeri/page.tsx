@@ -220,17 +220,17 @@ export default function GaleriPage() {
                     <div className="text-center p-4">
                       <span className="text-3xl block mb-1">📷</span>
                       <p className="text-xs text-slate-500">Pilih file gambar atau masukkan URL di bawah</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">Format ideal: WebP / JPG (maks. 5 MB)</p>
+                      <p className="text-[10px] text-slate-400 mt-0.5">Format didukung: <strong>PNG</strong>, <strong>WebP</strong>, <strong>JPG</strong> (Maks. 5 MB)</p>
                     </div>
                   )}
                 </div>
 
                 <div className="mt-2 flex items-center gap-2">
                   <label className="flex-1 cursor-pointer text-center text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/40 py-2 rounded-xl hover:bg-orange-100 transition-colors">
-                    📁 Pilih Gambar dari Perangkat
+                    📁 Pilih Gambar (PNG, JPG, WebP)
                     <input
                       type="file"
-                      accept="image/*"
+                      accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
                       className="hidden"
                       onChange={e => {
                         const file = e.target.files?.[0];
