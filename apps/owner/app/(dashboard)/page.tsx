@@ -287,10 +287,14 @@ export default function ExecutiveCockpit() {
   useEffect(() => {
     const loadDashboardData = () => {
       if (document.visibilityState !== "visible") return;
-      getRevenueOverviewAction(period).then(res => {
+      const targetBranch = selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined;
+      const dRange = dateRange || undefined;
+      const cStart = customStartDate || undefined;
+      const cEnd = customEndDate || undefined;
+      getRevenueOverviewAction(dRange, cStart, cEnd, targetBranch).then(res => {
         if (res.success) setLiveData(res.data);
       });
-      getHourlyHeatmapAction().then(res => {
+      getHourlyHeatmapAction(dRange, cStart, cEnd, targetBranch).then(res => {
         if (res.success && res.data) setHeatmapMatrix(res.data);
       });
       getBranchesAction().then(res => {
@@ -298,7 +302,7 @@ export default function ExecutiveCockpit() {
           setBranchesList(res.data);
         }
       });
-      getTopMenusAction().then(res => {
+      getTopMenusAction(dRange, cStart, cEnd, targetBranch).then(res => {
         if (res.success && res.data) {
           setTopMenusList(res.data);
         }
@@ -312,7 +316,7 @@ export default function ExecutiveCockpit() {
       clearInterval(interval);
       window.removeEventListener("focus", loadDashboardData);
     };
-  }, [period, selectedBranchId]);
+  }, [dateRange, customStartDate, customEndDate, selectedBranchId]);
 
   const revenueValue = liveData ? liveData.totalRevenue : 0;
   const ordersValue = liveData ? liveData.orderCount : 0;

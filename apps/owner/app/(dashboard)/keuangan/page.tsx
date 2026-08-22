@@ -1,3 +1,25 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: HALAMAN LAPORAN KEUANGAN RESTORAN (PAGE CLIENT UI)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Antarmuka Client UI untuk laporan finansial komprehensif (`/keuangan`).
+ * Menyajikan laporan P&L (Profit & Loss / Laba Rugi), grafik Arus Kas (Cash Flow),
+ * breakdown Omzet per Cabang, serta Rekonsiliasi Kasir POS (`schema.shifts`).
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. FETCH DATA (Baris 38-75)     : Mengambil data P&L, Arus Kas, & Shift Kasir via `getPnLAction`, `getCashflowAction`, `getShiftHistoryAction`.
+ * 2. TABS & VIEWS (Baris 115-135) : Toggle antara Tab P&L, Arus Kas, dan Rekonsiliasi Shift Kasir.
+ * 3. REKONSILIASI KASIR (265-335) : Menampilkan status shift kasir (Shift Aktif, OK/Pas, Selisih, Minus) & audit drift kasir.
+ * 4. EXPORT & KAMUS (Baris 90-100) : Tombol Ekspor PDF/Excel & Panduan Kamus Keuangan UMKM Kuliner.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Server Actions : `apps/owner/app/actions/finance.ts`
+ * - State Store    : `apps/owner/store/ownerStore.ts` (`selectedBranchId`, `dateRange`)
+ * =========================================================================================
+ */
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -33,42 +55,61 @@ export default function Keuangan() {
   const [shifts, setShifts] = useState<any[]>([]);
   const [pnl, setPnl] = useState<any[]>([]);
   const [cashflow, setCashflow] = useState<any[]>([]);
+  const [pnlByBranch, setPnlByBranch] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { selectedBranchId, dateRange } = useOwnerStore();
 
   useEffect(() => {
+    setLoading(true);
+    const rangeParam = dateRange || undefined;
+    const branchParam = selectedBranchId || undefined;
+
     Promise.all([
-      getShiftHistoryAction("today"),
-      getPnLAction("today"),
-      getCashflowAction()
+      getShiftHistoryAction(rangeParam, branchParam),
+      getPnLAction(rangeParam, branchParam),
+      getCashflowAction(rangeParam, branchParam)
     ]).then(([shiftRes, pnlRes, cashflowRes]) => {
       if (shiftRes.success && shiftRes.data) {
         const mapped = shiftRes.data.map((dbShift: any) => {
           const actualCashVal = Number(dbShift.actualCash) || 0;
           const startingCashVal = Number(dbShift.startingCash) || 0;
-          const expectedCashVal = actualCashVal;
+          const driftVal = Number(dbShift.drift) || 0;
+          const expectedCashVal = actualCashVal - driftVal;
+          const isClosed = dbShift.status === "closed";
+          let shiftStatus = "open";
+          if (isClosed) {
+            if (driftVal < 0) shiftStatus = "critical";
+            else if (driftVal > 0) shiftStatus = "warning";
+            else shiftStatus = "ok";
+          } else {
+            shiftStatus = "open";
+          }
+
           return {
             id: dbShift.id,
-            cabang: dbShift.branchName || "Cabang Demak",
-            shift: "Pagi / Operational",
-            kasir: dbShift.operatorName || "Staf Kasir",
+            cabang: dbShift.branchName || "Cabang Utama",
+            shift: isClosed ? "Operasional Selesai" : "Operasional Kasir (Aktif)",
+            kasir: dbShift.kasirName || dbShift.operatorName || "Staf Kasir",
             expectedCash: expectedCashVal,
             actualCash: actualCashVal,
-            diff: Number(dbShift.drift) || 0,
-            status: dbShift.status || "ok",
+            diff: driftVal,
+            status: shiftStatus,
           };
         });
         setShifts(mapped);
       }
-      if (pnlRes.success && pnlRes.data) {
-        setPnl(pnlRes.data);
+      if (pnlRes.success) {
+        setPnl(pnlRes.data || []);
+        if (pnlRes.byBranch) {
+          setPnlByBranch(pnlRes.byBranch);
+        }
       }
       if (cashflowRes.success && cashflowRes.data) {
         setCashflow(cashflowRes.data);
       }
       setLoading(false);
     });
-  }, []);
+  }, [selectedBranchId, dateRange]);
 
   let branchName = "Semua Cabang";
   if (selectedBranchId && selectedBranchId !== "all") {
@@ -139,7 +180,7 @@ export default function Keuangan() {
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Tren P&L (6 Bulan) {selectedBranchId && selectedBranchId !== 'all' && `- ${branchName}`}</h3>
-              <Badge variant="info" size="sm">Jul–Des 2024</Badge>
+              <Badge variant="info" size="sm">Periode Laporan</Badge>
             </div>
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={adjustedPnL} margin={{ top: 0, right: 4, left: 0, bottom: 0 }}>
@@ -158,9 +199,26 @@ export default function Keuangan() {
           {/* P&L Summary by Cabang */}
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Omzet per Cabang</h3>
-            <div className="py-6 text-center text-xs text-slate-400">
-              Belum ada data omzet cabang terdaftar
-            </div>
+            {pnlByBranch.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-400">
+                Belum ada data omzet cabang terdaftar
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {pnlByBranch.map(b => (
+                  <div key={b.branchId} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="text-slate-700 dark:text-slate-300 truncate max-w-[140px]">{b.branchName}</span>
+                      <span className="text-orange-600 font-bold">{formatRupiah(b.revenue, true)}</span>
+                    </div>
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden flex">
+                      <div className="bg-orange-500 h-full rounded-full transition-all duration-500" style={{ width: `${Math.min(100, Math.max(0, b.percentage))}%` }} />
+                    </div>
+                    <p className="text-[10px] text-slate-400 text-right font-mono">{b.percentage}% dari total omzet</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* P&L Detail Table */}
@@ -178,7 +236,7 @@ export default function Keuangan() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {adjustedPnL.map((row) => (
+                  {adjustedPnL.map((row: any) => (
                     <tr key={row.month} className={`hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors ${row.month === selectedMonth ? "bg-orange-50/50 dark:bg-orange-950/10" : ""}`} onClick={() => setSelectedMonth(row.month)}>
                       <td className="px-4 py-3 text-sm font-semibold text-slate-800 dark:text-slate-200 whitespace-nowrap">{row.month} 2024</td>
                       <td className="px-4 py-3 text-sm font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">{formatRupiah(row.revenue, true)}</td>
@@ -232,8 +290,8 @@ export default function Keuangan() {
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {[
-              { label: "Total Rekonsiliasi", value: `${displayRecon.filter(r => r.status !== "vacant").length} shift`, icon: "🧾", color: "blue" },
-              { label: "OK / Selisih Minor", value: displayRecon.filter(r => r.status === "ok").length.toString(), icon: "✅", color: "emerald" },
+              { label: "Total Rekonsiliasi", value: `${displayRecon.length} shift`, icon: "🧾", color: "blue" },
+              { label: "OK / Shift Aktif", value: displayRecon.filter(r => r.status === "ok" || r.status === "open").length.toString(), icon: "✅", color: "emerald" },
               { label: "Perlu Perhatian", value: displayRecon.filter(r => r.status === "warning" || r.status === "critical").length.toString(), icon: "⚠️", color: "amber" },
             ].map(card => (
               <div key={card.label} className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-4">
@@ -251,7 +309,7 @@ export default function Keuangan() {
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Rekonsiliasi Shift Hari Ini</h3>
-              <span className="text-xs text-slate-500">22 Desember 2024</span>
+              <span className="text-xs text-slate-500">{new Date().toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</span>
             </div>
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {displayRecon.map((rec) => (
@@ -261,8 +319,8 @@ export default function Keuangan() {
                 }`}>
                   <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                     rec.status === "ok" ? "bg-emerald-500" :
-                    rec.status === "warning" ? "bg-amber-500" :
-                    rec.status === "critical" ? "bg-red-500" : "bg-slate-300"
+                    rec.status === "open" ? "bg-blue-500" :
+                    rec.status === "warning" ? "bg-amber-500" : "bg-red-500"
                   }`} />
                   <div className="flex-1 grid grid-cols-2 md:grid-cols-6 gap-2 md:gap-4">
                     <div className="col-span-2 md:col-span-1">
@@ -288,8 +346,8 @@ export default function Keuangan() {
                       </p>
                     </div>
                     <div className="flex items-center justify-end">
-                      <Badge variant={rec.status === "ok" ? "success" : rec.status === "warning" ? "warning" : rec.status === "critical" ? "danger" : "neutral"}>
-                        {rec.status === "ok" ? "OK" : rec.status === "warning" ? "Selisih" : rec.status === "critical" ? "Kritis" : "Tutup"}
+                      <Badge variant={rec.status === "ok" ? "success" : rec.status === "open" ? "info" : rec.status === "warning" ? "warning" : "danger"}>
+                        {rec.status === "ok" ? "OK / Pas" : rec.status === "open" ? "Shift Aktif" : rec.status === "warning" ? "Selisih (+)" : "Minus (-)"}
                       </Badge>
                     </div>
                   </div>

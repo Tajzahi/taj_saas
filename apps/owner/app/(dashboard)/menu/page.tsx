@@ -1,3 +1,24 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: HALAMAN MENU & RESEP (PAGE CLIENT UI)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Antarmuka Client UI untuk manajemen Katalog Menu, Matriks Menu Engineering, serta
+ * Pengaturan Resep (Bill of Materials / BOM) real-time yang terhubung ke Stok Persediaan.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. TAMBAH/EDIT MENU: Mengelola nama, kategori, dan harga jual produk.
+ * 2. MODAL RESEP (BOM): Pengaturan bahan baku per porsi (nama bahan, qty, satuan, cost per unit).
+ * 3. HPP & MARGIN: Otomatis menghitung Total HPP & Margin Profit % secara real-time saat resep disimpan.
+ * 4. NAVIGASI MODAL: Tombol 'Batal' & 'Simpan Resep' kembali ke modal/panel sebelumnya dengan mulus.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Server Actions : `apps/owner/app/actions/menu.ts`
+ * - Database Schema: `packages/db/schema.ts` (`menuItems`, `recipes`, `recipeIngredients`, `inventory`)
+ * =========================================================================================
+ */
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -7,7 +28,17 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { formatRupiah, formatPercent } from "@/utils/format";
 import { ExportDropdown } from "@/components/ui/ExportDropdown";
-import { getMenuItemsAction, getCategoriesAction, createMenuItemAction, updateMenuItemAction } from "@/app/actions/menu";
+import { 
+  getMenuItemsAction, 
+  getCategoriesAction, 
+  createCategoryAction,
+  deleteCategoryAction,
+  createMenuItemAction, 
+  updateMenuItemAction,
+  getRecipeAction,
+  saveRecipeAction,
+  getInventoryIngredientsAction
+} from "@/app/actions/menu";
 import { getMenuEngineeringAction } from "@/app/actions/analytics";
 
 const bom: Record<string, { ingredient: string; qty: number; unit: string; cost: number }[]> = {
@@ -33,6 +64,7 @@ const statusColors: Record<string, string> = {
   "plow-horse": "#3b82f6",
   puzzle: "#f59e0b",
   dog: "#ef4444",
+  new: "#a855f7",
 };
 
 const statusLabels: Record<string, string> = {
@@ -40,6 +72,7 @@ const statusLabels: Record<string, string> = {
   "plow-horse": "POPULER",
   puzzle: "PREMIUM",
   dog: "EVALUASI",
+  new: "BARU",
 };
 
 function EngineeringTooltip({ active, payload }: any) {
@@ -55,6 +88,105 @@ function EngineeringTooltip({ active, payload }: any) {
     );
   }
   return null;
+}
+
+function parseCostNumber(val: any): number {
+  if (typeof val === "number") return val;
+  if (!val) return 0;
+  const str = String(val).trim();
+  const cleaned = str.replace(/\./g, "").replace(/,/g, ".");
+  return Number(cleaned) || 0;
+}
+
+function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  const presets = [
+    { value: "gr", label: "Gram" },
+    { value: "kg", label: "Kilogram" },
+    { value: "ml", label: "Mililiter" },
+    { value: "l", label: "Liter" },
+    { value: "pcs", label: "Pieces" },
+    { value: "butir", label: "Butir" },
+    { value: "sdm", label: "Sendok Makan" },
+    { value: "sdt", label: "Sendok Teh" },
+    { value: "slice", label: "Irisan" },
+    { value: "pack", label: "Kemasan" },
+    { value: "botol", label: "Botol" },
+    { value: "kaleng", label: "Kaleng" },
+    { value: "ikat", label: "Ikat" },
+    { value: "porsi", label: "Porsi" },
+  ];
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const filtered = presets.filter(
+    p => p.value.toLowerCase().includes((value || "").toLowerCase()) || p.label.toLowerCase().includes((value || "").toLowerCase())
+  );
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative flex items-center">
+        <input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setOpen(true)}
+          placeholder="gr/ml"
+          className="w-full text-xs px-2 py-1.5 pr-5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+          required
+        />
+        <button
+          type="button"
+          tabIndex={-1}
+          onClick={() => setOpen(!open)}
+          className="absolute right-1 text-[9px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+        >
+          ▼
+        </button>
+      </div>
+
+      {open && (
+        <div
+          onWheel={(e) => e.stopPropagation()}
+          className="absolute left-full top-0 ml-1.5 z-50 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-[128px] overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800 animate-fade-in"
+        >
+          {filtered.length > 0 ? (
+            filtered.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onChange(item.value);
+                  setOpen(false);
+                }}
+                className="w-full text-left px-2.5 py-1.5 text-xs flex items-center justify-between text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+              >
+                <span className="font-bold text-slate-800 dark:text-slate-100">{item.value}</span>
+                <span className="text-[10px] text-slate-400 font-normal">{item.label}</span>
+              </button>
+            ))
+          ) : (
+            <div className="px-2.5 py-1.5 text-[11px] text-slate-400">
+              Gunakan kustom: <span className="font-semibold text-slate-700 dark:text-slate-200">"{value}"</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function MenuResep() {
@@ -82,6 +214,133 @@ export default function MenuResep() {
   const [addCost, setAddCost] = useState(0);
   const [dbCategories, setDbCategories] = useState<any[]>([]);
 
+  // Category Modal States
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [savingCategory, setSavingCategory] = useState(false);
+
+  // Recipe Modal States
+  const [showRecipeModal, setShowRecipeModal] = useState(false);
+  const [recipeMenuItem, setRecipeMenuItem] = useState<any>(null);
+  const [recipeDraft, setRecipeDraft] = useState<any[]>([]);
+  const [inventoryOptions, setInventoryOptions] = useState<any[]>([]);
+  const [savingRecipe, setSavingRecipe] = useState(false);
+  const [dbRecipeMap, setDbRecipeMap] = useState<Record<string, any[]>>({});
+
+  const handleAddCategorySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    setSavingCategory(true);
+    const res = await createCategoryAction(newCategoryName);
+    setSavingCategory(false);
+
+    if (res.success && res.data) {
+      const updated = [...dbCategories, res.data];
+      setDbCategories(updated);
+      setCategories(["all", ...Array.from(new Set([...updated.map((c: any) => c.name), ...menuItems.map((m: any) => m.category)]))]);
+      setNewCategoryName("");
+    } else {
+      alert("Gagal menambahkan kategori: " + (res.error || "Terjadi kesalahan"));
+    }
+  };
+
+  const handleDeleteCategory = async (catId: string, catName: string) => {
+    if (!confirm(`Apakah Anda yakin ingin menghapus kategori "${catName}"?`)) return;
+    const res = await deleteCategoryAction(catId);
+    if (res.success) {
+      const updated = dbCategories.filter(c => c.id !== catId);
+      setDbCategories(updated);
+      setCategories(["all", ...Array.from(new Set([...updated.map((c: any) => c.name), ...menuItems.map((m: any) => m.category)]))]);
+    } else {
+      alert("Gagal menghapus kategori: " + (res.error || "Terjadi kesalahan"));
+    }
+  };
+
+  const handleOpenRecipeModal = async (item: any) => {
+    setRecipeMenuItem(item);
+    setShowRecipeModal(true);
+    setSavingRecipe(true);
+
+    const [recipeRes, invRes] = await Promise.all([
+      getRecipeAction(item.id),
+      getInventoryIngredientsAction(),
+    ]);
+
+    if (invRes.success && invRes.data) {
+      setInventoryOptions(invRes.data);
+    }
+
+    if (recipeRes.success && recipeRes.data && recipeRes.data.length > 0) {
+      setRecipeDraft(recipeRes.data);
+    } else {
+      setRecipeDraft([
+        { ingredientName: "", quantity: 1, unit: "gr", costPerUnit: 0 }
+      ]);
+    }
+    setSavingRecipe(false);
+  };
+
+  const handleAddIngredientRow = () => {
+    setRecipeDraft(prev => [
+      ...prev,
+      { ingredientName: "", quantity: 1, unit: "gr", costPerUnit: 0 }
+    ]);
+  };
+
+  const handleRemoveIngredientRow = (index: number) => {
+    setRecipeDraft(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleIngredientChange = (index: number, field: string, value: any) => {
+    setRecipeDraft(prev => {
+      const next = [...prev];
+      const row = { ...next[index], [field]: value };
+      
+      if (field === "ingredientName") {
+        const foundInv = inventoryOptions.find(inv => inv.name.toLowerCase() === String(value).toLowerCase());
+        if (foundInv) {
+          row.unit = foundInv.unit || row.unit || "gr";
+          row.costPerUnit = Number(foundInv.cost) || row.costPerUnit || 0;
+        }
+      }
+
+      next[index] = row;
+      return next;
+    });
+  };
+
+  const handleSaveRecipeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!recipeMenuItem) return;
+    setSavingRecipe(true);
+
+    const filteredDraft = recipeDraft.filter(r => r.ingredientName.trim() !== "");
+    const res = await saveRecipeAction(recipeMenuItem.id, filteredDraft);
+    setSavingRecipe(false);
+
+    if (res.success && res.totalHppCost !== undefined) {
+      const newCost = res.totalHppCost;
+      const price = recipeMenuItem.price;
+      const margin = price > 0 ? ((price - newCost) / price) * 100 : 0;
+
+      setMenuItems(prev => prev.map(m => m.id === recipeMenuItem.id ? {
+        ...m,
+        cost: newCost,
+        margin: Number(margin.toFixed(1)),
+        status: margin >= 60 ? "star" : "plow-horse",
+      } : m));
+
+      setDbRecipeMap(prev => ({
+        ...prev,
+        [recipeMenuItem.id]: filteredDraft,
+      }));
+
+      setShowRecipeModal(false);
+    } else {
+      alert("Gagal menyimpan resep: " + (res.error || "Terjadi kesalahan"));
+    }
+  };
+
   useEffect(() => {
     Promise.all([getMenuItemsAction(), getCategoriesAction(), getMenuEngineeringAction()]).then(([menuRes, catRes, engRes]) => {
       let cats: any[] = [];
@@ -96,6 +355,9 @@ export default function MenuResep() {
       }
 
       if (menuRes.success && menuRes.data) {
+        const totalSoldSum = Array.from(engMap.values()).reduce((sum, e) => sum + (e.totalQty || 0), 0);
+        const avgSold = engMap.size > 0 ? totalSoldSum / engMap.size : 0;
+
         const mapped = menuRes.data.map((dbMenu: any) => {
           const catObj = cats.find(c => c.id === dbMenu.categoryId);
           const categoryName = catObj ? catObj.name : "Lainnya";
@@ -103,6 +365,23 @@ export default function MenuResep() {
           const cost = Number(dbMenu.cost) || Math.round(price * 0.35);
           const margin = price > 0 ? ((price - cost) / price) * 100 : 0;
           const eng = engMap.get(dbMenu.name);
+          const soldQty = eng ? eng.totalQty : 0;
+
+          const isHighMargin = margin >= 60;
+          const isHighVolume = soldQty >= avgSold && soldQty > 0;
+
+          let status = "new";
+          if (soldQty === 0) {
+            status = isHighMargin ? "puzzle" : "new";
+          } else if (isHighMargin && isHighVolume) {
+            status = "star";
+          } else if (!isHighMargin && isHighVolume) {
+            status = "plow-horse";
+          } else if (isHighMargin && !isHighVolume) {
+            status = "puzzle";
+          } else {
+            status = "dog";
+          }
 
           return {
             id: dbMenu.id,
@@ -111,14 +390,14 @@ export default function MenuResep() {
             price,
             cost,
             margin: Number(margin.toFixed(1)),
-            soldToday: eng ? eng.totalQty : 0,
+            soldToday: soldQty,
             revenue: eng ? eng.totalRevenue : 0,
-            status: margin >= 60 ? "star" : "plow-horse",
+            status,
           };
         });
         setMenuItems(mapped);
 
-        const uniqCategories = ["all", ...Array.from(new Set(mapped.map((m: any) => m.category)))];
+        const uniqCategories = ["all", ...Array.from(new Set([...cats.map((c: any) => c.name), ...mapped.map((m: any) => m.category)]))];
         setCategories(uniqCategories as string[]);
       }
       setLoading(false);
@@ -132,7 +411,6 @@ export default function MenuResep() {
     setEditPrice(item.price);
     setEditCost(item.cost);
     setShowEdit(true);
-    setSelectedMenu(null);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -284,20 +562,28 @@ export default function MenuResep() {
                   }
                 />
               </div>
-              <div className="flex items-center gap-1 overflow-x-auto">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full">
                 {categories.map(cat => (
                   <button
                     key={cat}
                     onClick={() => setCategoryFilter(cat)}
                     className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                       categoryFilter === cat
-                        ? "bg-orange-500 text-white"
+                        ? "bg-orange-500 text-white shadow-sm"
                         : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
                     }`}
                   >
                     {cat === "all" ? "Semua" : cat}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => setShowCategoryModal(true)}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-900/50 hover:bg-orange-100 transition-all whitespace-nowrap flex items-center gap-1"
+                  title="Kelola Kategori Menu"
+                >
+                  + Kategori
+                </button>
               </div>
             </div>
 
@@ -333,7 +619,8 @@ export default function MenuResep() {
                           <Badge variant={
                             menu.status === "star" ? "success" :
                             menu.status === "plow-horse" ? "info" :
-                            menu.status === "puzzle" ? "warning" : "danger"
+                            menu.status === "puzzle" ? "warning" :
+                            menu.status === "new" ? "brand" : "danger"
                           }>
                             {statusLabels[menu.status] || menu.status}
                           </Badge>
@@ -375,8 +662,13 @@ export default function MenuResep() {
                       <p className="text-sm font-bold text-emerald-600 mt-0.5">{formatPercent(selectedItem.margin)}</p>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-400">Kategori Menu</p>
-                      <Badge variant={selectedItem.status === "star" ? "success" : "info"} className="mt-1">
+                      <p className="text-xs text-slate-400">Status Performa</p>
+                      <Badge variant={
+                        selectedItem.status === "star" ? "success" :
+                        selectedItem.status === "plow-horse" ? "info" :
+                        selectedItem.status === "puzzle" ? "warning" :
+                        selectedItem.status === "new" ? "brand" : "danger"
+                      } className="mt-1">
                         {statusLabels[selectedItem.status] || selectedItem.status}
                       </Badge>
                     </div>
@@ -400,16 +692,22 @@ export default function MenuResep() {
                           <span>Total Cost Bahan</span>
                           <span>{formatRupiah(selectedItem.cost)}</span>
                         </div>
-                        <div className="flex justify-center pt-4">
-                          <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenEdit(selectedItem)}>
+                        <div className="flex gap-2 pt-4">
+                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
                             Ubah Menu
+                          </Button>
+                          <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
+                            + Atur Resep
                           </Button>
                         </div>
                       </div>
                     ) : (
-                      <div className="flex justify-center py-2">
-                        <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenEdit(selectedItem)}>
+                      <div className="flex gap-2 py-2">
+                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
                           Ubah Menu
+                        </Button>
+                        <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
+                          + Atur Resep
                         </Button>
                       </div>
                     )}
@@ -429,20 +727,24 @@ export default function MenuResep() {
               <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Peta Performa Menu</h3>
               <div className="space-y-3">
                 <div className="p-3 bg-green-50/50 dark:bg-green-950/10 border-l-4 border-l-green-500 rounded-lg text-left">
-                  <p className="text-xs font-bold text-green-700 dark:text-green-400">STAR (Volume Tinggi, Margin Tinggi)</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Menu utama. Pertahankan kualitas, pastikan promosi tetap berjalan.</p>
+                  <p className="text-xs font-bold text-green-700 dark:text-green-400">🟢 STAR (Volume Tinggi, Margin Tinggi)</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Menu utama / unggulan. Pertahankan kualitas, pastikan stok bahan selalu siap.</p>
                 </div>
                 <div className="p-3 bg-blue-50/50 dark:bg-blue-950/10 border-l-4 border-l-blue-500 rounded-lg text-left">
-                  <p className="text-xs font-bold text-blue-700 dark:text-blue-400">POPULER (Volume Tinggi, Margin Rendah)</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Populer tapi untung tipis. Coba naikkan harga sedikit demi sedikit atau turunkan porsi cost.</p>
+                  <p className="text-xs font-bold text-blue-700 dark:text-blue-400">🔵 POPULER (Volume Tinggi, Margin Rendah)</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Sangat disukai tapi untung tipis. Coba tingkatkan harga sedikit atau kurangi porsi cost.</p>
                 </div>
                 <div className="p-3 bg-amber-50/50 dark:bg-amber-950/10 border-l-4 border-l-amber-500 rounded-lg text-left">
-                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">PREMIUM (Volume Rendah, Margin Tinggi)</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Untung besar tapi kurang laku. Buat promosi bundling atau taruh di tempat yang menonjol di menu.</p>
+                  <p className="text-xs font-bold text-amber-700 dark:text-amber-400">🟡 PREMIUM (Volume Rendah / 0 Terjual, Margin Tinggi)</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Margin besar tapi penjualan kurang/belum banyak. Dorong lewat promosi paket hemat.</p>
+                </div>
+                <div className="p-3 bg-purple-50/50 dark:bg-purple-950/10 border-l-4 border-l-purple-500 rounded-lg text-left">
+                  <p className="text-xs font-bold text-purple-700 dark:text-purple-400">🟣 BARU (0 Terjual, Margin Rendah)</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Menu baru didaftarkan & belum ada transaksi. Atur resep presisi & kenalkan ke pelanggan.</p>
                 </div>
                 <div className="p-3 bg-red-50/50 dark:bg-red-950/10 border-l-4 border-l-red-500 rounded-lg text-left">
-                  <p className="text-xs font-bold text-red-700 dark:text-red-400">EVALUASI (Volume Rendah, Margin Rendah)</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">Kurang laku dan margin tipis. Pertimbangkan untuk menghapus menu ini dari katalog.</p>
+                  <p className="text-xs font-bold text-red-700 dark:text-red-400">🔴 EVALUASI (Volume Rendah, Margin Rendah)</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Kurang laku dan margin tipis. Pertimbangkan untuk merevisi harga atau menghapus menu.</p>
                 </div>
               </div>
             </div>
@@ -481,20 +783,24 @@ export default function MenuResep() {
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Peta Performa Menu</h3>
             <div className="space-y-3">
               <div className="p-3 bg-green-50/50 dark:bg-green-950/10 border-l-4 border-l-green-500 rounded-lg">
-                <p className="text-xs font-bold text-green-700 dark:text-green-400">STAR (Volume Tinggi, Margin Tinggi)</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Menu utama. Pertahankan kualitas, pastikan promosi tetap berjalan.</p>
+                <p className="text-xs font-bold text-green-700 dark:text-green-400">🟢 STAR (Volume Tinggi, Margin Tinggi)</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Menu utama / unggulan. Pertahankan kualitas, pastikan stok bahan selalu siap.</p>
               </div>
               <div className="p-3 bg-blue-50/50 dark:bg-blue-950/10 border-l-4 border-l-blue-500 rounded-lg">
-                <p className="text-xs font-bold text-blue-700 dark:text-blue-400">POPULER (Volume Tinggi, Margin Rendah)</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Populer tapi untung tipis. Coba naikkan harga sedikit demi sedikit atau turunkan porsi cost.</p>
+                <p className="text-xs font-bold text-blue-700 dark:text-blue-400">🔵 POPULER (Volume Tinggi, Margin Rendah)</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Sangat disukai tapi untung tipis. Coba tingkatkan harga sedikit atau kurangi porsi cost.</p>
               </div>
               <div className="p-3 bg-amber-50/50 dark:bg-amber-950/10 border-l-4 border-l-amber-500 rounded-lg">
-                <p className="text-xs font-bold text-amber-700 dark:text-amber-400">PREMIUM (Volume Rendah, Margin Tinggi)</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Untung besar tapi kurang laku. Buat promosi bundling atau taruh di tempat yang menonjol di menu.</p>
+                <p className="text-xs font-bold text-amber-700 dark:text-amber-400">🟡 PREMIUM (Volume Rendah / 0 Terjual, Margin Tinggi)</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Margin besar tapi penjualan kurang/belum banyak. Dorong lewat promosi paket hemat.</p>
+              </div>
+              <div className="p-3 bg-purple-50/50 dark:bg-purple-950/10 border-l-4 border-l-purple-500 rounded-lg">
+                <p className="text-xs font-bold text-purple-700 dark:text-purple-400">🟣 BARU (0 Terjual, Margin Rendah)</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Menu baru didaftarkan & belum ada transaksi. Atur resep presisi & kenalkan ke pelanggan.</p>
               </div>
               <div className="p-3 bg-red-50/50 dark:bg-red-950/10 border-l-4 border-l-red-500 rounded-lg">
-                <p className="text-xs font-bold text-red-700 dark:text-red-400">EVALUASI (Volume Rendah, Margin Rendah)</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">Kurang laku dan margin tipis. Pertimbangkan untuk menghapus menu ini dari katalog.</p>
+                <p className="text-xs font-bold text-red-700 dark:text-red-400">🔴 EVALUASI (Volume Rendah, Margin Rendah)</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">Kurang laku dan margin tipis. Pertimbangkan untuk merevisi harga atau menghapus menu.</p>
               </div>
             </div>
           </div>
@@ -503,7 +809,7 @@ export default function MenuResep() {
 
       {/* Edit Menu Modal */}
       {showEdit && editItem && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowEdit(false)}>
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowEdit(false)}>
           <form
             onSubmit={handleSaveEdit}
             className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6 animate-slide-up"
@@ -524,12 +830,28 @@ export default function MenuResep() {
                 onChange={e => setEditName(e.target.value)}
                 required
               />
-              <Input
-                label="Kategori"
-                value={editCategory}
-                onChange={e => setEditCategory(e.target.value)}
-                required
-              />
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block mb-1">Kategori Menu</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    list="cat-options"
+                    value={editCategory}
+                    onChange={e => setEditCategory(e.target.value)}
+                    placeholder="Ketik / pilih kategori..."
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryModal(true)}
+                    className="px-2.5 py-1 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/40 rounded-xl whitespace-nowrap hover:bg-orange-100 transition-colors"
+                    title="Tambah Kategori Baru"
+                  >
+                    + Baru
+                  </button>
+                </div>
+              </div>
               <Input
                 label="Harga Jual"
                 type="number"
@@ -537,13 +859,48 @@ export default function MenuResep() {
                 onChange={e => setEditPrice(Number(e.target.value))}
                 required
               />
-              <Input
-                label="Modal Bahan Baku (HPP)"
-                type="number"
-                value={editCost}
-                onChange={e => setEditCost(Number(e.target.value))}
-                required
-              />
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">Modal Bahan Baku (HPP)</label>
+                  {(dbRecipeMap[editItem.id]?.length > 0 || (bom[editItem.id] && bom[editItem.id].length > 0)) ? (
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                      ✨ Dihitung dari Resep
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">Estimasi Manual</span>
+                  )}
+                </div>
+                <Input
+                  type="number"
+                  value={editCost}
+                  onChange={e => setEditCost(Number(e.target.value))}
+                  disabled={(dbRecipeMap[editItem.id]?.length > 0 || (bom[editItem.id] && bom[editItem.id].length > 0))}
+                  required
+                />
+                {(dbRecipeMap[editItem.id]?.length > 0 || (bom[editItem.id] && bom[editItem.id].length > 0)) ? (
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
+                    <span>HPP terkunci mengikuti rincian resep.</span>
+                    <button
+                      type="button"
+                      onClick={() => { setShowEdit(false); handleOpenRecipeModal(editItem); }}
+                      className="text-orange-600 dark:text-orange-400 font-bold hover:underline ml-1"
+                    >
+                      Ubah Resep ➔
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between text-[11px] text-slate-400 mt-1">
+                    <span>Estimasi manual. Disarankan atur resep.</span>
+                    <button
+                      type="button"
+                      onClick={() => { setShowEdit(false); handleOpenRecipeModal(editItem); }}
+                      className="text-orange-600 dark:text-orange-400 font-bold hover:underline ml-1"
+                    >
+                      + Atur Resep ➔
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setShowEdit(false)}>Batal</Button>
@@ -555,7 +912,7 @@ export default function MenuResep() {
 
       {/* Add Menu Modal */}
       {showAddMenu && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowAddMenu(false)}>
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowAddMenu(false)}>
           <form
             onSubmit={handleAddMenuSubmit}
             className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6 animate-slide-up"
@@ -577,13 +934,33 @@ export default function MenuResep() {
                 placeholder="misal: Martabak Manis Keju"
                 required
               />
-              <Input
-                label="Kategori"
-                value={addCategory}
-                onChange={e => setAddCategory(e.target.value)}
-                placeholder="misal: Terang Bulan"
-                required
-              />
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block mb-1">Kategori Menu</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    list="cat-options"
+                    value={addCategory}
+                    onChange={e => setAddCategory(e.target.value)}
+                    placeholder="Ketik / pilih kategori..."
+                    className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCategoryModal(true)}
+                    className="px-2.5 py-1 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/40 rounded-xl whitespace-nowrap hover:bg-orange-100 transition-colors"
+                    title="Tambah Kategori Baru"
+                  >
+                    + Baru
+                  </button>
+                </div>
+                <datalist id="cat-options">
+                  {categories.filter(c => c !== "all").map((cat, idx) => (
+                    <option key={idx} value={cat}>{cat}</option>
+                  ))}
+                </datalist>
+              </div>
               <Input
                 label="Harga Jual"
                 type="number"
@@ -610,7 +987,7 @@ export default function MenuResep() {
       )}
 
       {/* Mobile Detail Modal */}
-      {selectedItem && (
+      {selectedItem && !showEdit && !showRecipeModal && !showAddMenu && (
         <div className="lg:hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 animate-fade-in" onClick={() => setSelectedMenu(null)}>
           <div 
             className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6 animate-slide-up relative"
@@ -672,21 +1049,255 @@ export default function MenuResep() {
                       <span>Total Cost Bahan</span>
                       <span>{formatRupiah(selectedItem.cost)}</span>
                     </div>
-                    <div className="flex justify-center pt-4">
-                      <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenEdit(selectedItem)}>
+                    <div className="flex gap-2 pt-4">
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
                         Ubah Menu
+                      </Button>
+                      <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
+                        + Atur Resep
                       </Button>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex justify-center py-2">
-                    <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenEdit(selectedItem)}>
+                  <div className="flex gap-2 py-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
                       Ubah Menu
+                    </Button>
+                    <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
+                      + Atur Resep
                     </Button>
                   </div>
                 )}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Kelola Kategori Menu */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowCategoryModal(false)}>
+          <div
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6 animate-slide-up"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Kelola Kategori Menu</h3>
+              <button type="button" onClick={() => setShowCategoryModal(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCategorySubmit} className="flex gap-2 mb-5">
+              <input
+                type="text"
+                placeholder="Nama Kategori Baru (misal: Minuman Dingin)..."
+                value={newCategoryName}
+                onChange={e => setNewCategoryName(e.target.value)}
+                className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                required
+              />
+              <Button type="submit" variant="primary" size="sm" disabled={savingCategory} className="whitespace-nowrap">
+                {savingCategory ? "Memuat..." : "+ Tambah"}
+              </Button>
+            </form>
+
+            <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-2">Daftar Kategori Terdaftar ({dbCategories.length})</label>
+              {dbCategories.length === 0 ? (
+                <p className="text-xs text-slate-400 py-4 text-center">Belum ada kategori kustom. Tambahkan di atas.</p>
+              ) : (
+                dbCategories.map(cat => (
+                  <div key={cat.id} className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{cat.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                      className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors"
+                      title="Hapus Kategori"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Pengaturan Resep (BOM) */}
+      {showRecipeModal && recipeMenuItem && (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-slide-up overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>🥗</span> Pengaturan Resep (BOM)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Menu: <span className="font-semibold text-slate-700 dark:text-slate-200">{recipeMenuItem.name}</span> · Harga Jual: <span className="font-semibold text-orange-600">{formatRupiah(recipeMenuItem.price)}</span>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowRecipeModal(false)}
+                className="p-1.5 rounded-lg hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleSaveRecipeSubmit} className="flex-1 flex flex-col overflow-hidden">
+              <div className="flex-1 overflow-y-auto overscroll-contain p-6 space-y-4">
+                {savingRecipe ? (
+                  <div className="py-12 text-center text-xs text-slate-400">
+                    Memuat data resep & persediaan...
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Daftar Bahan Baku (BOM per Porsi)</label>
+                      <Button type="button" variant="ghost" size="sm" onClick={handleAddIngredientRow}>
+                        + Tambah Baris Bahan
+                      </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                      {recipeDraft.map((row, idx) => {
+                        const subtotalCost = (Number(row.quantity) || 0) * parseCostNumber(row.costPerUnit);
+
+                        return (
+                          <div key={idx} className="flex flex-wrap sm:flex-nowrap items-center gap-3 p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800">
+                            {/* Ingredient Name (Select or Input) */}
+                            <div className="flex-1 min-w-[140px]">
+                              <label className="text-[10px] text-slate-400 block mb-1">Nama Bahan Baku</label>
+                              <input
+                                type="text"
+                                list={`inv-list-${idx}`}
+                                value={row.ingredientName}
+                                onChange={(e) => handleIngredientChange(idx, "ingredientName", e.target.value)}
+                                placeholder="Ketik / pilih bahan..."
+                                className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                                required
+                              />
+                              <datalist id={`inv-list-${idx}`}>
+                                {inventoryOptions.map(inv => (
+                                  <option key={inv.id} value={inv.name}>{inv.name} ({inv.unit} - {formatRupiah(inv.cost)})</option>
+                                ))}
+                              </datalist>
+                            </div>
+
+                            {/* Qty */}
+                            <div className="w-20">
+                              <label className="text-[10px] text-slate-400 block mb-1">Qty</label>
+                              <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                value={row.quantity}
+                                onChange={(e) => handleIngredientChange(idx, "quantity", e.target.value)}
+                                className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                                required
+                              />
+                            </div>
+
+                            {/* Unit */}
+                            <div className="w-24">
+                              <label className="text-[10px] text-slate-400 block mb-1">Satuan</label>
+                              <UnitInputCustom
+                                value={row.unit}
+                                onChange={(val) => handleIngredientChange(idx, "unit", val)}
+                              />
+                            </div>
+
+                            {/* Cost Per Unit */}
+                            <div className="w-28">
+                              <label className="text-[10px] text-slate-400 block mb-1">Biaya/Unit</label>
+                              <input
+                                type="text"
+                                value={row.costPerUnit}
+                                onChange={(e) => handleIngredientChange(idx, "costPerUnit", e.target.value)}
+                                placeholder="10.000"
+                                className="w-full text-xs px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                              />
+                            </div>
+
+                            {/* Subtotal */}
+                            <div className="w-28 text-right pr-2">
+                              <label className="text-[10px] text-slate-400 block mb-1">Subtotal</label>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block py-1.5 whitespace-nowrap">{formatRupiah(subtotalCost)}</span>
+                            </div>
+
+                            {/* Remove Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveIngredientRow(idx)}
+                              className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg transition-colors flex-shrink-0 mt-3 sm:mt-0 ml-1"
+                              title="Hapus bahan"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Summary KPI Box */}
+                    {(() => {
+                      const totalCost = recipeDraft.reduce((sum, r) => sum + ((Number(r.quantity) || 0) * parseCostNumber(r.costPerUnit)), 0);
+                      const price = recipeMenuItem.price || 0;
+                      const marginPct = price > 0 ? ((price - totalCost) / price) * 100 : 0;
+
+                      return (
+                        <div className="p-4 rounded-xl bg-orange-50/60 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40 grid grid-cols-3 gap-3">
+                          <div>
+                            <p className="text-[10px] text-slate-500">Harga Jual</p>
+                            <p className="text-sm font-bold text-slate-900 dark:text-slate-100 mt-0.5">{formatRupiah(price)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-500">Total HPP per Porsi</p>
+                            <p className="text-sm font-bold text-orange-600 dark:text-orange-400 mt-0.5">{formatRupiah(totalCost)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[10px] text-slate-500">Margin Keuntungan</p>
+                            <p className={`text-sm font-bold mt-0.5 ${marginPct >= 60 ? "text-emerald-600" : marginPct >= 40 ? "text-amber-600" : "text-red-500"}`}>
+                              {formatPercent(marginPct)}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </>
+                )}
+              </div>
+
+              {/* Modal Footer (2 Utama: Batal & Simpan Resep) */}
+              <div className="flex gap-3 px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => setShowRecipeModal(false)}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="flex-1"
+                  disabled={savingRecipe}
+                >
+                  {savingRecipe ? "Menyimpan..." : "Simpan Resep"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

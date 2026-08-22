@@ -132,6 +132,7 @@ export const branches = pgTable('branches', {
   deliveryZones: jsonb('delivery_zones').$type<{ maxDistanceKm: number; baseFee: number; perKmFee: number }[]>(),
   orderingMethods: jsonb('ordering_methods').$type<string[]>(),
   paymentMethods: jsonb('payment_methods').$type<string[]>(),
+  operationalHours: text('operational_hours').default('08:00 - 22:00'),
   status: text('status').default('active').notNull(), // active | maintenance
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -228,6 +229,7 @@ export const inventory = pgTable('inventory', {
   unit: text('unit').notNull(),
   cost: numeric('cost', { precision: 10, scale: 2 }).default('0').notNull(),
   supplier: text('supplier'),
+  expiryDate: timestamp('expiry_date'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [

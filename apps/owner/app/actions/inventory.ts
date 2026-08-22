@@ -5,13 +5,40 @@ import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
 
-export async function getInventoryAction() {
+export async function getInventoryAction(branchId?: string) {
   try {
     const { tenant } = await requireTenantPermission("inventory:read", { expectedApp: "owner" });
+    const conditions = [eq(schema.inventory.tenantId, tenant.id)];
+    if (branchId && branchId.trim() && branchId !== "all") {
+      conditions.push(eq(schema.inventory.branchId, branchId.trim()));
+    }
+
     const items = await db
-      .select()
+      .select({
+        id: schema.inventory.id,
+        tenantId: schema.inventory.tenantId,
+        branchId: schema.inventory.branchId,
+        name: schema.inventory.name,
+        category: schema.inventory.category,
+        stock: schema.inventory.stock,
+        minStock: schema.inventory.minStock,
+        unit: schema.inventory.unit,
+        cost: schema.inventory.cost,
+        supplier: schema.inventory.supplier,
+        expiryDate: schema.inventory.expiryDate,
+        createdAt: schema.inventory.createdAt,
+        updatedAt: schema.inventory.updatedAt,
+        branchName: schema.branches.name,
+      })
       .from(schema.inventory)
-      .where(eq(schema.inventory.tenantId, tenant.id));
+      .leftJoin(
+        schema.branches,
+        and(
+          eq(schema.inventory.branchId, schema.branches.id),
+          eq(schema.branches.tenantId, tenant.id)
+        )
+      )
+      .where(and(...conditions));
     return { success: true, data: items };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
@@ -39,12 +66,21 @@ export async function getInventoryTransactionsAction() {
   }
 }
 
-export async function getWasteLogsAction() {
+export async function getWasteLogsAction(branchId?: string) {
   try {
     const { tenant } = await requireTenantPermission("inventory:read", { expectedApp: "owner" });
+    const conditions = [
+      eq(schema.inventoryTransactions.tenantId, tenant.id),
+      eq(schema.inventoryTransactions.type, "waste")
+    ];
+    if (branchId && branchId.trim() && branchId !== "all") {
+      conditions.push(eq(schema.inventoryTransactions.branchId, branchId.trim()));
+    }
+
     const logs = await db
       .select({
         id: schema.inventoryTransactions.id,
+        branchId: schema.inventoryTransactions.branchId,
         quantity: schema.inventoryTransactions.quantity,
         cost: schema.inventoryTransactions.cost,
         reason: schema.inventoryTransactions.reason,
@@ -69,15 +105,11 @@ export async function getWasteLogsAction() {
           eq(schema.branches.tenantId, tenant.id)
         )
       )
-      .where(
-        and(
-          eq(schema.inventoryTransactions.tenantId, tenant.id),
-          eq(schema.inventoryTransactions.type, "waste")
-        )
-      );
+      .where(and(...conditions));
 
     const formatted = logs.map((l) => ({
       id: l.id,
+      branchId: l.branchId,
       date: new Date(l.createdAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
       item: l.inventoryName || "Bahan Terbuang",
       qty: Number(l.quantity) || 0,
@@ -106,6 +138,7 @@ export async function createInventoryItemAction(data: {
   cost?: number;
   costPerUnit?: number;
   supplier?: string;
+  expiryDate?: string | Date | null;
   branchId?: string;
 }) {
   try {
@@ -116,18 +149,21 @@ export async function createInventoryItemAction(data: {
       return { success: false, error: "Nama barang inventaris tidak boleh kosong." };
     }
 
+    const expDate = data.expiryDate ? new Date(data.expiryDate) : null;
+
     const [item] = await db
       .insert(schema.inventory)
       .values({
         tenantId: tenant.id,
         branchId: data.branchId || null,
         name: trimmedName,
-        category: data.category || "bahan-baku",
+        category: data.category || "Bahan Baku",
         unit: (data.unit || "pcs").trim(),
         stock: String(Math.max(0, Number(data.stock) || 0)),
         minStock: String(Math.max(0, Number(data.minStock) || 0)),
         cost: String(Math.max(0, Number(data.cost ?? data.costPerUnit) || 0)),
         supplier: data.supplier || null,
+        expiryDate: expDate && !isNaN(expDate.getTime()) ? expDate : null,
       })
       .returning();
 
@@ -142,6 +178,98 @@ export async function createInventoryItemAction(data: {
 
     revalidatePath("/persediaan");
     return { success: true, data: item };
+  } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
+    const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
+    return { success: false, error: message };
+  }
+}
+
+export async function updateInventoryItemAction(
+  id: string,
+  data: {
+    name: string;
+    category?: string;
+    unit: string;
+    stock: number;
+    minStock?: number;
+    cost?: number;
+    supplier?: string;
+    expiryDate?: string | Date | null;
+    branchId?: string;
+  }
+) {
+  try {
+    const { tenant, user } = await requireTenantPermission("inventory:manage", { expectedApp: "owner" });
+
+    const trimmedName = (data.name || "").trim();
+    if (!trimmedName) {
+      return { success: false, error: "Nama barang inventaris tidak boleh kosong." };
+    }
+
+    const expDate = data.expiryDate ? new Date(data.expiryDate) : null;
+
+    const [updated] = await db
+      .update(schema.inventory)
+      .set({
+        branchId: data.branchId || null,
+        name: trimmedName,
+        category: data.category || "Bahan Baku",
+        unit: (data.unit || "pcs").trim(),
+        stock: String(Math.max(0, Number(data.stock) || 0)),
+        minStock: String(Math.max(0, Number(data.minStock) || 0)),
+        cost: String(Math.max(0, Number(data.cost) || 0)),
+        supplier: data.supplier || null,
+        expiryDate: expDate && !isNaN(expDate.getTime()) ? expDate : null,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(schema.inventory.id, id), eq(schema.inventory.tenantId, tenant.id)))
+      .returning();
+
+    if (!updated) {
+      return { success: false, error: "Barang inventaris tidak ditemukan." };
+    }
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "update_inventory_item",
+      entityType: "inventory",
+      entityId: id,
+      details: { name: trimmedName, stock: data.stock },
+    });
+
+    revalidatePath("/persediaan");
+    return { success: true, data: updated };
+  } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
+    const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
+    return { success: false, error: message };
+  }
+}
+
+export async function deleteInventoryItemAction(id: string) {
+  try {
+    const { tenant, user } = await requireTenantPermission("inventory:manage", { expectedApp: "owner" });
+
+    await db
+      .delete(schema.inventory)
+      .where(and(eq(schema.inventory.id, id), eq(schema.inventory.tenantId, tenant.id)));
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "delete_inventory_item",
+      entityType: "inventory",
+      entityId: id,
+    });
+
+    revalidatePath("/persediaan");
+    return { success: true };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
       return { success: false, error: error.message };

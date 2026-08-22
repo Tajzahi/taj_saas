@@ -71,6 +71,7 @@ export default function Cabang() {
   const [newAddress, setNewAddress] = useState("");
   const [newPhone, setNewPhone] = useState("");
   const [newGmapsUrl, setNewGmapsUrl] = useState("");
+  const [newOperationalHours, setNewOperationalHours] = useState("08:00 - 22:00");
   const [newOrderingMethods, setNewOrderingMethods] = useState<string[]>(["dine_in", "takeaway", "delivery", "pickup"]);
   const [newPaymentMethods, setNewPaymentMethods] = useState<string[]>(["cod", "qris"]);
 
@@ -82,6 +83,7 @@ export default function Cabang() {
   const [editAddress, setEditAddress] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [editGmapsUrl, setEditGmapsUrl] = useState("");
+  const [editOperationalHours, setEditOperationalHours] = useState("08:00 - 22:00");
   const [editOrderingMethods, setEditOrderingMethods] = useState<string[]>(["dine_in", "takeaway", "delivery", "pickup"]);
   const [editPaymentMethods, setEditPaymentMethods] = useState<string[]>(["cod", "qris"]);
   const [editStatus, setEditStatus] = useState<"active" | "maintenance">("active");
@@ -93,6 +95,7 @@ export default function Cabang() {
     setEditAddress(cabang.address || "");
     setEditPhone(cabang.phone === "-" ? "" : cabang.phone);
     setEditGmapsUrl(cabang.googleMapsUrl || "");
+    setEditOperationalHours(cabang.operationalHours || "08:00 - 22:00");
     setEditOrderingMethods(cabang.orderingMethods || ["dine_in", "takeaway", "delivery", "pickup"]);
     setEditPaymentMethods(cabang.paymentMethods || ["cod", "qris"]);
     setEditStatus(cabang.status);
@@ -111,6 +114,7 @@ export default function Cabang() {
           address: dbBranch.address,
           phone: dbBranch.phone || "-",
           googleMapsUrl: dbBranch.googleMapsUrl || "",
+          operationalHours: dbBranch.operationalHours || "08:00 - 22:00",
           orderingMethods: dbBranch.orderingMethods || ["dine_in", "takeaway", "delivery", "pickup"],
           paymentMethods: dbBranch.paymentMethods || ["cod", "qris"],
           manager: dbBranch.picName || "Belum Ditugaskan",
@@ -145,6 +149,7 @@ export default function Cabang() {
       address: newAddress,
       phone: newPhone,
       googleMapsUrl: newGmapsUrl,
+      operationalHours: newOperationalHours,
       orderingMethods: newOrderingMethods,
       paymentMethods: newPaymentMethods,
     });
@@ -156,6 +161,7 @@ export default function Cabang() {
       setNewAddress("");
       setNewPhone("");
       setNewGmapsUrl("");
+      setNewOperationalHours("08:00 - 22:00");
       setNewOrderingMethods(["dine_in", "takeaway", "delivery", "pickup"]);
       setNewPaymentMethods(["cod", "qris"]);
       toast.success("Cabang baru berhasil ditambahkan!");
@@ -180,6 +186,7 @@ export default function Cabang() {
       address: editAddress,
       phone: editPhone,
       googleMapsUrl: editGmapsUrl,
+      operationalHours: editOperationalHours,
       orderingMethods: editOrderingMethods,
       paymentMethods: editPaymentMethods,
       status: editStatus,
@@ -314,6 +321,7 @@ export default function Cabang() {
                   <div>
                     <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{cabang.name}</p>
                     <p className="text-xs text-slate-500">{cabang.city}</p>
+                    <p className="text-[11px] text-slate-400 font-mono mt-0.5">{cabang.operationalHours}</p>
                   </div>
                 </div>
                 <button
@@ -565,6 +573,18 @@ export default function Cabang() {
                 </p>
               </div>
 
+              {/* Jam Operasional Cabang */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Jam Operasional Cabang (Buka - Tutup)
+                </label>
+                <Input
+                  placeholder="08:00 - 22:00"
+                  value={newOperationalHours}
+                  onChange={e => setNewOperationalHours(e.target.value)}
+                />
+              </div>
+
               {/* Metode Pemesanan */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -658,7 +678,7 @@ export default function Cabang() {
             </div>
 
             <div className="space-y-5">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
                   <p className="text-xs text-slate-500 mb-1.5">Status Operasional</p>
                   <div className="w-fit">
@@ -666,6 +686,10 @@ export default function Cabang() {
                       {selectedDetailBranch.status === "active" ? "Aktif (Buka)" : "Maintenance (Tutup)"}
                     </Badge>
                   </div>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
+                  <p className="text-xs text-slate-500 mb-1">Jam Operasional</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 font-mono">{selectedDetailBranch.operationalHours || "08:00 - 22:00"}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-100 dark:border-slate-800 flex flex-col justify-center">
                   <p className="text-xs text-slate-500 mb-1">Telepon</p>
@@ -778,6 +802,16 @@ export default function Cabang() {
                   placeholder="https://maps.google.com/..."
                   value={editGmapsUrl}
                   onChange={(e) => setEditGmapsUrl(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Jam Operasional Cabang (Buka - Tutup)</label>
+                <input
+                  type="text"
+                  placeholder="08:00 - 22:00"
+                  value={editOperationalHours}
+                  onChange={(e) => setEditOperationalHours(e.target.value)}
                   className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
                 />
               </div>

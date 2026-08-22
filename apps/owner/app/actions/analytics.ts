@@ -536,7 +536,13 @@ export async function getTopCustomersAction(
     }
 
     const now = new Date();
-    const sorted = Object.values(customerMap)
+    const customerList = Object.values(customerMap);
+    const totalUniqueCustomers = customerList.length;
+    const repeatCustomerCount = customerList.filter(c => c.orders > 1).length;
+    const repeatRatePct = totalUniqueCustomers > 0 ? Math.round((repeatCustomerCount / totalUniqueCustomers) * 100) : 0;
+    const newCustomerPct = totalUniqueCustomers > 0 ? 100 - repeatRatePct : 0;
+
+    const sorted = customerList
       .sort((a, b) => b.spend - a.spend)
       .slice(0, 10)
       .map((c, i) => {
@@ -551,7 +557,13 @@ export async function getTopCustomersAction(
         };
       });
 
-    return { success: true, data: sorted };
+    return {
+      success: true,
+      data: sorted,
+      repeatRatePct,
+      newCustomerPct,
+      totalUniqueCustomers,
+    };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
       return { success: false, error: error.message, data: [] };

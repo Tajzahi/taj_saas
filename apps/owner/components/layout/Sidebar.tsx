@@ -112,16 +112,48 @@ function IconSettings() {
   );
 }
 
-const navItems: NavItem[] = [
-  { id: "cockpit", label: "Dashboard Laporan", icon: <IconCockpit /> },
-  { id: "persetujuan", label: "Persetujuan", icon: <IconApproval /> },
-  { id: "cabang", label: "Cabang", icon: <IconCabang /> },
-  { id: "sdm", label: "SDM & Karyawan", icon: <IconSDM /> },
-  { id: "keuangan", label: "Keuangan", icon: <IconFinance /> },
-  { id: "persediaan", label: "Persediaan", icon: <IconInventory /> },
-  { id: "produksi", label: "Produksi", icon: <IconProduksi /> },
-  { id: "menu", label: "Menu & Resep", icon: <IconMenu /> },
-  { id: "penjualan", label: "Penjualan & Analitik", icon: <IconSales /> },
+interface NavSubItem {
+  id: PageId;
+  label: string;
+  icon: React.ReactNode;
+  badge?: string | number;
+  badgeVariant?: "danger" | "warning" | "info";
+}
+
+interface NavGroup {
+  id: string;
+  title: string;
+  icon: string;
+  items: NavSubItem[];
+}
+
+const navGroups: NavGroup[] = [
+  {
+    id: "manajemen",
+    title: "Manajemen",
+    icon: "🏛️",
+    items: [
+      { id: "cockpit", label: "Dashboard Utama", icon: <IconCockpit /> },
+      { id: "persetujuan", label: "Persetujuan", icon: <IconApproval /> },
+      { id: "cabang", label: "Cabang", icon: <IconCabang /> },
+      { id: "keuangan", label: "Keuangan", icon: <IconFinance /> },
+      { id: "penjualan", label: "Penjualan", icon: <IconSales /> },
+    ],
+  },
+  {
+    id: "operasional",
+    title: "Operasional Restoran",
+    icon: "🍳",
+    items: [
+      { id: "sdm", label: "SDM & Karyawan", icon: <IconSDM /> },
+      { id: "menu", label: "Menu & Resep", icon: <IconMenu /> },
+      { id: "persediaan", label: "Persediaan & Stok", icon: <IconInventory /> },
+      { id: "produksi", label: "Dapur & Produksi", icon: <IconProduksi /> },
+    ],
+  },
+];
+
+const standaloneItems: NavSubItem[] = [
   { id: "pengaturan", label: "Pengaturan", icon: <IconSettings /> },
 ];
 
@@ -133,6 +165,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const [dbBranding, setDbBranding] = React.useState<any>(null);
   const [dbBranchCount, setDbBranchCount] = React.useState<number>(0);
   const [dbPackageType, setDbPackageType] = React.useState<string>("Enterprise");
+
+  // Track collapsed state for dropdown categories
+  const [openGroups, setOpenGroups] = React.useState<Record<string, boolean>>({
+    manajemen: true,
+    operasional: true,
+  });
+
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups(prev => ({
+      ...prev,
+      [groupId]: !prev[groupId],
+    }));
+  };
 
   React.useEffect(() => {
     setMounted(true);
@@ -177,6 +222,15 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       activePage = segment as PageId;
     }
   }
+
+  // Auto expand group containing active item
+  React.useEffect(() => {
+    navGroups.forEach(group => {
+      if (group.items.some(item => item.id === activePage)) {
+        setOpenGroups(prev => ({ ...prev, [group.id]: true }));
+      }
+    });
+  }, [activePage]);
 
   const getPath = (id: PageId) => {
     return id === "cockpit" ? "/" : `/${id}`;
@@ -236,46 +290,112 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </div>
         )}
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
-          {navItems.map((item) => {
-            const itemPath = getPath(item.id);
-            const isActive = activePage === item.id;
+        {/* Navigation Groups */}
+        <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-3">
+          {navGroups.map((group) => {
+            const isOpen = openGroups[group.id] ?? true;
+            const hasActiveChild = group.items.some(item => item.id === activePage);
 
             return (
-              <Link
-                key={item.id}
-                href={itemPath}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 cursor-pointer group ${
-                  isActive
-                    ? "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 font-bold"
-                    : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100"
-                } ${collapsed ? "lg:justify-center lg:px-2" : ""}`}
-                title={collapsed ? item.label : undefined}
-              >
-                <span className={`flex-shrink-0 ${isActive ? "text-orange-500" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
-                  {item.icon}
-                </span>
-                {!collapsed && (
-                  <>
-                    <span className="flex-1 text-left">{item.label}</span>
-                    {item.badge && (
-                      <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
-                        item.badgeVariant === "danger" ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400" :
-                        item.badgeVariant === "warning" ? "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" :
-                        "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
-                      }`}>
-                        {item.badge}
-                      </span>
-                    )}
-                  </>
+              <div key={group.id} className="space-y-1">
+                {/* Category Header Dropdown Toggle */}
+                {!collapsed ? (
+                  <button
+                    onClick={() => toggleGroup(group.id)}
+                    className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors select-none group"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span>{group.icon}</span>
+                      <span>{group.title}</span>
+                    </span>
+                    <svg
+                      className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                ) : (
+                  <div className="w-full border-t border-slate-200 dark:border-slate-800 my-2" />
                 )}
-                {collapsed && item.badge && (
-                  <span className="absolute right-1.5 top-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-950" />
+
+                {/* Sub-Category Items */}
+                {(isOpen || collapsed) && (
+                  <div className="space-y-0.5 animate-fade-in">
+                    {group.items.map((item) => {
+                      const itemPath = getPath(item.id);
+                      const isActive = activePage === item.id;
+
+                      return (
+                        <Link
+                          key={item.id}
+                          href={itemPath}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer group relative ${
+                            isActive
+                              ? "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 font-bold"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100"
+                          } ${collapsed ? "lg:justify-center lg:px-2" : "ml-1"}`}
+                          title={collapsed ? `${group.title}: ${item.label}` : undefined}
+                        >
+                          <span className={`flex-shrink-0 ${isActive ? "text-orange-500" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
+                            {item.icon}
+                          </span>
+                          {!collapsed && (
+                            <>
+                              <span className="flex-1 text-left">{item.label}</span>
+                              {item.badge && (
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                  item.badgeVariant === "danger" ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400" :
+                                  item.badgeVariant === "warning" ? "bg-amber-100 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" :
+                                  "bg-blue-100 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400"
+                                }`}>
+                                  {item.badge}
+                                </span>
+                              )}
+                            </>
+                          )}
+                          {collapsed && item.badge && (
+                            <span className="absolute right-1.5 top-1.5 w-2 h-2 bg-red-500 rounded-full border border-white dark:border-slate-950" />
+                          )}
+                        </Link>
+                      );
+                    })}
+                  </div>
                 )}
-              </Link>
+              </div>
             );
           })}
+
+          {/* Standalone Item (Pengaturan - Standing Alone) */}
+          <div className="pt-2 border-t border-slate-200 dark:border-slate-800 my-2">
+            {standaloneItems.map((item) => {
+              const itemPath = getPath(item.id);
+              const isActive = activePage === item.id;
+
+              return (
+                <Link
+                  key={item.id}
+                  href={itemPath}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-all duration-150 cursor-pointer group relative ${
+                    isActive
+                      ? "bg-orange-50 dark:bg-orange-950/30 text-orange-600 dark:text-orange-400 font-bold"
+                      : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-100"
+                  } ${collapsed ? "lg:justify-center lg:px-2" : ""}`}
+                  title={collapsed ? item.label : undefined}
+                >
+                  <span className={`flex-shrink-0 ${isActive ? "text-orange-500" : "text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-300"}`}>
+                    {item.icon}
+                  </span>
+                  {!collapsed && (
+                    <span className="flex-1 text-left">{item.label}</span>
+                  )}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
         {/* Bottom User Section */}

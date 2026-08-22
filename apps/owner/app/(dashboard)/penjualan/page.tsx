@@ -1,6 +1,29 @@
+/**
+ * =========================================================================================
+ * 🏗️ BLUEPRINT KONSTRUKSI FITUR: HALAMAN PENJUALAN & ANALITIK (PAGE CLIENT UI)
+ * =========================================================================================
+ * 
+ * 📌 FUNGSI UTAMA FILE:
+ * Antarmuka Client UI untuk analisis mendalam performa Penjualan & Analitik Bisnis (`/penjualan`).
+ * Menyajikan 4 KPI Utama (Total Omzet, Total Order, Repeat Rate %, Avg Order Value),
+ * Grafik Tren Penjualan per Channel, Pie Chart Breakdown Channel, Volume Order per Jam,
+ * Top Menu berdasarkan Omzet, serta Tabel Top Pelanggan Setia.
+ * 
+ * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
+ * 1. FETCH DATA (Baris 97-123)     : Fetch data real-time via `getRevenueOverviewAction`, `getTopMenusAction`, `getSalesByTimeAnalyticsAction`, `getSalesChannelAnalyticsAction`, `getTopCustomersAction`.
+ * 2. PERIOD & BRANCH (Baris 88-96) : Filter dinamis berdasarkan tombol "Hari Ini", "Minggu Ini", "Bulan Ini" & filter cabang aktif `selectedBranchId`.
+ * 3. GRAFIK RECHARTS (Baris 210-330): Recharts AreaChart (Channel), PieChart (Share Channel), BarChart (Volume Jam).
+ * 4. TABEL TOP CUSTOMER (335-385)  : Tabel pelanggan setia dengan status repeat order & ekspor PDF/Excel.
+ * 
+ * 🔗 KETERIKATAN ALUR FILE LAIN:
+ * - Server Actions : `apps/owner/app/actions/analytics.ts`
+ * - State Store    : `apps/owner/store/ownerStore.ts` (`selectedBranchId`)
+ * =========================================================================================
+ */
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
@@ -8,33 +31,15 @@ import {
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { ExportDropdown } from "@/components/ui/ExportDropdown";
-
 import { formatRupiah, formatNumber } from "@/utils/format";
 import { useOwnerStore } from "@/store/ownerStore";
+import { getRevenueOverviewAction, getTopMenusAction, getSalesByTimeAnalyticsAction, getSalesChannelAnalyticsAction, getTopCustomersAction } from "@/app/actions/analytics";
 
 const CHANNEL_COLORS = ["#f97316", "#eab308", "#22c55e", "#3b82f6", "#8b5cf6"];
 
 const repeatCustomers = [
   { name: "Pelanggan Baru", value: 38, color: "#3b82f6" },
   { name: "Pelanggan Lama", value: 62, color: "#f97316" },
-];
-
-const topCustomers = [
-  { rank: 1, name: "Budi Santoso", orders: 28, spend: 1260000, lastVisit: "Kemarin" },
-  { rank: 2, name: "Ani Wijaya", orders: 24, spend: 1080000, lastVisit: "2 hari lalu" },
-  { rank: 3, name: "Sari Pertiwi", orders: 21, spend: 945000, lastVisit: "Hari ini" },
-  { rank: 4, name: "Eko Nugroho", orders: 19, spend: 855000, lastVisit: "3 hari lalu" },
-  { rank: 5, name: "Dewi Rahayu", orders: 17, spend: 765000, lastVisit: "Kemarin" },
-];
-
-const weeklyTrend = [
-  { day: "Sen", dineIn: 320000, online: 480000 },
-  { day: "Sel", dineIn: 350000, online: 520000 },
-  { day: "Rab", dineIn: 280000, online: 420000 },
-  { day: "Kam", dineIn: 410000, online: 590000 },
-  { day: "Jum", dineIn: 520000, online: 780000 },
-  { day: "Sab", dineIn: 680000, online: 920000 },
-  { day: "Min", dineIn: 620000, online: 850000 },
 ];
 
 function SalesTooltip({ active, payload, label }: any) {
@@ -81,9 +86,6 @@ function ChannelTooltip({ active, payload }: any) {
   return null;
 }
 
-import { useEffect } from "react";
-import { getRevenueOverviewAction, getTopMenusAction, getSalesByTimeAnalyticsAction, getSalesChannelAnalyticsAction, getTopCustomersAction } from "@/app/actions/analytics";
-
 export default function Penjualan() {
   const [period, setPeriod] = useState<"hari" | "minggu" | "bulan">("minggu");
   const { selectedBranchId } = useOwnerStore();
@@ -92,24 +94,34 @@ export default function Penjualan() {
   const [salesByTimeData, setSalesByTimeData] = useState<any[]>([]);
   const [salesChannelData, setSalesChannelData] = useState<any[]>([]);
   const [dbTopCustomers, setDbTopCustomers] = useState<any[]>([]);
+  const [dbRepeatRatePct, setDbRepeatRatePct] = useState<number>(0);
+  const [dbNewCustomerPct, setDbNewCustomerPct] = useState<number>(0);
 
   useEffect(() => {
     const loadSalesData = () => {
       if (document.visibilityState !== "visible") return;
-      getRevenueOverviewAction("7d").then(res => {
+      const rangeMap: Record<string, string> = { hari: "today", minggu: "week", bulan: "month" };
+      const range = rangeMap[period] || "week";
+      const targetBranch = selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined;
+
+      getRevenueOverviewAction(range, undefined, undefined, targetBranch).then(res => {
         if (res.success) setLiveOverview(res.data);
       });
-      getTopMenusAction().then(res => {
+      getTopMenusAction(range, undefined, undefined, targetBranch).then(res => {
         if (res.success) setTopMenusData(res.data || []);
       });
-      getSalesByTimeAnalyticsAction().then(res => {
+      getSalesByTimeAnalyticsAction(range, undefined, undefined, targetBranch).then(res => {
         if (res.success) setSalesByTimeData(res.data || []);
       });
-      getSalesChannelAnalyticsAction().then(res => {
+      getSalesChannelAnalyticsAction(range, undefined, undefined, targetBranch).then(res => {
         if (res.success) setSalesChannelData(res.data || []);
       });
-      getTopCustomersAction().then(res => {
-        if (res.success) setDbTopCustomers(res.data || []);
+      getTopCustomersAction(undefined, undefined, undefined, targetBranch).then(res => {
+        if (res.success) {
+          setDbTopCustomers(res.data || []);
+          if (res.repeatRatePct !== undefined) setDbRepeatRatePct(res.repeatRatePct);
+          if (res.newCustomerPct !== undefined) setDbNewCustomerPct(res.newCustomerPct);
+        }
       });
     };
 
@@ -128,9 +140,19 @@ export default function Penjualan() {
 
   const adjustedSalesByChannel = salesChannelData;
 
+  const dayNameMap: Record<string, string> = {
+    Mon: "Sen",
+    Tue: "Sel",
+    Wed: "Rab",
+    Thu: "Kam",
+    Fri: "Jum",
+    Sat: "Sab",
+    Sun: "Min",
+  };
+
   const adjustedWeeklyTrend = liveOverview?.trend && liveOverview.trend.length > 0
     ? liveOverview.trend.map((t: any) => ({
-        day: t.date,
+        day: dayNameMap[t.date] || t.date,
         dineIn: Math.round(t.revenue * 0.4),
         online: Math.round(t.revenue * 0.6),
       }))
@@ -182,7 +204,7 @@ export default function Penjualan() {
         const kpiCards = [
           { label: "Total Omzet", value: formatRupiah(totalRevenue, true), icon: "💰", trend: hasData ? "+8.4%" : "0.0%" },
           { label: "Total Order", value: formatNumber(adjustedTotalOrder), icon: "🧾", trend: hasData ? "+12.3%" : "0.0%" },
-          { label: "Repeat Rate", value: hasData ? "62%" : "0%", icon: "🔄", trend: hasData ? "+3.1%" : "0.0%" },
+          { label: "Repeat Rate", value: `${dbRepeatRatePct}%`, icon: "🔄", trend: hasData ? "+3.1%" : "0.0%" },
           { label: "Avg Order Value", value: formatRupiah(adjustedAOV), icon: "📊", trend: hasData ? "+3.2%" : "0.0%" },
         ];
 
@@ -305,24 +327,28 @@ export default function Penjualan() {
             <Button variant="ghost" size="sm">Lihat Semua</Button>
           </div>
           <div className="space-y-3">
-            {adjustedMenuList.slice(0, 6).map((menu, i) => {
-              const maxRevenue = adjustedMenuList[0].revenue;
-              const pct = (menu.revenue / maxRevenue) * 100;
-              return (
-                <div key={menu.id}>
-                  <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="text-xs font-bold text-slate-400 w-5">{i + 1}</span>
-                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{menu.name}</span>
+            {adjustedMenuList.length === 0 ? (
+              <div className="py-8 text-center text-xs text-slate-400">Belum ada data penjualan menu pada periode ini</div>
+            ) : (
+              adjustedMenuList.slice(0, 6).map((menu, i) => {
+                const maxRevenue = adjustedMenuList[0]?.revenue || 1;
+                const pct = Math.min(100, Math.max(0, (menu.revenue / maxRevenue) * 100));
+                return (
+                  <div key={menu.id}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-xs font-bold text-slate-400 w-5">{i + 1}</span>
+                        <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate">{menu.name}</span>
+                      </div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 ml-2 flex-shrink-0">{formatRupiah(menu.revenue, true)}</span>
                     </div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 ml-2 flex-shrink-0">{formatRupiah(menu.revenue, true)}</span>
+                    <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden ml-7">
+                      <div className="h-full bg-orange-400 rounded-full" style={{ width: `${pct}%` }} />
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden ml-7">
-                    <div className="h-full bg-orange-400 rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })
+            )}
           </div>
         </div>
       </div>
@@ -333,11 +359,14 @@ export default function Penjualan() {
           <div>
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Top Pelanggan & Repeat Rate</h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Repeat rate bulan ini: <span className="font-semibold text-orange-600">62%</span> — ↑3.1% dari bulan lalu
+              Repeat rate pelanggan: <span className="font-semibold text-orange-600">{dbRepeatRatePct}%</span> dari total transaksi
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {repeatCustomers.map(c => (
+            {[
+              { name: "Pelanggan Baru", value: dbNewCustomerPct, color: "#3b82f6" },
+              { name: "Pelanggan Lama", value: dbRepeatRatePct, color: "#f97316" },
+            ].map(c => (
               <div key={c.name} className="flex items-center gap-1">
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: c.color }} />
                 <span className="text-xs text-slate-500">{c.name} ({c.value}%)</span>

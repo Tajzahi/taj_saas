@@ -102,6 +102,7 @@ export async function createBranchAction(data: {
   address: string;
   phone: string;
   googleMapsUrl?: string;
+  operationalHours?: string;
   outletLat?: number;
   outletLng?: number;
   isPrimary?: boolean;
@@ -136,6 +137,7 @@ export async function createBranchAction(data: {
           address: data.address.trim(),
           phone: data.phone.trim(),
           googleMapsUrl: data.googleMapsUrl || null,
+          operationalHours: data.operationalHours || "08:00 - 22:00",
           outletLat: data.outletLat ? String(data.outletLat) : null,
           outletLng: data.outletLng ? String(data.outletLng) : null,
           isPrimary: data.isPrimary ?? false,
@@ -178,6 +180,7 @@ export async function updateBranchAction(
     address?: string;
     phone?: string;
     googleMapsUrl?: string;
+    operationalHours?: string;
     outletLat?: number;
     outletLng?: number;
     isPrimary?: boolean;
@@ -207,6 +210,7 @@ export async function updateBranchAction(
           ...(data.address ? { address: data.address.trim() } : {}),
           ...(data.phone ? { phone: data.phone.trim() } : {}),
           ...(data.googleMapsUrl !== undefined ? { googleMapsUrl: data.googleMapsUrl } : {}),
+          ...(data.operationalHours !== undefined ? { operationalHours: data.operationalHours } : {}),
           ...(data.outletLat !== undefined ? { outletLat: data.outletLat ? String(data.outletLat) : null } : {}),
           ...(data.outletLng !== undefined ? { outletLng: data.outletLng ? String(data.outletLng) : null } : {}),
           ...(data.isPrimary !== undefined ? { isPrimary: data.isPrimary } : {}),
