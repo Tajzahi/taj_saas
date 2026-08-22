@@ -89,15 +89,18 @@ export default function Home() {
 
         {/* Hero Content */}
         <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto pt-20">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-4">
-            Martabak &<br />
-            <span className="text-[#E05009]">Terang Bulan</span>
-            <br />A6 Nyuss
+          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-4 whitespace-pre-line">
+            {settings.hero_title || (
+              <>
+                Martabak &<br />
+                <span className="text-[#E05009]">Terang Bulan</span>
+                <br />A6 Nyuss
+              </>
+            )}
           </h1>
 
           <p className="text-white/90 text-lg sm:text-xl md:text-2xl mb-8 max-w-2xl mx-auto leading-relaxed">
-            Cita rasa otentik sejak 2000. Dibuat dengan bahan pilihan,
-            disajikan dengan cinta dari Surabaya.
+            {settings.hero_subtitle || 'Cita rasa otentik sejak 2000. Dibuat dengan bahan pilihan, disajikan dengan cinta dari Surabaya.'}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -274,8 +277,8 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {testimonials.map((t) => (
-              <div key={t.name} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg transition-shadow">
+            {(settings.testimonials && settings.testimonials.length > 0 ? settings.testimonials : testimonials).map((t, idx) => (
+              <div key={(t as any).id || t.name || idx} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg transition-shadow">
                 <div className="flex gap-0.5 mb-3">
                   {[...Array(t.rating)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />

@@ -19,6 +19,8 @@ export type PageId =
   | "persetujuan"
   | "ai"
   | "galeri"
+  | "promo"
+  | "konten"
   | "pengaturan";
 
 interface NavItem {
@@ -112,6 +114,20 @@ function IconGallery() {
     </svg>
   );
 }
+function IconPromo() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+    </svg>
+  );
+}
+function IconCMS() {
+  return (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+    </svg>
+  );
+}
 function IconSettings() {
   return (
     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
@@ -143,6 +159,7 @@ const navGroups: NavGroup[] = [
     items: [
       { id: "cockpit", label: "Dashboard Utama", icon: <IconCockpit /> },
       { id: "persetujuan", label: "Persetujuan", icon: <IconApproval /> },
+      { id: "promo", label: "Promo & Kupon", icon: <IconPromo /> },
       { id: "cabang", label: "Cabang", icon: <IconCabang /> },
       { id: "keuangan", label: "Keuangan", icon: <IconFinance /> },
       { id: "penjualan", label: "Penjualan", icon: <IconSales /> },
@@ -158,6 +175,7 @@ const navGroups: NavGroup[] = [
       { id: "persediaan", label: "Persediaan & Stok", icon: <IconInventory /> },
       { id: "produksi", label: "Dapur & Produksi", icon: <IconProduksi /> },
       { id: "galeri", label: "Galeri Foto", icon: <IconGallery /> },
+      { id: "konten", label: "Konten Web (CMS)", icon: <IconCMS /> },
     ],
   },
 ];

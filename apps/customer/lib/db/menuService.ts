@@ -1,7 +1,7 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MenuItem, MenuCategory, menuItems as staticMenuItems, categories as staticCategories, toppingOptions, extraToppingOptions } from "@/data/menu";
 
@@ -24,6 +24,15 @@ export interface DbStoreSettings {
   outlet_lat?: number;
   outlet_lng?: number;
   gallery?: { id: string; src: string; category: string; caption?: string }[];
+  hero_title?: string;
+  hero_subtitle?: string;
+  hero_badge_text?: string;
+  testimonials?: { id: string; name: string; rating: number; text: string; location?: string }[];
+  about_title?: string;
+  about_story?: string;
+  about_highlights?: string[];
+  faqs?: { id: string; question: string; answer: string; category?: string }[];
+  catering_packages?: { id: string; name: string; minPortion: number; pricePerPortion: number; description: string }[];
 }
 
 // Fallback topping variant structures for Terang Bulan items
@@ -140,7 +149,36 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     outlet_lat: typeof branding.outletLat === 'number' ? branding.outletLat : DEFAULT_OUTLET_LAT,
     outlet_lng: typeof branding.outletLng === 'number' ? branding.outletLng : DEFAULT_OUTLET_LNG,
     gallery: branding.gallery && Array.isArray(branding.gallery) ? branding.gallery : undefined,
+    hero_title: branding.heroTitle || undefined,
+    hero_subtitle: branding.heroSubtitle || undefined,
+    hero_badge_text: branding.heroBadgeText || undefined,
+    testimonials: branding.testimonials && Array.isArray(branding.testimonials) ? branding.testimonials : undefined,
+    about_title: branding.aboutTitle || undefined,
+    about_story: branding.aboutStory || undefined,
+    about_highlights: branding.aboutHighlights && Array.isArray(branding.aboutHighlights) ? branding.aboutHighlights : undefined,
+    faqs: branding.faqs && Array.isArray(branding.faqs) ? branding.faqs : undefined,
+    catering_packages: branding.cateringPackages && Array.isArray(branding.cateringPackages) ? branding.cateringPackages : undefined,
   };
+}
+
+export async function getStorePromos(): Promise<any[]> {
+  try {
+    const headersList = await headers();
+    const slug = headersList.get('x-tenant-slug') || 'taj-saas';
+    const tenant = await getTenantBySlug(slug);
+    if (!tenant) return [];
+
+    const activePromos = await db
+      .select()
+      .from(schema.promos)
+      .where(and(eq(schema.promos.tenantId, tenant.id), eq(schema.promos.isActive, true)))
+      .orderBy(desc(schema.promos.createdAt));
+
+    return activePromos;
+  } catch (err) {
+    console.error("Error fetching store promos:", err);
+    return [];
+  }
 }
 
 export async function getCategories(): Promise<{ id: MenuCategory; label: string; icon: string }[]> {

@@ -42,6 +42,36 @@ const TenantBrandingSchema = z.object({
     category: z.string().max(100),
     caption: z.string().max(300).optional(),
   })).optional(),
+  // Homepage & Testimoni
+  heroTitle: z.string().max(200).optional(),
+  heroSubtitle: z.string().max(500).optional(),
+  heroBadgeText: z.string().max(100).optional(),
+  testimonials: z.array(z.object({
+    id: z.string(),
+    name: z.string().max(100),
+    rating: z.number().min(1).max(5),
+    text: z.string().max(500),
+    location: z.string().max(100).optional(),
+  })).optional(),
+  // Tentang Kami
+  aboutTitle: z.string().max(200).optional(),
+  aboutStory: z.string().max(3000).optional(),
+  aboutHighlights: z.array(z.string().max(200)).optional(),
+  // FAQ
+  faqs: z.array(z.object({
+    id: z.string(),
+    question: z.string().max(300),
+    answer: z.string().max(2000),
+    category: z.string().max(100).optional(),
+  })).optional(),
+  // Catering
+  cateringPackages: z.array(z.object({
+    id: z.string(),
+    name: z.string().max(100),
+    minPortion: z.number().min(1),
+    pricePerPortion: z.number().min(0),
+    description: z.string().max(500),
+  })).optional(),
 }).strict();
 
 export async function getTenantSettingsAction() {
