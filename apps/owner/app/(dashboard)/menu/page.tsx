@@ -206,6 +206,7 @@ export default function MenuResep() {
   const [editCategory, setEditCategory] = useState("");
   const [editPrice, setEditPrice] = useState(0);
   const [editCost, setEditCost] = useState(0);
+  const [editImageUrl, setEditImageUrl] = useState("");
   const [editVariants, setEditVariants] = useState<any[]>([]);
 
   // Add Menu states
@@ -214,6 +215,7 @@ export default function MenuResep() {
   const [addCategory, setAddCategory] = useState("");
   const [addPrice, setAddPrice] = useState(0);
   const [addCost, setAddCost] = useState(0);
+  const [addImageUrl, setAddImageUrl] = useState("");
   const [addVariants, setAddVariants] = useState<any[]>([]);
   const [dbCategories, setDbCategories] = useState<any[]>([]);
 
@@ -392,6 +394,7 @@ export default function MenuResep() {
             category: categoryName,
             price,
             cost,
+            imageUrl: dbMenu.imageUrl || "",
             margin: Number(margin.toFixed(1)),
             soldToday: soldQty,
             revenue: eng ? eng.totalRevenue : 0,
@@ -414,6 +417,7 @@ export default function MenuResep() {
     setEditCategory(item.category);
     setEditPrice(item.price);
     setEditCost(item.cost);
+    setEditImageUrl(item.imageUrl || "");
     setEditVariants(item.variants ? JSON.parse(JSON.stringify(item.variants)) : []);
     setShowEdit(true);
   };
@@ -427,6 +431,7 @@ export default function MenuResep() {
       name: editName,
       categoryId: catObj ? catObj.id : undefined,
       price: editPrice,
+      imageUrl: editImageUrl,
       variants: editVariants,
     });
     setLoading(false);
@@ -437,6 +442,7 @@ export default function MenuResep() {
         category: editCategory,
         price: editPrice,
         cost: editCost,
+        imageUrl: editImageUrl,
         margin: editPrice > 0 ? ((editPrice - editCost) / editPrice) * 100 : 0,
         variants: editVariants,
       } : m));
@@ -455,6 +461,7 @@ export default function MenuResep() {
       name: addName,
       categoryId: catObj ? catObj.id : undefined,
       price: addPrice,
+      imageUrl: addImageUrl,
       variants: addVariants,
     });
     setLoading(false);
@@ -465,6 +472,7 @@ export default function MenuResep() {
         category: addCategory,
         price: addPrice,
         cost: addCost,
+        imageUrl: addImageUrl,
         margin: addPrice > 0 ? ((addPrice - addCost) / addPrice) * 100 : 0,
         soldToday: 0,
         revenue: 0,
@@ -477,6 +485,7 @@ export default function MenuResep() {
       setAddCategory("");
       setAddPrice(0);
       setAddCost(0);
+      setAddImageUrl("");
       setAddVariants([]);
     } else {
       alert("Gagal menambahkan menu: " + res.error);
@@ -937,6 +946,53 @@ export default function MenuResep() {
                 )}
               </div>
 
+              {/* Foto Produk Menu */}
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block mb-1">
+                  Foto Produk Menu (URL atau Unggah)
+                </label>
+                <div className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                  <div className="w-12 h-12 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    {editImageUrl ? (
+                      <img src={editImageUrl} alt="Preview Menu" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl">📸</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="text"
+                      value={editImageUrl}
+                      onChange={e => setEditImageUrl(e.target.value)}
+                      placeholder="https://... / link foto makanan"
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                    />
+                    <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
+                      📁 Pilih Gambar dari Perangkat
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert("Ukuran file maksimal 5 MB.");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              if (typeof reader.result === 'string') setEditImageUrl(reader.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
+
               {/* Topping & Variant Builder */}
               <VariantBuilder variants={editVariants} onChange={setEditVariants} />
             </div>
@@ -1015,6 +1071,53 @@ export default function MenuResep() {
                 placeholder="0"
                 required
               />
+
+              {/* Foto Produk Menu */}
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block mb-1">
+                  Foto Produk Menu (URL atau Unggah)
+                </label>
+                <div className="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50">
+                  <div className="w-12 h-12 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden shrink-0 shadow-sm">
+                    {addImageUrl ? (
+                      <img src={addImageUrl} alt="Preview Menu" className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="text-xl">📸</span>
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <input
+                      type="text"
+                      value={addImageUrl}
+                      onChange={e => setAddImageUrl(e.target.value)}
+                      placeholder="https://... / link foto makanan"
+                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                    />
+                    <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
+                      📁 Pilih Gambar dari Perangkat
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              alert("Ukuran file maksimal 5 MB.");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              if (typeof reader.result === 'string') setAddImageUrl(reader.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                </div>
+              </div>
 
               {/* Topping & Variant Builder */}
               <VariantBuilder variants={addVariants} onChange={setAddVariants} />

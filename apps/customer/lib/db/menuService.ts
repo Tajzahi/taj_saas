@@ -23,6 +23,7 @@ export interface DbStoreSettings {
   hero_banner_url: string;
   outlet_lat?: number;
   outlet_lng?: number;
+  gallery?: { id: string; src: string; category: string; caption?: string }[];
 }
 
 // Fallback topping variant structures for Terang Bulan items
@@ -120,7 +121,7 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     };
   }
 
-  const branding = tenant.branding || {};
+  const branding = (tenant.branding as any) || {};
 
   return {
     id: tenant.id,
@@ -138,6 +139,7 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     hero_banner_url: branding.heroBannerUrl || '',
     outlet_lat: typeof branding.outletLat === 'number' ? branding.outletLat : DEFAULT_OUTLET_LAT,
     outlet_lng: typeof branding.outletLng === 'number' ? branding.outletLng : DEFAULT_OUTLET_LNG,
+    gallery: branding.gallery && Array.isArray(branding.gallery) ? branding.gallery : undefined,
   };
 }
 

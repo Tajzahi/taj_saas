@@ -36,6 +36,12 @@ const TenantBrandingSchema = z.object({
   enableCash: z.boolean().optional(),
   outletLat: z.number().optional(),
   outletLng: z.number().optional(),
+  gallery: z.array(z.object({
+    id: z.string(),
+    src: z.string().max(1000),
+    category: z.string().max(100),
+    caption: z.string().max(300).optional(),
+  })).optional(),
 }).strict();
 
 export async function getTenantSettingsAction() {

@@ -114,6 +114,7 @@ export async function createMenuItemAction(data: {
   name: string;
   price: number;
   description?: string;
+  imageUrl?: string;
   variants?: any[];
 }) {
   try {
@@ -134,6 +135,7 @@ export async function createMenuItemAction(data: {
         slug,
         price: String(Math.max(0, Number(data.price) || 0)),
         description: data.description || "",
+        imageUrl: data.imageUrl || null,
         variants: data.variants || null,
         isAvailable: true,
         isBestSeller: false,
@@ -168,6 +170,7 @@ export async function updateMenuItemAction(
     name: string;
     price: number;
     description?: string;
+    imageUrl?: string;
     variants?: any[];
     isAvailable?: boolean;
   }
@@ -186,6 +189,7 @@ export async function updateMenuItemAction(
         slug,
         price: String(Math.max(0, Number(data.price) || 0)),
         description: data.description || "",
+        imageUrl: data.imageUrl !== undefined ? data.imageUrl : undefined,
         variants: data.variants !== undefined ? data.variants : undefined,
         isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
       })

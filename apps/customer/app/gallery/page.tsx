@@ -1,39 +1,60 @@
 "use client";
 import Link from 'next/link';
-import { useState } from 'react';
-import { X, ChevronLeft, ChevronRight, Image, ShoppingBag, Store, Search, Users } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { X, ChevronLeft, ChevronRight, Image as ImageIcon, ShoppingBag, Store, Search, Users, Sparkles } from 'lucide-react';
+import { getStoreSettings } from '@/lib/db/menuService';
 
+interface GalleryItem {
+  id: string | number;
+  src: string;
+  category: string;
+  caption?: string;
+}
 
-type GalleryFilter = 'semua' | 'produk' | 'toko' | 'behind-scene' | 'pelanggan';
-
-const galleryItems = [
-  { id: 1, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop', category: 'produk', caption: 'Martabak Coklat Keju Premium' },
-  { id: 2, src: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=600&h=600&fit=crop', category: 'produk', caption: 'Martabak Telur Sapi Spesial' },
-  { id: 3, src: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&h=600&fit=crop', category: 'produk', caption: 'Martabak Kacang Coklat' },
-  { id: 4, src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=600&fit=crop', category: 'toko', caption: 'Suasana Toko A6 Nyuss' },
-  { id: 5, src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=600&fit=crop', category: 'produk', caption: 'Paket Bundling Hemat' },
-  { id: 6, src: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&h=600&fit=crop', category: 'produk', caption: 'Terang Bulan Coklat Lumer' },
-  { id: 7, src: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&h=600&fit=crop', category: 'behind-scene', caption: 'Proses Pembuatan Martabak' },
-  { id: 8, src: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=600&fit=crop', category: 'produk', caption: 'Martabak Telur Ayam' },
-  { id: 9, src: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=600&fit=crop', category: 'produk', caption: 'Martabak Keju Full' },
-  { id: 10, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop&sat=-100', category: 'behind-scene', caption: 'Dapur Bersih A6 Nyuss' },
-  { id: 11, src: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=600&fit=crop', category: 'pelanggan', caption: 'Pelanggan Setia A6 Nyuss' },
-  { id: 12, src: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600&h=600&fit=crop', category: 'pelanggan', caption: 'Keluarga Bahagia Menikmati A6 Nyuss' },
-];
-
-const filters: { id: GalleryFilter; label: string; icon: React.ReactNode }[] = [
-  { id: 'semua', label: 'Semua', icon: <Image className="w-4 h-4" /> },
-  { id: 'produk', label: 'Produk', icon: <ShoppingBag className="w-4 h-4" /> },
-  { id: 'toko', label: 'Toko', icon: <Store className="w-4 h-4" /> },
-  { id: 'behind-scene', label: 'Behind the Scene', icon: <Search className="w-4 h-4" /> },
-  { id: 'pelanggan', label: 'Pelanggan', icon: <Users className="w-4 h-4" /> },
+const defaultGalleryItems: GalleryItem[] = [
+  { id: 1, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Coklat Keju Premium' },
+  { id: 2, src: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Telur Sapi Spesial' },
+  { id: 3, src: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Kacang Coklat' },
+  { id: 4, src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=600&fit=crop', category: 'Toko', caption: 'Suasana Toko A6 Nyuss' },
+  { id: 5, src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=600&fit=crop', category: 'Produk', caption: 'Paket Bundling Hemat' },
+  { id: 6, src: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&h=600&fit=crop', category: 'Produk', caption: 'Terang Bulan Coklat Lumer' },
+  { id: 7, src: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&h=600&fit=crop', category: 'Behind the Scene', caption: 'Proses Pembuatan Martabak' },
+  { id: 8, src: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Telur Ayam' },
+  { id: 9, src: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Keju Full' },
+  { id: 10, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop&sat=-100', category: 'Behind the Scene', caption: 'Dapur Bersih A6 Nyuss' },
+  { id: 11, src: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Pelanggan Setia A6 Nyuss' },
+  { id: 12, src: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Keluarga Bahagia Menikmati A6 Nyuss' },
 ];
 
 export default function Gallery() {
-  const [activeFilter, setActiveFilter] = useState<GalleryFilter>('semua');
+  const [items, setItems] = useState<GalleryItem[]>(defaultGalleryItems);
+  const [activeFilter, setActiveFilter] = useState<string>('semua');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
+  const [brandName, setBrandName] = useState<string>('A6 Nyuss');
 
-  const filtered = activeFilter === 'semua' ? galleryItems : galleryItems.filter(i => i.category === activeFilter);
+  useEffect(() => {
+    getStoreSettings().then(settings => {
+      if (settings) {
+        if (settings.store_name) setBrandName(settings.store_name);
+        if (settings.gallery && Array.isArray(settings.gallery) && settings.gallery.length > 0) {
+          setItems(settings.gallery);
+        }
+      }
+    }).catch(err => {
+      console.error("Error loading store gallery:", err);
+    });
+  }, []);
+
+  // Compute unique categories dynamically
+  const uniqueCategories = Array.from(new Set(items.map(i => i.category.trim()).filter(Boolean)));
+  const filters = [
+    { id: 'semua', label: 'Semua' },
+    ...uniqueCategories.map(cat => ({ id: cat.toLowerCase(), label: cat }))
+  ];
+
+  const filtered = activeFilter === 'semua' 
+    ? items 
+    : items.filter(i => i.category.toLowerCase() === activeFilter.toLowerCase());
 
   const prev = () => {
     if (lightboxIdx === null) return;
@@ -50,26 +71,26 @@ export default function Gallery() {
       <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] py-14 px-4">
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 flex items-center justify-center gap-2">
-            <Image className="w-8 h-8" /> Gallery
+            <ImageIcon className="w-8 h-8" /> Gallery
           </h1>
-          <p className="text-white/80">Lihat lebih dekat keistimewaan A6 Nyuss</p>
+          <p className="text-white/80">Lihat lebih dekat keistimewaan & kelezatan {brandName}</p>
         </div>
       </div>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-        {/* Filter */}
+        {/* Filter Buttons */}
         <div className="flex gap-2 overflow-x-auto pb-2 mb-6 scrollbar-hide">
           {filters.map((f) => (
             <button
               key={f.id}
               onClick={() => setActiveFilter(f.id)}
-              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              className={`flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
                 activeFilter === f.id
                   ? 'bg-[#8E0E0E] text-white shadow-md'
                   : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
               }`}
             >
-              <span>{f.icon}</span>
+              <span>{f.id === 'semua' ? '🌟' : '📁'}</span>
               <span>{f.label}</span>
             </button>
           ))}
@@ -81,17 +102,22 @@ export default function Gallery() {
             <button
               key={item.id}
               onClick={() => setLightboxIdx(idx)}
-              className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer"
+              className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer border border-gray-100 shadow-sm"
             >
               <img
                 src={item.src}
-                alt={item.caption}
+                alt={item.caption || "Galeri"}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                 loading="lazy"
               />
+              <div className="absolute top-2 left-2">
+                <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                  {item.category}
+                </span>
+              </div>
               <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-end">
                 <p className="text-white text-xs font-medium p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                  {item.caption}
+                  {item.caption || brandName}
                 </p>
               </div>
             </button>
@@ -111,41 +137,47 @@ export default function Gallery() {
         </div>
       </div>
 
-      {/* Lightbox */}
-      {lightboxIdx !== null && (
+      {/* Lightbox Modal */}
+      {lightboxIdx !== null && filtered[lightboxIdx] && (
         <div
-          className="fixed inset-0 z-[80] bg-black/90 flex items-center justify-center p-4"
+          className="fixed inset-0 z-[80] bg-black/90 flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setLightboxIdx(null)}
         >
           <button
-            onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+            onClick={() => setLightboxIdx(null)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 rounded-full bg-black/40"
           >
-            <ChevronLeft className="w-6 h-6 text-white" />
+            <X className="w-6 h-6" />
           </button>
-          <div className="max-w-2xl max-h-[80vh] relative" onClick={(e) => e.stopPropagation()}>
-            <img
-              src={filtered[lightboxIdx].src}
-              alt={filtered[lightboxIdx].caption}
-              className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
-            />
-            <p className="text-white text-center mt-3 font-medium">{filtered[lightboxIdx].caption}</p>
-          </div>
+          
+          <button
+            onClick={(e) => { e.stopPropagation(); prev(); }}
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-2 rounded-full bg-black/40"
+          >
+            <ChevronLeft className="w-8 h-8" />
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); next(); }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-white hover:text-gray-300 p-2 rounded-full bg-black/40"
           >
-            <ChevronRight className="w-6 h-6 text-white" />
+            <ChevronRight className="w-8 h-8" />
           </button>
-          <button
-            onClick={() => setLightboxIdx(null)}
-            className="absolute top-4 right-4 w-10 h-10 bg-white/20 hover:bg-white/30 rounded-full flex items-center justify-center transition-colors"
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
-          <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/60 text-sm">
-            {lightboxIdx + 1} / {filtered.length}
-          </p>
+
+          <div className="max-w-3xl max-h-[80vh] flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <img
+              src={filtered[lightboxIdx].src}
+              alt={filtered[lightboxIdx].caption || "Preview"}
+              className="max-h-[70vh] w-auto object-contain rounded-xl shadow-2xl"
+            />
+            <div className="text-center mt-3">
+              <span className="text-[11px] font-bold text-orange-400 uppercase tracking-wider block">
+                {filtered[lightboxIdx].category}
+              </span>
+              <p className="text-white text-sm font-semibold">
+                {filtered[lightboxIdx].caption || brandName}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
