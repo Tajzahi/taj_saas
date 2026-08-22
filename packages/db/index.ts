@@ -24,6 +24,17 @@ if (typeof window === 'undefined' && !databaseUrl) {
   console.warn('[db/index] DATABASE_URL environment variable is not defined.');
 }
 
+// Dev-only: arahkan Neon serverless driver ke Postgres lokal lewat WebSocket proxy
+// (lihat scripts/dev-neon-ws-proxy.js). Aktif hanya jika NEON_WS_PROXY di-set,
+// sehingga perilaku produksi (Neon) tidak berubah sama sekali.
+const devWsProxy = typeof process !== 'undefined' ? process.env?.NEON_WS_PROXY?.trim() : undefined;
+if (typeof window === 'undefined' && devWsProxy) {
+  neonConfig.wsProxy = () => devWsProxy;
+  neonConfig.useSecureWebSocket = false;
+  neonConfig.pipelineTLS = false;
+  neonConfig.pipelineConnect = false;
+}
+
 const pool = (typeof window === 'undefined')
   ? new Pool({
       connectionString: databaseUrl || 'postgresql://placeholder-user:placeholder-pass@placeholder-host.tld/neondb',
