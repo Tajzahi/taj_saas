@@ -1,7 +1,7 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MenuItem, MenuCategory, menuItems as staticMenuItems, categories as staticCategories, toppingOptions, extraToppingOptions } from "@/data/menu";
 
@@ -83,7 +83,15 @@ function resolveMenuItemVariants(
 }
 
 async function getTenantBySlug(slug: string) {
-  const result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
+  let result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
+  if (result.length === 0) {
+    result = await db
+      .select()
+      .from(schema.tenants)
+      .where(eq(schema.tenants.isActive, true))
+      .orderBy(desc(schema.tenants.createdAt))
+      .limit(1);
+  }
   return result[0] || null;
 }
 

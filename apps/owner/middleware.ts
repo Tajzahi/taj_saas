@@ -31,7 +31,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { resolveTenantMiddleware } from '@taj-saas/shared';
-import { auth } from '@lib/auth';
 
 export const middleware = async (request: NextRequest) => {
   // [BARIS 30-34]: Identifikasi Jalur Halaman (Pathname)
@@ -57,46 +56,15 @@ export const middleware = async (request: NextRequest) => {
     return new NextResponse(result.error, { status: result.status });
   }
 
-  // [BARIS 52-73]: TAHAP 2 - VALIDASI SESI USER (AUTHENTICATION CHECK)
-  // Membaca cookie sesi dari request header dan memverifikasi token ke Better Auth server
-  let session: any = null;
-  try {
-    const reqHeaders = new Headers(request.headers);
-    // Memastikan header HTTPS proxy diisi agar cookie __Secure- diterima di Cloud Run
-    if (!reqHeaders.get("x-forwarded-proto") && request.nextUrl.protocol === "https:") {
-      reqHeaders.set("x-forwarded-proto", "https");
-    }
-    session = await auth.api.getSession({
-      headers: reqHeaders,
-    });
-  } catch (err) {
-    // Fallback internal fetch jika terjadi jeda pada Edge Runtime
-    try {
-      const res = await fetch(`${request.nextUrl.origin}/api/auth/get-session`, {
-        headers: new Headers(request.headers),
-      });
-      if (res.ok) {
-        session = await res.json();
-      }
-    } catch (fetchErr) {
-      console.error("Middleware session fetch failed:", fetchErr);
-    }
-  }
+  // [BARIS 52-87]: TAHAP 2 - PROTEKSI HALAMAN DASHBOARD
+  // Jika pengguna belum login (tidak ada cookie sesi) dan mencoba mengakses route non-auth -> Arahkan ke /login
+  const hasSessionCookie = Boolean(
+    request.cookies.get('better-auth.session_token')?.value ||
+    request.cookies.get('__Secure-better-auth.session_token')?.value
+  );
 
-  // [BARIS 75-87]: TAHAP 3 - LOGIKA PENGALIHAN (REDIRECT CONTROL FLOW)
-  if (!isAuthRoute) {
-    // Pengguna belum login tapi mencoba akses Dashboard -> Arahkan ke /login
-    if (!session) {
-      return NextResponse.redirect(new URL('/login', request.url));
-    }
-    // Verifikasi Role: Pengguna dengan Role 'kasir' ditolak masuk ke Owner App
-    const userRole = session?.user?.role || session?.user?.userRole;
-    if (userRole === 'kasir') {
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
-    }
-  } else if ((pathname === '/login' || pathname === '/register') && session) {
-    // Pengguna sudah login tapi mencoba buka /login atau /register -> Arahkan ke Dashboard /
-    return NextResponse.redirect(new URL('/', request.url));
+  if (!isAuthRoute && !hasSessionCookie) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return result.next;

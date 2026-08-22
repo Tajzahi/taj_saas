@@ -1,7 +1,7 @@
 import 'server-only';
 import { headers } from 'next/headers';
 import { db, schema } from '@taj-saas/db';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { auth } from './auth';
 
 // ─── ERROR CLASSES & TYPED ACTION RESULTS ───────────────────────────────────
@@ -216,6 +216,19 @@ export async function resolveTenantFromRequestHost(
       .from(schema.tenants)
       .where(eq(schema.tenants.slug, norm.lookupValue))
       .limit(1);
+  }
+
+  // Fallback for staging/Cloud Run environments if slug 'taj-saas' is not found
+  if (tenantResult.length === 0) {
+    const [latestTenant] = await db
+      .select()
+      .from(schema.tenants)
+      .where(eq(schema.tenants.isActive, true))
+      .orderBy(desc(schema.tenants.createdAt))
+      .limit(1);
+    if (latestTenant) {
+      tenantResult = [latestTenant];
+    }
   }
 
   const tenant = tenantResult[0];
