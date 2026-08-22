@@ -61,14 +61,17 @@ export default function Keuangan() {
 
   useEffect(() => {
     setLoading(true);
+    // P&L dan Cashflow trend selalu ambil data "all" untuk menampilkan historis 6 bulan
+    // Rekonsiliasi shift menggunakan filter dateRange dari global header
     const rangeParam = dateRange || undefined;
     const branchParam = selectedBranchId || undefined;
 
     Promise.all([
       getShiftHistoryAction(rangeParam, branchParam),
-      getPnLAction(rangeParam, branchParam),
-      getCashflowAction(rangeParam, branchParam)
+      getPnLAction("all", branchParam),     // always show full historical trend
+      getCashflowAction("all", branchParam) // always show full historical cashflow
     ]).then(([shiftRes, pnlRes, cashflowRes]) => {
+
       if (shiftRes.success && shiftRes.data) {
         const mapped = shiftRes.data.map((dbShift: any) => {
           const actualCashVal = Number(dbShift.actualCash) || 0;

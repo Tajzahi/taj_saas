@@ -63,8 +63,10 @@ export async function getOrdersAction() {
         variant: item.variantName || undefined,
       }));
 
-      const calculatedFee = Number(order.totalPrice) - Number(order.subtotal);
-      const deliveryFee = order.deliveryType === "delivery" ? Math.max(0, calculatedFee) : 0;
+      const deliveryFee = order.deliveryType === "delivery" ? Number(order.deliveryFee || 0) : 0;
+      const discountAmount = Number(order.discountAmount || 0);
+      const taxAmount = Number(order.taxAmount || 0);
+      const serviceChargeAmount = Number(order.serviceChargeAmount || 0);
 
       return {
         id: order.id,
@@ -73,11 +75,13 @@ export async function getOrdersAction() {
         customerPhone: order.customerPhone,
         deliveryType: (order.deliveryType || "pickup") as "dine_in" | "takeaway" | "pickup" | "delivery",
         deliveryAddress: order.deliveryAddress,
-        deliveryDistance: null,
+        deliveryDistance: order.deliveryDistance ? Number(order.deliveryDistance) : null,
         deliveryFee,
         subtotal: Number(order.subtotal),
-        discount: 0,
+        discount: discountAmount,
         couponCode: null,
+        taxAmount,
+        serviceChargeAmount,
         totalPrice: Number(order.totalPrice),
         status: order.status as any,
         paymentMethod: order.paymentMethod as "cod" | "transfer",

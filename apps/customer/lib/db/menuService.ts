@@ -191,7 +191,7 @@ export async function getMenuItems(): Promise<MenuItem[]> {
   const staticMap = new Map(staticMenuItems.map(s => [s.slug, s]));
 
   return dbItems.map(item => {
-    const categorySlug = (item.categoryId ? categoryMap.get(item.categoryId) : 'minuman') || 'minuman';
+    const categorySlug = (item.categoryId ? categoryMap.get(item.categoryId) : undefined) || 'lainnya';
     const dbItemTableVariants = variantsMap.get(item.id);
     const staticItem = staticMap.get(item.slug);
 
@@ -211,7 +211,7 @@ export async function getMenuItems(): Promise<MenuItem[]> {
       price: Number(item.price),
       image: item.imageUrl || staticItem?.image || `/assets/menu/placeholder.jpg`,
       category: categorySlug as MenuCategory,
-      categoryLabel: (item.categoryId ? categoryLabelMap.get(item.categoryId) : 'Minuman') || 'Minuman',
+      categoryLabel: (item.categoryId ? categoryLabelMap.get(item.categoryId) : undefined) || 'Lainnya',
       isAvailable: item.isAvailable,
       badge: item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined,
       variants,
