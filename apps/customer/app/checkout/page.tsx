@@ -634,9 +634,17 @@ export default function Checkout() {
 
           {/* Cancel Policy */}
           <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={agreedCancel}
+                onChange={(e) => {
+                  setAgreedCancel(e.target.checked);
+                  if (e.target.checked) setErrors((p) => ({ ...p, agreedCancel: '' }));
+                }}
+                className="sr-only"
+              />
               <div
-                onClick={() => { setAgreedCancel(!agreedCancel); setErrors((p) => ({ ...p, agreedCancel: '' })); }}
                 className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center transition-all ${
                   agreedCancel ? 'bg-[#8E0E0E] border-[#8E0E0E]' : 'border-gray-300'
                 }`}
@@ -652,9 +660,17 @@ export default function Checkout() {
 
           {/* Terms Agreement */}
           <div className="bg-white rounded-2xl p-5 shadow-sm">
-            <label className="flex items-start gap-3 cursor-pointer">
+            <label className="flex items-start gap-3 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => {
+                  setAgreed(e.target.checked);
+                  if (e.target.checked) setErrors((p) => ({ ...p, agreed: '' }));
+                }}
+                className="sr-only"
+              />
               <div
-                onClick={() => { setAgreed(!agreed); setErrors((p) => ({ ...p, agreed: '' })); }}
                 className={`mt-0.5 w-5 h-5 rounded flex-shrink-0 border-2 flex items-center justify-center transition-all ${
                   agreed ? 'bg-[#8E0E0E] border-[#8E0E0E]' : 'border-gray-300'
                 }`}
