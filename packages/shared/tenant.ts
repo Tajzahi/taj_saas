@@ -1,5 +1,5 @@
 import { db, schema } from '@taj-saas/db';
-import { eq, or } from 'drizzle-orm';
+import { eq, or, desc } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { parseTenantFromHostname } from './index';
@@ -138,6 +138,19 @@ export async function resolveTenantMiddleware(
       .limit(1);
 
     let tenant = tenantResult[0];
+
+    // Fallback untuk domain staging/Cloud Run jika slug default 'taj-saas' tidak ditemukan
+    if (!tenant) {
+      const [latestTenant] = await db
+        .select()
+        .from(schema.tenants)
+        .where(eq(schema.tenants.isActive, true))
+        .orderBy(desc(schema.tenants.createdAt))
+        .limit(1);
+      if (latestTenant) {
+        tenant = latestTenant;
+      }
+    }
 
     if (!tenant) {
       return { error: 'Tenant not found', status: 404 };

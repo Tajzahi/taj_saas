@@ -875,7 +875,7 @@ export async function createOfflineOrderAction(data: {
           taxAmount: taxAmount.toString(),
           serviceChargeAmount: serviceChargeAmount.toString(),
           totalPrice: totalPrice.toString(),
-          status: "completed",
+          status: "processing",
           paymentMethod: data.paymentMethod === "cod" ? "cod" : "transfer",
           paymentStatus: "paid",
           paymentProofUrl: data.paymentProofUrl || null,

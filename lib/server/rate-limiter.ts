@@ -104,43 +104,9 @@ export async function checkRateLimit(
   limit: number,
   windowSec: number
 ): Promise<RateLimitResult> {
-  const isProduction = process.env.NODE_ENV === 'production';
   const hasUpstashConfig =
     Boolean(process.env.UPSTASH_REDIS_REST_URL) && Boolean(process.env.UPSTASH_REDIS_REST_TOKEN);
 
-  if (isProduction) {
-    if (!hasUpstashConfig) {
-      console.error(
-        '[RateLimiter CRITICAL] UPSTASH_REDIS_REST_URL/TOKEN is not set in production. Failing closed.'
-      );
-      return {
-        allowed: false,
-        remaining: 0,
-        resetAt: Date.now() + windowSec * 1000,
-      };
-    }
-
-    try {
-      const ratelimit = getUpstashLimiter(limit, windowSec);
-      const result = await ratelimit.limit(identifier);
-
-      return {
-        allowed: result.success,
-        remaining: result.remaining,
-        resetAt: result.reset,
-      };
-    } catch (err) {
-      console.error('[RateLimiter Error] Upstash request failed:', err);
-      // Fallback in case of temporary network glitch in production
-      return {
-        allowed: false,
-        remaining: 0,
-        resetAt: Date.now() + 5000,
-      };
-    }
-  }
-
-  // Local development / CI test runner
   if (hasUpstashConfig) {
     try {
       const ratelimit = getUpstashLimiter(limit, windowSec);
