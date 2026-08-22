@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { db, schema } from "@taj-saas/db";
 import { eq, and } from "drizzle-orm";
 import crypto from "crypto";
-import { resolveTenantFromRequestHost } from "@lib/tenant-authorization";
+import { resolveTenantFromRequestHost, AuthorizationError } from "@lib/tenant-authorization";
 import { rateLimiter } from "@lib/server/rate-limiter";
 import { calculateOrderPricing, PricingOrderItemInput } from "@lib/server/pricing-service";
 import { generateOrderCode } from "@/lib/utils/format";
@@ -342,6 +342,9 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     return response;
   } catch (err: unknown) {
+    if (err instanceof AuthorizationError) {
+      return NextResponse.json({ error: err.message }, { status: err.status });
+    }
     console.error("[orders/route] Unexpected error:", err);
     return NextResponse.json({ error: "Terjadi kesalahan sistem saat membuat pesanan." }, { status: 500 });
   }
