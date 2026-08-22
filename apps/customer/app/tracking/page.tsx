@@ -1082,9 +1082,9 @@ export default function Tracking() {
                         <div key={item.cartId} className="p-3 flex justify-between items-start text-xs">
                           <div>
                             <p className="font-semibold text-gray-800">{item.menuItem.name} x{item.quantity}</p>
-                            {item.selectedVariants.length > 0 && (
+                            {item.selectedVariants && item.selectedVariants.length > 0 && (
                               <p className="text-[10px] text-gray-500 mt-0.5">
-                                {item.selectedVariants.map(v => v.option.name).join(', ')}
+                                {item.selectedVariants.map(v => v.option?.name || '').filter(Boolean).join(', ')}
                               </p>
                             )}
                           </div>

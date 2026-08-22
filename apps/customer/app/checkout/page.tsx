@@ -254,8 +254,8 @@ export default function Checkout() {
         items: items.map((item) => ({
           menuItemSlug: item.menuItem.slug,
           menuItemName: item.menuItem.name,
-          variantName: item.selectedVariants.length > 0
-            ? item.selectedVariants.map((v) => v.option.name).join(', ')
+          variantName: item.selectedVariants && item.selectedVariants.length > 0
+            ? item.selectedVariants.map((v) => v.option?.name || '').filter(Boolean).join(', ')
             : undefined,
           quantity: item.quantity,
         })),
@@ -505,8 +505,8 @@ export default function Checkout() {
                 <div key={item.cartId} className="flex justify-between items-start text-sm">
                   <div className="flex-1 pr-3">
                     <p className="font-medium text-gray-800">{item.menuItem.name}</p>
-                    {item.selectedVariants.length > 0 && (
-                      <p className="text-xs text-gray-500">{item.selectedVariants.map(v => v.option.name).join(', ')}</p>
+                    {item.selectedVariants && item.selectedVariants.length > 0 && (
+                      <p className="text-xs text-gray-500">{item.selectedVariants.map(v => v.option?.name || '').filter(Boolean).join(', ')}</p>
                     )}
                     <p className="text-xs text-gray-400">x{item.quantity}</p>
                   </div>
