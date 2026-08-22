@@ -40,6 +40,7 @@ import {
   getInventoryIngredientsAction
 } from "@/app/actions/menu";
 import { getMenuEngineeringAction } from "@/app/actions/analytics";
+import VariantBuilder from "./VariantBuilder";
 
 const bom: Record<string, { ingredient: string; qty: number; unit: string; cost: number }[]> = {
   "m1": [
@@ -205,6 +206,7 @@ export default function MenuResep() {
   const [editCategory, setEditCategory] = useState("");
   const [editPrice, setEditPrice] = useState(0);
   const [editCost, setEditCost] = useState(0);
+  const [editVariants, setEditVariants] = useState<any[]>([]);
 
   // Add Menu states
   const [showAddMenu, setShowAddMenu] = useState(false);
@@ -212,6 +214,7 @@ export default function MenuResep() {
   const [addCategory, setAddCategory] = useState("");
   const [addPrice, setAddPrice] = useState(0);
   const [addCost, setAddCost] = useState(0);
+  const [addVariants, setAddVariants] = useState<any[]>([]);
   const [dbCategories, setDbCategories] = useState<any[]>([]);
 
   // Category Modal States
@@ -393,6 +396,7 @@ export default function MenuResep() {
             soldToday: soldQty,
             revenue: eng ? eng.totalRevenue : 0,
             status,
+            variants: dbMenu.variants || [],
           };
         });
         setMenuItems(mapped);
@@ -410,6 +414,7 @@ export default function MenuResep() {
     setEditCategory(item.category);
     setEditPrice(item.price);
     setEditCost(item.cost);
+    setEditVariants(item.variants ? JSON.parse(JSON.stringify(item.variants)) : []);
     setShowEdit(true);
   };
 
@@ -422,6 +427,7 @@ export default function MenuResep() {
       name: editName,
       categoryId: catObj ? catObj.id : undefined,
       price: editPrice,
+      variants: editVariants,
     });
     setLoading(false);
     if (res.success) {
@@ -432,6 +438,7 @@ export default function MenuResep() {
         price: editPrice,
         cost: editCost,
         margin: editPrice > 0 ? ((editPrice - editCost) / editPrice) * 100 : 0,
+        variants: editVariants,
       } : m));
       setShowEdit(false);
     } else {
@@ -448,6 +455,7 @@ export default function MenuResep() {
       name: addName,
       categoryId: catObj ? catObj.id : undefined,
       price: addPrice,
+      variants: addVariants,
     });
     setLoading(false);
     if (res.success && res.data) {
@@ -461,6 +469,7 @@ export default function MenuResep() {
         soldToday: 0,
         revenue: 0,
         status: "star",
+        variants: addVariants,
       };
       setMenuItems(prev => [newMenu, ...prev]);
       setShowAddMenu(false);
@@ -468,6 +477,7 @@ export default function MenuResep() {
       setAddCategory("");
       setAddPrice(0);
       setAddCost(0);
+      setAddVariants([]);
     } else {
       alert("Gagal menambahkan menu: " + res.error);
     }
@@ -673,6 +683,31 @@ export default function MenuResep() {
                       </Badge>
                     </div>
                   </div>
+
+                  {/* Toppings & Variants Display */}
+                  {selectedItem.variants && selectedItem.variants.length > 0 && (
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Pilihan Varian & Topping</h4>
+                      <div className="space-y-2">
+                        {selectedItem.variants.map((grp: any, gIdx: number) => (
+                          <div key={gIdx} className="bg-slate-50 dark:bg-slate-800/60 p-2.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                              <span>{grp.label}</span>
+                              <span className="text-[9px] text-slate-400 font-normal">{grp.required ? "Wajib" : "Opsional"}</span>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {grp.options?.map((opt: any, oIdx: number) => (
+                                <span key={oIdx} className="inline-flex items-center gap-1 text-[10px] bg-white dark:bg-slate-900 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300">
+                                  <span>{opt.name}</span>
+                                  {opt.priceModifier > 0 && <strong className="text-orange-600 dark:text-orange-400">+{formatRupiah(opt.priceModifier)}</strong>}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* BOM Ingredients */}
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
@@ -901,6 +936,9 @@ export default function MenuResep() {
                   </div>
                 )}
               </div>
+
+              {/* Topping & Variant Builder */}
+              <VariantBuilder variants={editVariants} onChange={setEditVariants} />
             </div>
             <div className="flex gap-3 mt-6">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setShowEdit(false)}>Batal</Button>
@@ -915,7 +953,7 @@ export default function MenuResep() {
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowAddMenu(false)}>
           <form
             onSubmit={handleAddMenuSubmit}
-            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6 animate-slide-up"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 animate-slide-up"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between mb-5">
@@ -977,6 +1015,9 @@ export default function MenuResep() {
                 placeholder="0"
                 required
               />
+
+              {/* Topping & Variant Builder */}
+              <VariantBuilder variants={addVariants} onChange={setAddVariants} />
             </div>
             <div className="flex gap-3 mt-6">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setShowAddMenu(false)}>Batal</Button>

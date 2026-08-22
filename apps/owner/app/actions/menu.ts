@@ -114,6 +114,7 @@ export async function createMenuItemAction(data: {
   name: string;
   price: number;
   description?: string;
+  variants?: any[];
 }) {
   try {
     const { tenant, user } = await requireTenantPermission("menu:manage", { expectedApp: "owner" });
@@ -133,6 +134,7 @@ export async function createMenuItemAction(data: {
         slug,
         price: String(Math.max(0, Number(data.price) || 0)),
         description: data.description || "",
+        variants: data.variants || null,
         isAvailable: true,
         isBestSeller: false,
         isNew: true,
@@ -166,6 +168,7 @@ export async function updateMenuItemAction(
     name: string;
     price: number;
     description?: string;
+    variants?: any[];
     isAvailable?: boolean;
   }
 ) {
@@ -183,6 +186,7 @@ export async function updateMenuItemAction(
         slug,
         price: String(Math.max(0, Number(data.price) || 0)),
         description: data.description || "",
+        variants: data.variants !== undefined ? data.variants : undefined,
         isAvailable: data.isAvailable !== undefined ? data.isAvailable : true,
       })
       .where(and(eq(schema.menuItems.id, id), eq(schema.menuItems.tenantId, tenant.id)))
