@@ -11,11 +11,10 @@
  * 🔄 ALUR KERJA (WORKFLOW KONSTRUKSI):
  * 1. INPUT (Baris 30-34)   : Menerima request URL & header cookie dari browser pengguna.
  * 2. PROSES TENANT (Baris 36-50): Memeriksa domain/slug toko via `resolveTenantMiddleware`.
- * 3. PROSES AUTENTIKASI (Baris 52-73): Memeriksa sesi cookie pengguna via `auth.api.getSession`.
- * 4. OUTPUT / REDIRECT (Baris 75-87): 
- *    - Jika belum login & akses Dashboard -> Redirect ke `/login`.
- *    - Jika sudah login & akses `/login` -> Redirect ke Dashboard `/`.
- *    - Jika Role = 'kasir' -> Redirect ke `/unauthorized`.
+ * 3. FAST-PATH COOKIE CHECK: Memeriksa keberadaan cookie sesi (edge-compatible).
+ * 4. OUTPUT / REDIRECT:
+ *    - Jika belum ada cookie & akses Dashboard -> Redirect ke `/login`.
+ *    - Validasi sesi penuh (keabsahan token DB) & RBAC role (allowlist: owner, manager) dijalankan di `app/(dashboard)/layout.tsx`.
  * 
  * 🔗 KETERIKATAN ALUR FILE LAIN:
  * - Terhubung ke Engine Multi-Tenant : `packages/shared/tenant.ts` (`resolveTenantMiddleware`)

@@ -364,7 +364,7 @@ export const promos = pgTable('promos', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 }, (table) => [
   index("promos_tenantId_idx").on(table.tenantId),
-  index("promos_code_idx").on(table.code)
+  uniqueIndex("promos_tenant_code_idx").on(table.tenantId, table.code)
 ]);
 
 export const files = pgTable('files', {

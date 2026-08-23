@@ -158,6 +158,9 @@ export async function createMenuItemAction(data: {
     if (error instanceof AuthorizationError) {
       return { success: false, error: error.message };
     }
+    if ((error as any)?.code === "23505") {
+      return { success: false, error: "Nama menu ini sudah dipakai oleh item lain di gerai ini." };
+    }
     const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
     return { success: false, error: message };
   }
@@ -214,6 +217,9 @@ export async function updateMenuItemAction(
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
       return { success: false, error: error.message };
+    }
+    if ((error as any)?.code === "23505") {
+      return { success: false, error: "Nama menu ini sudah dipakai oleh item lain di gerai ini." };
     }
     const message = error instanceof Error ? error.message : "Terjadi kesalahan sistem";
     return { success: false, error: message };

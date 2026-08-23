@@ -24,6 +24,7 @@
 import { db, schema } from "@taj-saas/db";
 import { eq, and, gte, lte, SQL } from "drizzle-orm";
 import { requireTenantPermission, AuthorizationError } from "@lib/tenant-authorization";
+import { getCogsRate } from "./_tenantHelper";
 
 // Resolve date filter in Asia/Jakarta timezone (UTC+7)
 function resolveDateFilter(
@@ -450,6 +451,10 @@ export async function getMenuEngineeringAction(
   branchId?: string
 ) {
   try {
+    const { tenant } = await requireTenantPermission("finance:read", { expectedApp: "owner" });
+    const cogsRate = await getCogsRate(tenant.id);
+    const marginRate = 1 - cogsRate;
+
     const res = await getTopMenusAction(dateRange, customStart, customEnd, branchId);
     if (!res.success || !res.data || res.data.length === 0) return { success: true, data: [] };
 
@@ -457,7 +462,7 @@ export async function getMenuEngineeringAction(
     const avgQty = items.reduce((sum, item) => sum + item.totalQty, 0) / items.length;
 
     const matrix = items.map((item) => {
-      const marginPerItem = item.totalQty > 0 ? (item.totalRevenue / item.totalQty) * 0.65 : 0;
+      const marginPerItem = item.totalQty > 0 ? (item.totalRevenue / item.totalQty) * marginRate : 0;
       const isHighVolume = item.totalQty >= avgQty;
       const isHighMargin = marginPerItem >= 15000;
 

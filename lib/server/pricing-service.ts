@@ -101,8 +101,10 @@ export async function calculateOrderPricing(
   }
 
   const branding = (tenant.branding || {}) as Record<string, unknown>;
-  const taxRateBps = Number(branding.taxRateBps ?? 0); // 1000 = 10%
-  const serviceChargeRateBps = Number(branding.serviceChargeRateBps ?? 0); // 500 = 5%
+  const rawTaxRate = typeof branding.taxRateBps === 'number' ? branding.taxRateBps : (typeof branding.taxRate === 'number' ? Math.round(branding.taxRate * 100) : 0);
+  const taxRateBps = Math.max(0, Number(rawTaxRate || 0)); // e.g. 10% = 1000 bps
+  const rawServiceChargeRate = typeof branding.serviceChargeRateBps === 'number' ? branding.serviceChargeRateBps : (typeof branding.serviceChargeRate === 'number' ? Math.round(branding.serviceChargeRate * 100) : 0);
+  const serviceChargeRateBps = Math.max(0, Number(rawServiceChargeRate || 0)); // e.g. 5% = 500 bps
 
   // 2. Resolve Active Branch
   const branches = await db

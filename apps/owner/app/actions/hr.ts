@@ -27,10 +27,12 @@ import { db, schema } from "@taj-saas/db";
 import { eq, and, or, count } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
+import { auth } from "@lib/auth";
+import crypto from "crypto";
 
 export async function getProfilesAction() {
   try {
-    const { tenant } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
+    const { tenant } = await requireTenantPermission("hr:read", { expectedApp: "owner" });
 
     const profilesWithUsers = await db
       .select({
@@ -93,17 +95,23 @@ export async function createEmployeeAction(data: {
       return { success: false, error: "Email sudah terdaftar dalam sistem." };
     }
 
-    const userId = "u-" + Math.random().toString(36).substring(2, 15);
-
-    // 1. Insert user
-    await db.insert(schema.user).values({
-      id: userId,
-      name: data.name.trim(),
-      email: normalizedEmail,
-      emailVerified: true,
+    // Provision account via Better Auth official API to ensure schema.account credentials exist
+    const tempPassword = crypto.randomBytes(12).toString("base64url");
+    const signUpResult = await auth.api.signUpEmail({
+      body: {
+        name: data.name.trim(),
+        email: normalizedEmail,
+        password: tempPassword,
+      },
     });
 
-    // 2. Insert profile
+    if (!signUpResult || !signUpResult.user) {
+      return { success: false, error: "Gagal membuat akun autentikasi karyawan." };
+    }
+
+    const userId = signUpResult.user.id;
+
+    // Insert profile linked to tenant
     const [profile] = await db
       .insert(schema.profiles)
       .values({
@@ -131,8 +139,8 @@ export async function createEmployeeAction(data: {
     revalidatePath("/sdm");
     return {
       success: true,
-      data: { ...profile, name: data.name },
-      message: "Karyawan berhasil ditambahkan. Minta karyawan menggunakan fitur 'Lupa Password' untuk membuat password pertama kali.",
+      data: { ...profile, name: data.name, tempPassword },
+      message: `Karyawan berhasil ditambahkan. Password awal: ${tempPassword}`,
     };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
@@ -565,7 +573,7 @@ export async function acceptEmployeeInvitationAction(token: string, password: st
 
 export async function getCustomRolesAction() {
   try {
-    const { tenant } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
+    const { tenant } = await requireTenantPermission("hr:read", { expectedApp: "owner" });
 
     const roles = await db
       .select()

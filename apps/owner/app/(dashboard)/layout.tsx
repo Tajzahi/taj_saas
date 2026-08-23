@@ -6,8 +6,8 @@ import { requireTenantSession, AuthorizationError } from "@lib/tenant-authorizat
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   try {
     const { profile } = await requireTenantSession({ expectedApp: "owner" });
-
-    if (profile.role === "kasir") {
+    const OWNER_APP_ALLOWED_ROLES = ["owner", "manager"];
+    if (!OWNER_APP_ALLOWED_ROLES.includes(profile.role)) {
       redirect("/unauthorized");
     }
   } catch (err: unknown) {

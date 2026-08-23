@@ -42,24 +42,6 @@ import {
 import { getMenuEngineeringAction } from "@/app/actions/analytics";
 import VariantBuilder from "./VariantBuilder";
 
-const bom: Record<string, { ingredient: string; qty: number; unit: string; cost: number }[]> = {
-  "m1": [
-    { ingredient: "Tepung Terigu Cakra", qty: 150, unit: "gr", cost: 1800 },
-    { ingredient: "Telur Ayam", qty: 3, unit: "butir", cost: 6600 },
-    { ingredient: "Minyak Goreng", qty: 50, unit: "ml", cost: 900 },
-    { ingredient: "Daun Bawang", qty: 20, unit: "gr", cost: 400 },
-    { ingredient: "Garam & Bumbu", qty: 10, unit: "gr", cost: 500 },
-  ],
-  "m2": [
-    { ingredient: "Tepung Terigu Segitiga", qty: 200, unit: "gr", cost: 2400 },
-    { ingredient: "Keju Kraft Slice", qty: 3, unit: "pcs", cost: 25500 },
-    { ingredient: "Meses Coklat", qty: 30, unit: "gr", cost: 1350 },
-    { ingredient: "Margarin Blue Band", qty: 40, unit: "gr", cost: 1200 },
-    { ingredient: "Gula Pasir", qty: 50, unit: "gr", cost: 700 },
-    { ingredient: "Susu Kental Manis", qty: 30, unit: "ml", cost: 750 },
-  ],
-};
-
 const statusColors: Record<string, string> = {
   star: "#22c55e",
   "plow-horse": "#3b82f6",
@@ -720,41 +702,22 @@ export default function MenuResep() {
 
                   {/* BOM Ingredients */}
                   <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                    <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">Resep (Bill of Materials)</h4>
-                    {bom[selectedItem.id] ? (
-                      <div className="space-y-2.5">
-                        {bom[selectedItem.id].map((ing, i) => (
-                          <div key={i} className="flex justify-between text-xs py-1 border-b border-dashed border-slate-100 dark:border-slate-850">
-                            <div>
-                              <p className="font-semibold text-slate-800 dark:text-slate-200">{ing.ingredient}</p>
-                              <p className="text-[10px] text-slate-450">{ing.qty} {ing.unit}</p>
-                            </div>
-                            <span className="font-mono text-slate-500">{formatRupiah(ing.cost)}</span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between pt-3 text-xs font-bold border-t border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200">
-                          <span>Total Cost Bahan</span>
-                          <span>{formatRupiah(selectedItem.cost)}</span>
-                        </div>
-                        <div className="flex gap-2 pt-4">
-                          <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
-                            Ubah Menu
-                          </Button>
-                          <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
-                            + Atur Resep
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2 py-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
-                          Ubah Menu
-                        </Button>
-                        <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
-                          + Atur Resep
-                        </Button>
-                      </div>
-                    )}
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Resep (Bill of Materials)</h4>
+                      <span className="text-[10px] text-slate-400">Terkoneksi Stok Bahan</span>
+                    </div>
+                    <div className="flex justify-between items-center py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      <span>Estimasi Biaya Bahan (HPP)</span>
+                      <span className="font-bold text-slate-900 dark:text-white">{formatRupiah(selectedItem.cost || 0)}</span>
+                    </div>
+                    <div className="flex gap-2 pt-3">
+                      <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
+                        Ubah Menu
+                      </Button>
+                      <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
+                        + Atur Resep (BOM)
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -906,7 +869,7 @@ export default function MenuResep() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="text-xs font-semibold text-slate-700 dark:text-slate-200">Modal Bahan Baku (HPP)</label>
-                  {(dbRecipeMap[editItem.id]?.length > 0 || (bom[editItem.id] && bom[editItem.id].length > 0)) ? (
+                  {Boolean(dbRecipeMap[editItem.id]?.length) ? (
                     <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/50 px-2 py-0.5 rounded-md flex items-center gap-1">
                       ✨ Dihitung dari Resep
                     </span>
@@ -918,10 +881,10 @@ export default function MenuResep() {
                   type="number"
                   value={editCost}
                   onChange={e => setEditCost(Number(e.target.value))}
-                  disabled={(dbRecipeMap[editItem.id]?.length > 0 || (bom[editItem.id] && bom[editItem.id].length > 0))}
+                  disabled={Boolean(dbRecipeMap[editItem.id]?.length)}
                   required
                 />
-                {(dbRecipeMap[editItem.id]?.length > 0 || (bom[editItem.id] && bom[editItem.id].length > 0)) ? (
+                {Boolean(dbRecipeMap[editItem.id]?.length) ? (
                   <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1">
                     <span>HPP terkunci mengikuti rincian resep.</span>
                     <button
@@ -940,7 +903,7 @@ export default function MenuResep() {
                       onClick={() => { setShowEdit(false); handleOpenRecipeModal(editItem); }}
                       className="text-orange-600 dark:text-orange-400 font-bold hover:underline ml-1"
                     >
-                      + Atur Resep ➔
+                      + Atur Resep
                     </button>
                   </div>
                 )}
@@ -1179,41 +1142,22 @@ export default function MenuResep() {
 
               {/* BOM Ingredients */}
               <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
-                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-3">Resep (Bill of Materials)</h4>
-                {bom[selectedItem.id] ? (
-                  <div className="space-y-2.5">
-                    {bom[selectedItem.id].map((ing, i) => (
-                      <div key={i} className="flex justify-between text-xs py-1 border-b border-dashed border-slate-100 dark:border-slate-850">
-                        <div>
-                          <p className="font-semibold text-slate-800 dark:text-slate-200">{ing.ingredient}</p>
-                          <p className="text-[10px] text-slate-450">{ing.qty} {ing.unit}</p>
-                        </div>
-                        <span className="font-mono text-slate-500">{formatRupiah(ing.cost)}</span>
-                      </div>
-                    ))}
-                    <div className="flex justify-between pt-3 text-xs font-bold border-t border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-200">
-                      <span>Total Cost Bahan</span>
-                      <span>{formatRupiah(selectedItem.cost)}</span>
-                    </div>
-                    <div className="flex gap-2 pt-4">
-                      <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
-                        Ubah Menu
-                      </Button>
-                      <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
-                        + Atur Resep
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex gap-2 py-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
-                      Ubah Menu
-                    </Button>
-                    <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
-                      + Atur Resep
-                    </Button>
-                  </div>
-                )}
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300">Resep (Bill of Materials)</h4>
+                  <span className="text-[10px] text-slate-400">Terkoneksi Stok Bahan</span>
+                </div>
+                <div className="flex justify-between items-center py-2 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  <span>Estimasi Biaya Bahan (HPP)</span>
+                  <span className="font-bold text-slate-900 dark:text-white">{formatRupiah(selectedItem.cost || 0)}</span>
+                </div>
+                <div className="flex gap-2 pt-3">
+                  <Button variant="outline" size="sm" className="flex-1" onClick={() => handleOpenEdit(selectedItem)}>
+                    Ubah Menu
+                  </Button>
+                  <Button variant="primary" size="sm" className="flex-1" onClick={() => handleOpenRecipeModal(selectedItem)}>
+                    + Atur Resep (BOM)
+                  </Button>
+                </div>
               </div>
             </div>
           </div>

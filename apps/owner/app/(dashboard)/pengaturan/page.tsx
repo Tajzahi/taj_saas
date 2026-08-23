@@ -46,6 +46,7 @@ export default function Pengaturan() {
     { name: "Zona 2 (Sedang)", maxKm: 6, fee: 8000 },
     { name: "Zona 3 (Jauh)", maxKm: 10, fee: 12000 },
   ]);
+  const [settingsVersion, setSettingsVersion] = useState<number>(1);
   const [loading, setLoading] = useState(true);
 
   // Live Database States
@@ -56,6 +57,9 @@ export default function Pengaturan() {
     getTenantSettingsAction().then(res => {
       if (res.success && res.data) {
         setBusinessName(res.data.name || "");
+        if (typeof (res.data as any).settingsVersion === "number") {
+          setSettingsVersion((res.data as any).settingsVersion);
+        }
         const branding: any = res.data.branding;
         if (branding) {
           if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
@@ -69,7 +73,9 @@ export default function Pengaturan() {
           if (branding.bankInfo) setBankInfo(branding.bankInfo);
           if (branding.heroBannerUrl) setHeroBannerUrl(branding.heroBannerUrl);
           if (typeof branding.taxRate === "number") setTaxRate(branding.taxRate);
+          else if (typeof branding.taxRateBps === "number") setTaxRate(branding.taxRateBps / 100);
           if (typeof branding.serviceChargeRate === "number") setServiceChargeRate(branding.serviceChargeRate);
+          else if (typeof branding.serviceChargeRateBps === "number") setServiceChargeRate(branding.serviceChargeRateBps / 100);
           if (typeof branding.enableQris === "boolean") setEnableQris(branding.enableQris);
           if (typeof branding.enableBankTransfer === "boolean") setEnableBankTransfer(branding.enableBankTransfer);
           if (typeof branding.enableCash === "boolean") setEnableCash(branding.enableCash);
@@ -127,19 +133,29 @@ export default function Pengaturan() {
       bankInfo,
       heroBannerUrl,
       taxRate: Number(taxRate),
+      taxRateBps: Math.round(Number(taxRate) * 100),
       serviceChargeRate: Number(serviceChargeRate),
+      serviceChargeRateBps: Math.round(Number(serviceChargeRate) * 100),
       enableQris,
       enableBankTransfer,
       enableCash,
       maxDeliveryRadiusKm: Number(maxDeliveryRadiusKm),
       flatDeliveryFee: Number(flatDeliveryFee),
       deliveryZones,
-    });
+    }, settingsVersion);
     setLoading(false);
     if (res.success) {
+      if (res.data && typeof (res.data as any).settingsVersion === "number") {
+        setSettingsVersion((res.data as any).settingsVersion);
+      }
       alert("Pengaturan berhasil disimpan ke Database!");
     } else {
-      alert("Gagal menyimpan pengaturan: " + res.error);
+      if (res.error && res.error.includes("pengguna lain")) {
+        alert("Pengaturan telah diperbarui oleh pengguna lain. Halaman akan dimuat ulang.");
+        window.location.reload();
+      } else {
+        alert("Gagal menyimpan pengaturan: " + res.error);
+      }
     }
   };
 
