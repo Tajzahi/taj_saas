@@ -93,6 +93,7 @@ export default function SDM() {
   const [editRole, setEditRole] = useState("kasir");
   const [editBranchId, setEditBranchId] = useState("");
   const [editSalary, setEditSalary] = useState<number | string>(0);
+  const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; tempPassword?: string; role: string } | null>(null);
 
   // Master Shift Types States (Synced with DB)
   const [shiftTypesList, setShiftTypesList] = useState<any[]>([]);
@@ -133,19 +134,22 @@ export default function SDM() {
   const [shiftValue, setShiftValue] = useState("Pagi");
   const [updatingShift, setUpdatingShift] = useState(false);
 
+  const handleOpenShiftModal = (empId: string, currentShift: string) => {
+    setShiftEmpId(empId);
+    setShiftValue(currentShift || "Pagi");
+    setShowShiftModal(true);
+  };
+
   const handleUpdateShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!shiftEmpId) {
-      toast.error("Pilih karyawan terlebih dahulu.");
-      return;
-    }
+    if (!shiftEmpId) return;
     setUpdatingShift(true);
     const res = await updateEmployeeShiftAction(shiftEmpId, shiftValue);
     setUpdatingShift(false);
     if (res.success) {
       setEmployees(prev => prev.map(emp => emp.id === shiftEmpId ? { ...emp, shift: shiftValue } : emp));
       setShowShiftModal(false);
-      toast.success(res.message || "Jadwal shift berhasil diperbarui!");
+      toast.success(res.message || "Shift kerja karyawan berhasil diperbarui!");
     } else {
       toast.error("Gagal memperbarui shift: " + res.error);
     }
@@ -186,6 +190,14 @@ export default function SDM() {
         status: "active",
       };
       setEmployees(prev => [...prev, newEmp]);
+      if (res.data.tempPassword) {
+        setCreatedCredentials({
+          name: addName,
+          email: addEmail,
+          tempPassword: res.data.tempPassword,
+          role: addRole,
+        });
+      }
       setShowAddEmployee(false);
       setAddName("");
       setAddEmail("");
@@ -194,7 +206,7 @@ export default function SDM() {
       setAddRole("owner");
       setAddBranchId("");
       setAddSalary(0);
-      toast.success("Karyawan baru berhasil ditambahkan!");
+      toast.success(res.message || "Karyawan baru berhasil ditambahkan!");
     } else {
       toast.error("Gagal menambahkan karyawan: " + res.error);
     }
@@ -1165,6 +1177,92 @@ export default function SDM() {
               </Button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal Kredensial Password Baru Karyawan */}
+      {createdCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-scale-up">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800/60 flex items-center justify-center text-2xl shrink-0">
+                🔑
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 dark:text-white leading-tight">
+                  Akun Karyawan Berhasil Dibuat
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Berikan informasi login ini kepada staf terkait.
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-3 font-mono text-xs">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Nama Staf:</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold">{createdCredentials.name}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Email Login:</span>
+                <span className="text-slate-800 dark:text-slate-200 font-semibold">{createdCredentials.email}</span>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Role / Posisi:</span>
+                <span className="text-orange-600 dark:text-orange-400 font-bold uppercase">{createdCredentials.role}</span>
+              </div>
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
+                <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block font-sans">Password Sementara:</span>
+                <div className="flex items-center justify-between mt-1 bg-white dark:bg-slate-900 px-3 py-2 rounded-xl border border-emerald-300 dark:border-emerald-800">
+                  <span className="font-bold text-sm text-emerald-700 dark:text-emerald-300 tracking-wider">
+                    {createdCredentials.tempPassword}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (createdCredentials.tempPassword) {
+                        navigator.clipboard.writeText(createdCredentials.tempPassword);
+                        toast.success("Password disalin ke clipboard!");
+                      }
+                    }}
+                    className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg font-sans font-semibold transition-all shadow-sm"
+                  >
+                    Salin
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-xl flex items-start gap-2.5">
+              <span className="text-base">⚠️</span>
+              <p className="text-[11px] text-amber-800 dark:text-amber-300 leading-relaxed font-medium">
+                <strong>Penting:</strong> Catat dan serahkan password ini sekarang. Demi keamanan privasi, password ini <strong>hanya ditampilkan satu kali</strong> dan tidak dapat dilihat lagi.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 text-xs"
+                onClick={() => {
+                  const textToCopy = `Akun Kasir/Staf:\nEmail: ${createdCredentials.email}\nPassword: ${createdCredentials.tempPassword}\nRole: ${createdCredentials.role}`;
+                  navigator.clipboard.writeText(textToCopy);
+                  toast.success("Seluruh rincian login disalin!");
+                }}
+              >
+                📋 Salin Semua
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                className="flex-1 text-xs"
+                onClick={() => setCreatedCredentials(null)}
+              >
+                Selesai & Tutup
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>

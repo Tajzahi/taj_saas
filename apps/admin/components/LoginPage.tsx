@@ -5,9 +5,21 @@ import { authClient } from "@lib/auth-client";
 
 interface LoginPageProps {
   onLogin: (username: string, password: string) => void;
+  tenantSlug?: string | null;
+  businessName?: string | null;
+  storeTagline?: string | null;
+  storeCity?: string | null;
+  logoUrl?: string | null;
 }
 
-export default function LoginPage({ onLogin }: LoginPageProps) {
+export default function LoginPage({
+  onLogin,
+  tenantSlug,
+  businessName,
+  storeTagline,
+  storeCity,
+  logoUrl,
+}: LoginPageProps) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [startingCash, setStartingCash] = useState('');
@@ -29,17 +41,30 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
       const cleanCash = startingCash ? startingCash.replace(/\./g, '').replace(/,/g, '.') : '0';
       const cashAmount = Math.max(0, Number(cleanCash) || 0);
 
-      // Convert username to email format if not already
+      // Convert username to tenant-scoped synthetic email if not already an email
       let email = username.trim();
       if (!email.includes('@')) {
-        email = `${email}@taj.saas`;
+        const slug = tenantSlug ? tenantSlug.replace(/[^a-z0-9_-]/gi, '') : 'portal';
+        email = `${email}@${slug}.taj.saas`;
       }
 
       // Better Auth Sign In
-      const loginRes = await authClient.signIn.email({
+      let loginRes = await authClient.signIn.email({
         email,
         password,
       });
+
+      // If synthetic email failed and didn't have @ in original input, try legacy @taj.saas fallback
+      if (loginRes.error && !username.includes('@')) {
+        const legacyEmail = `${username.trim()}@taj.saas`;
+        const retryRes = await authClient.signIn.email({
+          email: legacyEmail,
+          password,
+        });
+        if (!retryRes.error) {
+          loginRes = retryRes;
+        }
+      }
 
       if (loginRes.error) {
         throw new Error(loginRes.error.message || 'Email atau password kasir salah.');
@@ -77,14 +102,17 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             className="px-5 py-6 sm:px-8 sm:py-8 text-center"
             style={{ background: 'linear-gradient(135deg, #8E0E0E, #C83707)' }}
           >
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm mb-4 shadow-lg">
-              <ChefHat className="w-10 h-10 text-white" />
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-white/20 backdrop-blur-sm mb-4 shadow-lg overflow-hidden">
+              {logoUrl ? (
+                <img src={logoUrl} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                <ChefHat className="w-10 h-10 text-white" />
+              )}
             </div>
             <h1 className="text-2xl font-black text-white tracking-tight leading-tight">
-              A6 NYUSS
+              {businessName || "Portal Operasional"}
             </h1>
-            <p className="text-white/80 text-sm mt-1 font-medium">Portal Operasional Kasir</p>
-            <p className="text-white/60 text-xs mt-1">Martabak Terbul A6 Nyuss</p>
+            <p className="text-white/80 text-sm mt-1 font-medium">{storeTagline || "Portal Operasional Kasir & Dapur"}</p>
           </div>
 
           {/* Form */}
@@ -94,13 +122,13 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Username
+                  Username / Email
                 </label>
                 <input
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Contoh: kasir_demak"
+                  placeholder="Contoh: kasir_1 atau kasir@domain.com"
                   className="w-full px-4 py-3 rounded-xl border-2 border-gray-200 focus:outline-none focus:border-red-500 text-gray-800 text-sm transition-colors"
                   style={{ '--tw-ring-color': '#C83707' } as React.CSSProperties}
                   autoComplete="username"
@@ -182,7 +210,7 @@ export default function LoginPage({ onLogin }: LoginPageProps) {
         </div>
 
         <p className="text-white/60 text-xs text-center mt-6">
-          © 2026 Martabak Terbul A6 Nyuss · Surabaya
+          © {new Date().getFullYear()} {businessName || "TajDigital SaaS"} {storeCity ? `· ${storeCity}` : ""}
         </p>
       </div>
     </div>

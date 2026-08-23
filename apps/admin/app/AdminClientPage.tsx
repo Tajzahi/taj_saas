@@ -8,9 +8,19 @@ interface AdminClientPageProps {
   tenantId: string | null;
   tenantSlug: string | null;
   initialSession: any;
+  tenantName?: string | null;
+  tenantBranding?: any;
 }
 
-export default function AdminClientPage({ tenantId, tenantSlug, initialSession }: AdminClientPageProps) {
+const ALLOWED_ADMIN_ROLES = ['owner', 'manager', 'kasir', 'kitchen', 'staf'];
+
+export default function AdminClientPage({
+  tenantId,
+  tenantSlug,
+  initialSession,
+  tenantName,
+  tenantBranding,
+}: AdminClientPageProps) {
   // Use React hook to query the session reactively on the client
   const { data: session, isPending } = authClient.useSession();
 
@@ -40,8 +50,17 @@ export default function AdminClientPage({ tenantId, tenantSlug, initialSession }
   };
 
   const userRole = (session?.user as any)?.role;
-  if (!session || (userRole !== 'owner' && userRole !== 'kasir')) {
-    return <LoginPage onLogin={() => {}} />;
+  if (!session || !ALLOWED_ADMIN_ROLES.includes(userRole || 'kasir')) {
+    return (
+      <LoginPage
+        onLogin={() => {}}
+        tenantSlug={tenantSlug}
+        businessName={tenantBranding?.brandName || tenantName || "Portal Operasional"}
+        storeTagline={tenantBranding?.receiptHeader || "Portal Operasional Kasir & Dapur"}
+        storeCity={tenantBranding?.storeCity || "Indonesia"}
+        logoUrl={tenantBranding?.logoUrl || tenantBranding?.logo || null}
+      />
+    );
   }
 
   return (

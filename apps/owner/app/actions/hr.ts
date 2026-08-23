@@ -711,7 +711,7 @@ export async function deleteCustomRoleAction(roleIdOrCode: string) {
 
 export async function getShiftTypesAction() {
   try {
-    const { tenant } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
+    const { tenant } = await requireTenantPermission("hr:read", { expectedApp: "owner" });
 
     const shifts = await db
       .select()

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { menuItems as staticMenuItems, toppingOptions } from '../data/menu';
+import { toppingOptions } from '../data/menu';
 import toast from 'react-hot-toast';
 import {
   getOrdersAction,
@@ -46,9 +46,11 @@ export interface AdminOrder {
   paymentStatus: 'pending' | 'waiting_verification' | 'paid' | 'failed' | 'refunded';
   paymentProofUrl: string | null;
   notes: string | null;
-  cancellationReason: string | null;
+  rejectionReason?: string | null;
+  cancellationReason?: string | null;
   items: OrderItem[];
   createdAt: string;
+  posSource?: 'dine_in' | 'takeaway' | null;
 }
 
 export interface MenuItem {
@@ -105,7 +107,7 @@ interface AdminState {
   isLoading: boolean;
   subscription: any | null;
   connectionStatus: 'connected' | 'connecting' | 'disconnected';
-  selectOrder: (id: string) => void;
+  selectOrder: (id: string | null) => void;
   updateOrderStatus: (id: string, newStatus: AdminOrder['status'], cancellationReason?: string) => Promise<boolean>;
   verifyPaymentStatus: (id: string, isPaid: boolean) => Promise<boolean>;
   stopAlarm: () => void;
@@ -138,7 +140,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   selectedOrderId: null,
   isAlarmPlaying: false,
   isStoreOpen: true,
-  storeName: 'Martabak A6 Nyuss',
+  storeName: 'Portal Operasional',
   branding: null,
   newOrderIds: [],
   isLoading: false,
@@ -242,7 +244,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     if (res.success) {
       set({
         isStoreOpen: res.isOpen ?? true,
-        storeName: res.name || 'Martabak A6 Nyuss',
+        storeName: res.name || 'Portal Operasional',
         branding: res.branding || null,
       });
     }

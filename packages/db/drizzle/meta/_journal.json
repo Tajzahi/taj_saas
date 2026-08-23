@@ -43,6 +43,13 @@
       "when": 1786982382159,
       "tag": "0005_neat_selene",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1787452373228,
+      "tag": "0006_outgoing_goliath",
+      "breakpoints": true
     }
   ]
 }
