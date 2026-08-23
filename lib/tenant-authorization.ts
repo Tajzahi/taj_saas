@@ -3,6 +3,7 @@ import { headers } from 'next/headers';
 import { db, schema } from '@taj-saas/db';
 import { eq, and, desc } from 'drizzle-orm';
 import { auth } from './auth';
+import { parseTenantFromHostname } from '@taj-saas/shared';
 
 // ─── ERROR CLASSES & TYPED ACTION RESULTS ───────────────────────────────────
 
@@ -25,19 +26,17 @@ export type ActionResult<T = unknown> =
       error: string;
     };
 
-// ─── PERMISSION MATRIX ──────────────────────────────────────────────────────
+// ─── RBAC PERMISSION SYSTEM ──────────────────────────────────────────────────
 
 export type Permission =
-  | 'orders:read'
-  | 'orders:update-status'
-  | 'orders:verify-payment'
-  | 'orders:create-pos'
-  | 'shifts:manage-own'
-  | 'shifts:manage-all'
-  | 'store:read-operation'
-  | 'store:manage-operation'
   | 'menu:read'
   | 'menu:manage'
+  | 'orders:read'
+  | 'orders:create-pos'
+  | 'orders:manage-status'
+  | 'orders:update-status'
+  | 'orders:verify-payment'
+  | 'orders:cancel'
   | 'inventory:read'
   | 'inventory:manage'
   | 'approvals:read'
@@ -47,25 +46,31 @@ export type Permission =
   | 'branches:read'
   | 'branches:manage'
   | 'finance:read'
+  | 'finance:manage'
   | 'payments:refund'
   | 'cancellations:review'
+  | 'hr:read'
   | 'hr:manage'
+  | 'shifts:manage-own'
+  | 'shifts:manage-all'
+  | 'store:read-operation'
+  | 'store:manage-operation'
   | 'settings:read'
   | 'settings:manage'
+  | 'promos:manage'
+  | 'reports:export'
   | 'audit:read';
 
 export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
   owner: [
-    'orders:read',
-    'orders:update-status',
-    'orders:verify-payment',
-    'orders:create-pos',
-    'shifts:manage-own',
-    'shifts:manage-all',
-    'store:read-operation',
-    'store:manage-operation',
     'menu:read',
     'menu:manage',
+    'orders:read',
+    'orders:create-pos',
+    'orders:manage-status',
+    'orders:update-status',
+    'orders:verify-payment',
+    'orders:cancel',
     'inventory:read',
     'inventory:manage',
     'approvals:read',
@@ -75,24 +80,30 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'branches:read',
     'branches:manage',
     'finance:read',
+    'finance:manage',
     'payments:refund',
     'cancellations:review',
+    'hr:read',
     'hr:manage',
-    'settings:read',
-    'settings:manage',
-    'audit:read',
-  ],
-  manager: [
-    'orders:read',
-    'orders:update-status',
-    'orders:verify-payment',
-    'orders:create-pos',
     'shifts:manage-own',
     'shifts:manage-all',
     'store:read-operation',
     'store:manage-operation',
+    'settings:read',
+    'settings:manage',
+    'promos:manage',
+    'reports:export',
+    'audit:read',
+  ],
+  manager: [
     'menu:read',
     'menu:manage',
+    'orders:read',
+    'orders:create-pos',
+    'orders:manage-status',
+    'orders:update-status',
+    'orders:verify-payment',
+    'orders:cancel',
     'inventory:read',
     'inventory:manage',
     'approvals:read',
@@ -100,23 +111,48 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'production:read',
     'production:manage',
     'branches:read',
+    'finance:read',
     'payments:refund',
     'cancellations:review',
+    'hr:read',
+    'shifts:manage-own',
+    'shifts:manage-all',
+    'store:read-operation',
+    'store:manage-operation',
     'settings:read',
+    'promos:manage',
+    'reports:export',
     'audit:read',
   ],
   kasir: [
+    'menu:read',
     'orders:read',
+    'orders:create-pos',
+    'orders:manage-status',
     'orders:update-status',
     'orders:verify-payment',
-    'orders:create-pos',
     'shifts:manage-own',
     'store:read-operation',
+    'reports:export',
+  ],
+  kitchen: [
     'menu:read',
+    'orders:read',
+    'orders:manage-status',
+    'orders:update-status',
+    'production:read',
+    'production:manage',
+    'store:read-operation',
+  ],
+  staf: [
+    'menu:read',
+    'orders:read',
+    'orders:create-pos',
+    'shifts:manage-own',
   ],
 };
 
-// ─── PORT-AWARE REQUEST HOST RESOLUTION ─────────────────────────────────────
+// ─── HOST & TENANT RESOLUTION HELPERS ────────────────────────────────────────
 
 export interface NormalizedRequestHost {
   rawHost: string;
@@ -132,48 +168,30 @@ export function normalizeRequestHost(hostHeader: string): NormalizedRequestHost 
   const [hostWithoutPort, port = null] = clean.split(':');
   const hostname = hostWithoutPort.replace(/\.$/, ''); // strip trailing dot
 
-  const isLocal = hostname.endsWith('.localhost') || hostname === 'localhost' || hostname === '127.0.0.1';
-  const isCloudPlatform = hostname.endsWith('.a.run.app') || hostname.endsWith('.run.app') || hostname.endsWith('.netlify.app') || hostname.endsWith('.vercel.app');
+  const parsed = parseTenantFromHostname(clean);
+  const defaultSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
 
-  if (isLocal) {
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      const appType = port === '3001' ? 'admin' : port === '3002' ? 'owner' : 'customer';
-      const defaultSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
-      return { rawHost: clean, hostname, port, appType, lookupType: 'slug', lookupValue: defaultSlug };
-    }
-    const parts = hostname.split('.'); // e.g. admin.martabak-pakde.localhost
-    parts.pop(); // remove 'localhost'
-    if (parts.length >= 2 && (parts[0] === 'admin' || parts[0] === 'owner')) {
-      return { rawHost: clean, hostname, port, appType: parts[0] as 'admin' | 'owner', lookupType: 'slug', lookupValue: parts[1] };
-    }
-    return { rawHost: clean, hostname, port, appType: 'customer', lookupType: 'slug', lookupValue: parts[0] };
+  if (parsed.isLocalhost) {
+    return {
+      rawHost: clean,
+      hostname,
+      port,
+      appType: parsed.appType,
+      lookupType: 'slug',
+      lookupValue: parsed.slug || defaultSlug,
+    };
   }
 
-  if (isCloudPlatform) {
-    // Cloud Run / Staging environments (e.g. taj-customer-*.a.run.app, taj-admin-*.a.run.app, taj-owner-*.a.run.app)
-    const defaultSlug = process.env.NEXT_PUBLIC_TENANT_SLUG || 'taj-saas';
-    let appType: 'customer' | 'admin' | 'owner' = 'customer';
-
-    if (hostname.startsWith('taj-admin') || hostname.startsWith('admin.') || hostname.includes('-admin-') || hostname.includes('-admin.')) {
-      appType = 'admin';
-    } else if (hostname.startsWith('taj-owner') || hostname.startsWith('owner.') || hostname.includes('-owner-') || hostname.includes('-owner.')) {
-      appType = 'owner';
-    } else {
-      appType = 'customer';
-    }
-
-    return { rawHost: clean, hostname, port, appType, lookupType: 'slug', lookupValue: defaultSlug };
-  }
-
-  // Production Custom Domains (e.g. admin.martabakpakde.com or martabakpakde.com)
-  const parts = hostname.split('.');
-  if (parts.length >= 3 && (parts[0] === 'admin' || parts[0] === 'owner')) {
-    const appType = parts[0] as 'admin' | 'owner';
-    const baseDomain = parts.slice(1).join('.');
-    return { rawHost: clean, hostname, port, appType, lookupType: 'domain', lookupValue: baseDomain };
-  }
-
-  return { rawHost: clean, hostname, port, appType: 'customer', lookupType: 'domain', lookupValue: hostname };
+  // If slug contains a dot, it's a custom domain lookup
+  const isDomain = parsed.slug?.includes('.') ?? false;
+  return {
+    rawHost: clean,
+    hostname,
+    port,
+    appType: parsed.appType,
+    lookupType: isDomain ? 'domain' : 'slug',
+    lookupValue: parsed.slug || hostname,
+  };
 }
 
 /**
@@ -209,25 +227,23 @@ export async function resolveTenantFromRequestHost(
     )
     .limit(1);
 
-  // Fallback to slug if domain match returns empty
-  if (tenantResult.length === 0 && norm.lookupType === 'domain') {
-    tenantResult = await db
-      .select()
-      .from(schema.tenants)
-      .where(eq(schema.tenants.slug, norm.lookupValue))
-      .limit(1);
-  }
-
   // Fallback for staging/Cloud Run environments if slug 'taj-saas' is not found
   if (tenantResult.length === 0) {
-    const [latestTenant] = await db
-      .select()
-      .from(schema.tenants)
-      .where(eq(schema.tenants.isActive, true))
-      .orderBy(desc(schema.tenants.createdAt))
-      .limit(1);
-    if (latestTenant) {
-      tenantResult = [latestTenant];
+    const isKnownStagingHost =
+      norm.hostname.includes('.a.run.app') ||
+      norm.hostname.includes('.run.app') ||
+      norm.hostname.includes('localhost');
+
+    if (isKnownStagingHost && process.env.NODE_ENV !== 'production') {
+      const [latestTenant] = await db
+        .select()
+        .from(schema.tenants)
+        .where(eq(schema.tenants.isActive, true))
+        .orderBy(desc(schema.tenants.createdAt))
+        .limit(1);
+      if (latestTenant) {
+        tenantResult = [latestTenant];
+      }
     }
   }
 
@@ -240,8 +256,10 @@ export async function resolveTenantFromRequestHost(
   return tenant;
 }
 
-// ─── AUTHENTICATION & MEMBERSHIP GUARDS ──────────────────────────────────────
-
+/**
+ * Validates the session and ensures the user belongs to the resolved tenant.
+ * Zero-trust: profile MUST exist for the resolved tenant.
+ */
 export async function requireTenantSession(options?: {
   expectedApp?: 'customer' | 'admin' | 'owner';
 }) {
@@ -275,71 +293,39 @@ export async function requireTenantSession(options?: {
   let profile = profileResult[0];
 
   if (!profile) {
-    // Single-domain staging fallback for owner/admin:
-    // If exact tenantId match fails (e.g. staging Cloud Run where host resolves to default 'taj-saas' slug),
-    // look up the user's primary profile directly to resolve their tenant.
-    const userProfileResult = await db
-      .select()
-      .from(schema.profiles)
-      .where(eq(schema.profiles.id, session.user.id))
-      .limit(1);
+    // Check if user has a profile on any tenant in single-domain staging (Cloud Run shared URL)
+    const isKnownStagingHost =
+      (host || '').includes('.a.run.app');
 
-    if (userProfileResult.length > 0) {
-      profile = userProfileResult[0];
-      if (profile.tenantId) {
+    if (isKnownStagingHost && process.env.NODE_ENV !== 'production') {
+      const userProfileResult = await db
+        .select()
+        .from(schema.profiles)
+        .where(eq(schema.profiles.id, session.user.id))
+        .limit(1);
+
+      if (userProfileResult.length > 0 && userProfileResult[0].tenantId) {
         const actualTenantResult = await db
           .select()
           .from(schema.tenants)
-          .where(eq(schema.tenants.id, profile.tenantId))
+          .where(eq(schema.tenants.id, userProfileResult[0].tenantId))
           .limit(1);
 
         if (actualTenantResult.length > 0) {
           return {
             tenant: actualTenantResult[0],
             user: session.user,
-            profile,
+            profile: userProfileResult[0],
           };
         }
       }
     }
 
-    // Auto-recovery fallback for newly registered owner users:
-    // Fetch user from db to verify if role is owner
-    const dbUser = await db
-      .select()
-      .from(schema.user)
-      .where(eq(schema.user.id, session.user.id))
-      .limit(1);
-
-    if (dbUser.length > 0 && (dbUser[0].role === 'owner' || (session.user as any).role === 'owner')) {
-      const [newProfile] = await db
-        .insert(schema.profiles)
-        .values({
-          id: session.user.id,
-          tenantId: tenant.id,
-          email: session.user.email,
-          role: 'owner',
-          salary: '0',
-        })
-        .onConflictDoNothing()
-        .returning();
-
-      return {
-        tenant,
-        user: session.user,
-        profile: newProfile || {
-          id: session.user.id,
-          tenantId: tenant.id,
-          email: session.user.email,
-          role: 'owner',
-          salary: '0',
-          branchId: null,
-          createdAt: new Date(),
-        },
-      };
-    }
-
-    throw new AuthorizationError('FORBIDDEN', 403, 'Akses ke tenant ini ditolak');
+    throw new AuthorizationError(
+      'FORBIDDEN',
+      403,
+      'Akses ke tenant ini ditolak. Anda tidak memiliki profil resmi di gerai ini.'
+    );
   }
 
   return {

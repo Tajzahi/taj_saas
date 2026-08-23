@@ -121,6 +121,10 @@ export async function checkRateLimit(
     }
   }
 
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('[rate-limiter] Upstash Redis not configured in production environment. Running in-memory rate limiting fallback.');
+  }
+
   return checkInMemoryRateLimit(identifier, limit, windowSec);
 }
 

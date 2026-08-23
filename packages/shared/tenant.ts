@@ -141,14 +141,21 @@ export async function resolveTenantMiddleware(
 
     // Fallback untuk domain staging/Cloud Run jika slug default 'taj-saas' tidak ditemukan
     if (!tenant) {
-      const [latestTenant] = await db
-        .select()
-        .from(schema.tenants)
-        .where(eq(schema.tenants.isActive, true))
-        .orderBy(desc(schema.tenants.createdAt))
-        .limit(1);
-      if (latestTenant) {
-        tenant = latestTenant;
+      const isKnownStagingHost =
+        hostname.includes('.a.run.app') ||
+        hostname.includes('.run.app') ||
+        hostname.includes('localhost');
+
+      if (isKnownStagingHost && process.env.NODE_ENV !== 'production') {
+        const [latestTenant] = await db
+          .select()
+          .from(schema.tenants)
+          .where(eq(schema.tenants.isActive, true))
+          .orderBy(desc(schema.tenants.createdAt))
+          .limit(1);
+        if (latestTenant) {
+          tenant = latestTenant;
+        }
       }
     }
 

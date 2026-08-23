@@ -828,7 +828,7 @@ export async function createOfflineOrderAction(data: {
   notes?: string;
 }) {
   try {
-    const { tenant, user } = await requireTenantPermission("orders:create-pos", {
+    const { tenant, user, profile } = await requireTenantPermission("orders:create-pos", {
       expectedApp: "admin",
     });
 
@@ -916,10 +916,19 @@ export async function createOfflineOrderAction(data: {
 
       // Log to active shift if cash/cod payment
       if (data.paymentMethod === "cod") {
+        const shiftConditions = [
+          eq(schema.shifts.tenantId, tenant.id),
+          eq(schema.shifts.status, "open"),
+        ];
+
+        if (profile.branchId) {
+          shiftConditions.push(eq(schema.shifts.branchId, profile.branchId));
+        }
+
         const activeShifts = await tx
           .select()
           .from(schema.shifts)
-          .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
+          .where(and(...shiftConditions))
           .limit(1);
 
         const activeShift = activeShifts[0];

@@ -200,58 +200,16 @@ export async function calculateOrderPricing(
   const itemMapById = new Map(dbMenuItems.map((item) => [item.id, item]));
   const itemMapBySlug = new Map(dbMenuItems.map((item) => [item.slug, item]));
 
-  const STATIC_CATALOGUE_FALLBACK: Record<string, { id?: string; name: string; price: number; categorySlug?: string }> = {
-    'martabak-telur-ayam-1-telur-20k': { name: 'Martabak Telur Ayam - 1 Telur (Rp 20.000)', price: 20000, categorySlug: 'martabak-telur-ayam' },
-    'martabak-telur-ayam-2-telur-25k': { name: 'Martabak Telur Ayam - 2 Telur (Rp 25.000)', price: 25000, categorySlug: 'martabak-telur-ayam' },
-    'martabak-telur-ayam-2-telur-30k': { name: 'Martabak Telur Ayam - 2 Telur (Rp 30.000)', price: 30000, categorySlug: 'martabak-telur-ayam' },
-    'martabak-telur-ayam-3-telur-35k': { name: 'Martabak Telur Ayam - 3 Telur (Rp 35.000)', price: 35000, categorySlug: 'martabak-telur-ayam' },
-    'martabak-telur-ayam-3-telur-40k': { name: 'Martabak Telur Ayam - 3 Telur (Rp 40.000)', price: 40000, categorySlug: 'martabak-telur-ayam' },
-    'martabak-telur-ayam-4-telur-45k': { name: 'Martabak Telur Ayam - 4 Telur (Rp 45.000)', price: 45000, categorySlug: 'martabak-telur-ayam' },
-    'martabak-telur-ayam-4-telur-50k': { name: 'Martabak Telur Ayam - 4 Telur (Rp 50.000)', price: 50000, categorySlug: 'martabak-telur-ayam' },
-    'martabak-telur-bebek-1-telur-20k': { name: 'Martabak Telur Bebek - 1 Telur (Rp 20.000)', price: 20000, categorySlug: 'martabak-telur-bebek' },
-    'martabak-telur-bebek-2-telur-25k': { name: 'Martabak Telur Bebek - 2 Telur (Rp 25.000)', price: 25000, categorySlug: 'martabak-telur-bebek' },
-    'martabak-telur-bebek-2-telur-30k': { name: 'Martabak Telur Bebek - 2 Telur (Rp 30.000)', price: 30000, categorySlug: 'martabak-telur-bebek' },
-    'martabak-telur-bebek-3-telur-35k': { name: 'Martabak Telur Bebek - 3 Telur (Rp 35.000)', price: 35000, categorySlug: 'martabak-telur-bebek' },
-    'martabak-telur-bebek-3-telur-40k': { name: 'Martabak Telur Bebek - 3 Telur (Rp 40.000)', price: 40000, categorySlug: 'martabak-telur-bebek' },
-    'martabak-telur-bebek-4-telur-45k': { name: 'Martabak Telur Bebek - 4 Telur (Rp 45.000)', price: 45000, categorySlug: 'martabak-telur-bebek' },
-    'martabak-telur-bebek-4-telur-50k': { name: 'Martabak Telur Bebek - 4 Telur (Rp 50.000)', price: 50000, categorySlug: 'martabak-telur-bebek' },
-    'martabak-telur-bebek-5-telur-55k': { name: 'Martabak Telur Bebek - 5 Telur (Rp 55.000)', price: 55000, categorySlug: 'martabak-telur-bebek' },
-    'terang-bulan-2-variant-topping': { name: 'Terang Bulan 2 Variant Topping', price: 20000, categorySlug: 'terang-bulan' },
-    'terang-bulan-milo-1-topping': { name: 'Terang Bulan Milo + 1 Topping', price: 25000, categorySlug: 'terang-bulan' },
-    'terang-bulan-oreo-1-topping': { name: 'Terang Bulan Oreo + 1 Topping', price: 25000, categorySlug: 'terang-bulan' },
-    'terang-bulan-red-velvet-1-topping': { name: 'Terang Bulan Red Velvet + 1 Topping', price: 25000, categorySlug: 'terang-bulan' },
-    'terang-bulan-nutella-1-topping': { name: 'Terang Bulan Nutella + 1 Topping', price: 30000, categorySlug: 'terang-bulan' },
-  };
-
   const itemsBreakdown: PricingItemBreakdown[] = [];
   let subtotal = 0;
 
   for (const item of items) {
-    const rawKey = (item.menuItemSlug || item.menuItemId || "").toLowerCase().trim();
-    let dbItem =
+    const dbItem =
       (item.menuItemId ? itemMapById.get(item.menuItemId) || itemMapBySlug.get(item.menuItemId) : null) ||
       (item.menuItemSlug ? itemMapBySlug.get(item.menuItemSlug) : null);
 
-    // Fallback to static catalogue if not in database
-    if (!dbItem && rawKey) {
-      const fallback = STATIC_CATALOGUE_FALLBACK[rawKey] ||
-        Object.entries(STATIC_CATALOGUE_FALLBACK).find(([k]) => rawKey.includes(k) || k.includes(rawKey))?.[1];
-
-      if (fallback) {
-        dbItem = {
-          id: item.menuItemId && UUID_REGEX.test(item.menuItemId) ? item.menuItemId : crypto.randomUUID(),
-          slug: rawKey,
-          name: fallback.name,
-          price: String(fallback.price),
-          isAvailable: true,
-          categoryId: null,
-          variants: null,
-        };
-      }
-    }
-
     if (!dbItem) {
-      throw new Error(`Menu item '${item.menuItemName || item.menuItemId || item.menuItemSlug}' tidak ditemukan.`);
+      throw new Error(`Menu item '${item.menuItemName || item.menuItemSlug || item.menuItemId}' tidak ditemukan di katalog gerai ini.`);
     }
 
     if (!dbItem.isAvailable) {
