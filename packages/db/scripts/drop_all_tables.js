@@ -32,6 +32,16 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
+// 🛡️ CRITICAL SAFETY GUARD: Prevent accidental execution in production / staging
+if (process.env.NODE_ENV === "production" || !process.env.ALLOW_DESTRUCTIVE_DB_RESET) {
+  console.error(
+    "⛔ BLOCKED: drop_all_tables.js is a dangerous destructive operation.\n" +
+    "Execution is blocked in production environments and requires explicit confirmation.\n" +
+    "To run locally in development, set: ALLOW_DESTRUCTIVE_DB_RESET=true"
+  );
+  process.exit(1);
+}
+
 const sql = neon(databaseUrl);
 
 async function main() {

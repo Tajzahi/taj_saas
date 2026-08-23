@@ -34,6 +34,15 @@ Thumbs.db
 # Test & Debug Artifacts
 login-failure.png
 check_login.js
+cloud_run_*.png
+link web.txt
 *.tsbuildinfo
 test-results/
 playwright-report/
+
+# Local-Only Documentation & Offline Scripts (Kept locally, excluded from GitHub)
+/docs/
+/map/
+/scripts/
+/tests/
+apps/*/tests/

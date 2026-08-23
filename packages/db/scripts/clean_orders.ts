@@ -24,6 +24,14 @@ try {
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) process.exit(1);
 
+// 🛡️ SAFETY GUARD: Prevent accidental bulk deletion in production without explicit flag
+if (process.env.NODE_ENV === "production" && !process.env.ALLOW_DESTRUCTIVE_DB_RESET) {
+  console.error(
+    "⛔ BLOCKED: clean_orders.ts cannot be executed in production without ALLOW_DESTRUCTIVE_DB_RESET=true"
+  );
+  process.exit(1);
+}
+
 const sql = neon(databaseUrl);
 const db = drizzle(sql, { schema });
 

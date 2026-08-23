@@ -76,8 +76,18 @@ const extraToppingOptions = [
 export async function seedTemplate(tenantId: string) {
   console.log('Seeding F&B template for tenant:', tenantId);
 
-  // 1. Clean existing data for this tenant
-  await db.delete(recipeIngredients).where(eq(recipeIngredients.recipeId, recipeIngredients.recipeId)); // simple delete all
+  // 1. Clean existing data for this tenant strictly (scoped to tenantId)
+  const tenantRecipes = await db
+    .select({ id: recipes.id })
+    .from(recipes)
+    .where(eq(recipes.tenantId, tenantId));
+
+  if (tenantRecipes.length > 0) {
+    const { inArray } = await import('drizzle-orm');
+    const recipeIds = tenantRecipes.map((r) => r.id);
+    await db.delete(recipeIngredients).where(inArray(recipeIngredients.recipeId, recipeIds));
+  }
+
   await db.delete(recipes).where(eq(recipes.tenantId, tenantId));
   await db.delete(inventory).where(eq(inventory.tenantId, tenantId));
   await db.delete(branches).where(eq(branches.tenantId, tenantId));

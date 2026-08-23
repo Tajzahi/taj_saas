@@ -16,6 +16,7 @@ const TenantBrandingSchema = z.object({
   primaryColor: z.string().max(50).optional(),
   secondaryColor: z.string().max(50).optional(),
   storeAddress: z.string().max(300).optional(),
+  storeCity: z.string().max(100).optional(),
   whatsappNumber: z.string().max(30).optional(),
   openingHours: z.string().max(100).optional(),
   taxRate: z.number().min(0).max(100).optional(),

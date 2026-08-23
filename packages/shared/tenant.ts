@@ -21,6 +21,7 @@ export interface Tenant {
     flatDeliveryFee?: number;
     minimumOrderAmount?: number;
     storeAddress?: string;
+    storeCity?: string;
     googleMapsUrl?: string;
     openingHours?: string;
     qrisImageUrl?: string;

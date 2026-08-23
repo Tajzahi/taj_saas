@@ -62,10 +62,11 @@ async function main() {
   for (const u of sdmUsers) {
     try {
       console.log(`Registering user via Better Auth: ${u.email}`);
+      const defaultPassword = process.env.SEED_DEFAULT_PASSWORD || 'A6nyusss';
       const res = await auth.api.signUpEmail({
         body: {
           email: u.email,
-          password: 'A6nyusss',
+          password: defaultPassword,
           name: u.name,
         }
       });

@@ -35,6 +35,16 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
+// 🛡️ CRITICAL SAFETY GUARD: Prevent accidental global data wipe in production / staging
+if (process.env.NODE_ENV === "production" || !process.env.ALLOW_DESTRUCTIVE_DB_RESET) {
+  console.error(
+    "⛔ BLOCKED: seed_clean_daftar_menu.js deletes all existing records across all tables.\n" +
+    "Execution is blocked in production environments and requires explicit confirmation.\n" +
+    "To run locally in development, set: ALLOW_DESTRUCTIVE_DB_RESET=true"
+  );
+  process.exit(1);
+}
+
 const sql = neon(databaseUrl);
 const db = drizzle(sql, { schema });
 

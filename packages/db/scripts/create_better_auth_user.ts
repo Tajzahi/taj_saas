@@ -11,12 +11,16 @@ async function main() {
     }
     const tenant = tenants[0];
 
+    const email = process.env.SEED_OWNER_EMAIL || 'owner@taj.saas';
+    const password = process.env.SEED_DEFAULT_PASSWORD || 'Password123!';
+    const name = process.env.SEED_OWNER_NAME || 'Owner Taj';
+
     // Create user via Better-Auth
     const res = await auth.api.signUpEmail({
       body: {
-        email: 'a6nyusss@gmail.com',
-        password: 'Password123!',
-        name: 'Khoirul Anam',
+        email,
+        password,
+        name,
       }
     });
 

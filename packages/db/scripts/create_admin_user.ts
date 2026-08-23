@@ -11,17 +11,21 @@ async function main() {
     }
     const tenant = tenants[0];
 
+    const email = process.env.SEED_ADMIN_EMAIL || 'kasir.siti@taj.saas';
+    const password = process.env.SEED_DEFAULT_PASSWORD || 'Password123!';
+    const name = process.env.SEED_ADMIN_NAME || 'Kasir Siti';
+
     // Delete existing kasir if any to allow fresh sign up
-    const existing = await db.select().from(schema.user).where(eq(schema.user.email, 'kasir.siti@a6nyuss.com'));
+    const existing = await db.select().from(schema.user).where(eq(schema.user.email, email));
     if (existing.length > 0) {
       await db.delete(schema.user).where(eq(schema.user.id, existing[0].id));
     }
 
     const res = await auth.api.signUpEmail({
       body: {
-        email: 'kasir.siti@a6nyuss.com',
-        password: 'Password123!',
-        name: 'Kasir Siti',
+        email,
+        password,
+        name,
       }
     });
 
