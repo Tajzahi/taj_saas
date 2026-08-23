@@ -74,18 +74,28 @@ export default function Home() {
     <div className="min-h-screen">
       {/* ===== HERO SECTION ===== */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background - desktop */}
-        <div
-          className="absolute inset-0 hidden md:block bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('/assets/banner_red.png')` }}
-        />
-        {/* Background - mobile */}
-        <div
-          className="absolute inset-0 md:hidden bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('/assets/banner_redm.png')` }}
-        />
+        {/* Background - desktop & mobile with dynamic fallback */}
+        {settings.hero_banner_url ? (
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700"
+            style={{ backgroundImage: `url('${settings.hero_banner_url}')` }}
+          />
+        ) : (
+          <>
+            {/* Background - desktop default */}
+            <div
+              className="absolute inset-0 hidden md:block bg-cover bg-center bg-no-repeat"
+              style={{ backgroundImage: `url('/assets/banner_red.png')` }}
+            />
+            {/* Background - mobile default */}
+            <div
+              className="absolute inset-0 md:hidden bg-cover bg-center bg-no-repeat"
+              style={{ backgroundImage: `url('/assets/banner_redm.png')` }}
+            />
+          </>
+        )}
         {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/30 to-black/70" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
 
         {/* Hero Content */}
         <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto pt-20">

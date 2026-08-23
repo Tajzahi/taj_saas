@@ -64,6 +64,14 @@ const TenantBrandingSchema = z.object({
     answer: z.string().max(2000),
     category: z.string().max(100).optional(),
   })).optional(),
+  // Delivery & Radius Settings
+  maxDeliveryRadiusKm: z.number().min(1).max(100).optional(),
+  deliveryZones: z.array(z.object({
+    id: z.string().optional(),
+    name: z.string().max(100),
+    maxKm: z.number().min(0.1).max(100),
+    fee: z.number().min(0),
+  })).optional(),
   // Catering
   cateringPackages: z.array(z.object({
     id: z.string(),

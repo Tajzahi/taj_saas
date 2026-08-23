@@ -33,6 +33,8 @@ export interface DbStoreSettings {
   about_highlights?: string[];
   faqs?: { id: string; question: string; answer: string; category?: string }[];
   catering_packages?: { id: string; name: string; minPortion: number; pricePerPortion: number; description: string }[];
+  max_delivery_radius_km?: number;
+  delivery_zones?: { name: string; maxKm: number; fee: number }[];
 }
 
 // Fallback topping variant structures for Terang Bulan items
@@ -158,6 +160,8 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     about_highlights: branding.aboutHighlights && Array.isArray(branding.aboutHighlights) ? branding.aboutHighlights : undefined,
     faqs: branding.faqs && Array.isArray(branding.faqs) ? branding.faqs : undefined,
     catering_packages: branding.cateringPackages && Array.isArray(branding.cateringPackages) ? branding.cateringPackages : undefined,
+    max_delivery_radius_km: typeof branding.maxDeliveryRadiusKm === 'number' ? branding.maxDeliveryRadiusKm : 10,
+    delivery_zones: branding.deliveryZones && Array.isArray(branding.deliveryZones) ? branding.deliveryZones : undefined,
   };
 }
 

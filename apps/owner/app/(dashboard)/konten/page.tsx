@@ -17,6 +17,7 @@ export default function KontenWebCMSPage() {
   const [heroTitle, setHeroTitle] = useState("Martabak & Terang Bulan Spesial");
   const [heroSubtitle, setHeroSubtitle] = useState("Cita rasa otentik khas Surabaya sejak tahun 2000. Dibuat dengan bahan pilihan dan resep turun-temurun.");
   const [heroBadgeText, setHeroBadgeText] = useState("Authentic Indonesian Taste Since 2000");
+  const [heroBannerUrl, setHeroBannerUrl] = useState("");
   const [testimonials, setTestimonials] = useState<any[]>([
     { id: "1", name: "Budi Santoso", rating: 5, text: "Martabaknya tebal, dagingnya melimpah, dan kuah cukonya pas banget!", location: "Surabaya Barat" },
     { id: "2", name: "Siti Rahma", rating: 5, text: "Terang bulannya super lumer dan kejunya melimpah sampai tumpah-tumpah!", location: "Surabaya Pusat" },
@@ -60,6 +61,7 @@ export default function KontenWebCMSPage() {
         if (branding.heroTitle) setHeroTitle(branding.heroTitle);
         if (branding.heroSubtitle) setHeroSubtitle(branding.heroSubtitle);
         if (branding.heroBadgeText) setHeroBadgeText(branding.heroBadgeText);
+        if (branding.heroBannerUrl) setHeroBannerUrl(branding.heroBannerUrl);
         if (branding.testimonials && Array.isArray(branding.testimonials)) setTestimonials(branding.testimonials);
         if (branding.aboutTitle) setAboutTitle(branding.aboutTitle);
         if (branding.aboutStory) setAboutStory(branding.aboutStory);
@@ -77,6 +79,7 @@ export default function KontenWebCMSPage() {
       heroTitle,
       heroSubtitle,
       heroBadgeText,
+      heroBannerUrl,
       testimonials,
       aboutTitle,
       aboutStory,
@@ -196,6 +199,61 @@ export default function KontenWebCMSPage() {
               onChange={e => setHeroBadgeText(e.target.value)}
               placeholder="misal: Authentic Indonesian Taste Since 2000"
             />
+
+            {/* Banner Background Image Uploader */}
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
+                Foto Background Banner Utama (Hero Background)
+              </label>
+
+              {heroBannerUrl && (
+                <div className="relative w-full h-32 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800">
+                  <img src={heroBannerUrl} alt="Banner Preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setHeroBannerUrl("")}
+                    className="absolute top-2 right-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-md"
+                  >
+                    Hapus Banner
+                  </button>
+                </div>
+              )}
+
+              <div className="flex flex-col sm:flex-row gap-2">
+                <input
+                  type="text"
+                  value={heroBannerUrl}
+                  onChange={e => setHeroBannerUrl(e.target.value)}
+                  placeholder="https://... / link foto banner"
+                  className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                />
+                <label className="cursor-pointer inline-flex items-center justify-center gap-1 text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/40 px-3.5 py-2 rounded-xl hover:bg-orange-100 transition-colors whitespace-nowrap">
+                  📁 Unggah File Banner (PNG, JPG, WebP)
+                  <input
+                    type="file"
+                    accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
+                    className="hidden"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 5 * 1024 * 1024) {
+                          alert("Ukuran banner maksimal 5 MB.");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          if (typeof reader.result === 'string') setHeroBannerUrl(reader.result);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              <p className="text-[10px] text-slate-400">
+                Format didukung: <strong>PNG</strong>, <strong>JPG</strong>, <strong>WebP</strong> (Rekomendasi: 1920x1080 px atau 1200x630 px, maks. 5 MB)
+              </p>
+            </div>
           </div>
 
           {/* Testimonials List */}
@@ -360,90 +418,21 @@ export default function KontenWebCMSPage() {
 
       {/* TAB 4: CATERING */}
       {activeTab === "catering" && (
-        <div className="bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
-          <h3 className="text-sm font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
-            <span>🍱</span> Paket Katering & Pesanan Besar (/catering)
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm text-center space-y-4">
+          <span className="text-4xl block">🍱</span>
+          <h3 className="text-base font-black text-slate-900 dark:text-slate-100">
+            Manajemen Paket Katering Kini Memiliki Menu Khusus!
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-            {cateringPackages.map((cat, idx) => (
-              <div key={cat.id} className="p-4 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 flex flex-col justify-between">
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{cat.name}</span>
-                    <span className="text-xs font-black text-orange-600">Rp {cat.pricePerPortion.toLocaleString('id-ID')}/porsi</span>
-                  </div>
-                  <p className="text-xs text-slate-500">Min. Pemesanan: <strong>{cat.minPortion} porsi</strong></p>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-2">{cat.description}</p>
-                </div>
-                <div className="mt-3 pt-2 border-t border-slate-200/50 flex justify-end">
-                  <button
-                    onClick={() => setCateringPackages(prev => prev.filter((_, i) => i !== idx))}
-                    className="text-red-500 text-[11px] font-bold hover:underline"
-                  >
-                    Hapus Paket
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="p-4 rounded-2xl border border-orange-200 dark:border-orange-900/40 bg-orange-50/50 dark:bg-orange-950/20 space-y-3">
-            <h4 className="text-xs font-bold text-orange-600 dark:text-orange-400">+ Buat Paket Katering Baru</h4>
-            <Input
-              label="Nama Paket Katering"
-              placeholder="misal: Paket Arisan 20 Porsi"
-              value={newCatName}
-              onChange={e => setNewCatName(e.target.value)}
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                label="Min. Porsi"
-                type="number"
-                value={newCatMin}
-                onChange={e => setNewCatMin(Number(e.target.value))}
-              />
-              <Input
-                label="Harga per Porsi (Rp)"
-                type="number"
-                value={newCatPrice}
-                onChange={e => setNewCatPrice(Number(e.target.value))}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block mb-1">
-                Deskripsi Paket
-              </label>
-              <textarea
-                value={newCatDesc}
-                onChange={e => setNewCatDesc(e.target.value)}
-                placeholder="Rincian isi menu paket katering..."
-                rows={2}
-                className="w-full text-xs p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
-              />
-            </div>
-            <Button
-              type="button"
-              variant="primary"
-              size="sm"
-              onClick={() => {
-                if (newCatName.trim()) {
-                  setCateringPackages(prev => [
-                    ...prev,
-                    {
-                      id: Date.now().toString(),
-                      name: newCatName.trim(),
-                      minPortion: newCatMin,
-                      pricePerPortion: newCatPrice,
-                      description: newCatDesc.trim(),
-                    }
-                  ]);
-                  setNewCatName("");
-                  setNewCatDesc("");
-                }
-              }}
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
+            Untuk memudahkan Anda, manajemen paket katering kini dapat diakses langsung melalui menu <strong>Paket Katering (/katering)</strong> di sidebar.
+          </p>
+          <div>
+            <a
+              href="/katering"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-orange-500/20 hover:scale-105 transition-all"
             >
-              + Tambah ke Daftar Katering
-            </Button>
+              Buka Halaman Paket Katering →
+            </a>
           </div>
         </div>
       )}

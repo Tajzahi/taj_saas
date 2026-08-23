@@ -54,6 +54,16 @@ export default function Checkout() {
     // Cleanup legacy localStorage key with raw PII (R2-016)
     try {
       localStorage.removeItem('a6nyuss-orders');
+      const savedDraft = localStorage.getItem('taj_checkout_draft');
+      if (savedDraft) {
+        const parsed = JSON.parse(savedDraft);
+        if (parsed.name) setName(parsed.name);
+        if (parsed.phone) setPhone(parsed.phone);
+        if (parsed.address) setAddress(parsed.address);
+        if (parsed.addressNote) setAddressNote(parsed.addressNote);
+        if (parsed.orderType) setOrderType(parsed.orderType);
+        if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
+      }
     } catch {}
   }, []);
 
@@ -63,6 +73,21 @@ export default function Checkout() {
   const [address, setAddress] = useState('');
   const [addressNote, setAddressNote] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'cod' | 'qris'>('cod');
+
+  // Auto-save draft on change so refreshing never loses customer input
+  useEffect(() => {
+    if (!mounted || typeof window === 'undefined') return;
+    try {
+      localStorage.setItem('taj_checkout_draft', JSON.stringify({
+        name,
+        phone,
+        address,
+        addressNote,
+        orderType,
+        paymentMethod,
+      }));
+    } catch {}
+  }, [name, phone, address, addressNote, orderType, paymentMethod, mounted]);
   const [agreed, setAgreed] = useState(false);
   const [agreedCancel, setAgreedCancel] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -295,6 +320,11 @@ export default function Checkout() {
       if (effectiveToken) {
         try {
           localStorage.setItem(`cust_tok_${serverOrderCode}`, effectiveToken);
+          localStorage.removeItem('taj_checkout_draft');
+        } catch {}
+      } else {
+        try {
+          localStorage.removeItem('taj_checkout_draft');
         } catch {}
       }
 

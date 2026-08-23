@@ -23,7 +23,7 @@ const brandColors = [
 ];
 
 export default function Pengaturan() {
-  const [activeTab, setActiveTab] = useState<"branding" | "users" | "payment" | "receipt" | "audit">("branding");
+  const [activeTab, setActiveTab] = useState<"branding" | "delivery" | "payment" | "receipt" | "users" | "audit">("branding");
   const [primaryColor, setPrimaryColor] = useState("#f97316");
   const [secondaryColor, setSecondaryColor] = useState("#eab308");
   const [businessName, setBusinessName] = useState("");
@@ -39,6 +39,13 @@ export default function Pengaturan() {
   const [enableQris, setEnableQris] = useState<boolean>(true);
   const [enableBankTransfer, setEnableBankTransfer] = useState<boolean>(true);
   const [enableCash, setEnableCash] = useState<boolean>(true);
+  const [maxDeliveryRadiusKm, setMaxDeliveryRadiusKm] = useState<number>(10);
+  const [flatDeliveryFee, setFlatDeliveryFee] = useState<number>(8000);
+  const [deliveryZones, setDeliveryZones] = useState<any[]>([
+    { name: "Zona 1 (Dekat)", maxKm: 3, fee: 5000 },
+    { name: "Zona 2 (Sedang)", maxKm: 6, fee: 8000 },
+    { name: "Zona 3 (Jauh)", maxKm: 10, fee: 12000 },
+  ]);
   const [loading, setLoading] = useState(true);
 
   // Live Database States
@@ -49,7 +56,7 @@ export default function Pengaturan() {
     getTenantSettingsAction().then(res => {
       if (res.success && res.data) {
         setBusinessName(res.data.name || "");
-        const branding = res.data.branding;
+        const branding: any = res.data.branding;
         if (branding) {
           if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
           if (branding.secondaryColor) setSecondaryColor(branding.secondaryColor);
@@ -66,6 +73,9 @@ export default function Pengaturan() {
           if (typeof branding.enableQris === "boolean") setEnableQris(branding.enableQris);
           if (typeof branding.enableBankTransfer === "boolean") setEnableBankTransfer(branding.enableBankTransfer);
           if (typeof branding.enableCash === "boolean") setEnableCash(branding.enableCash);
+          if (typeof branding.maxDeliveryRadiusKm === "number") setMaxDeliveryRadiusKm(branding.maxDeliveryRadiusKm);
+          if (typeof branding.flatDeliveryFee === "number") setFlatDeliveryFee(branding.flatDeliveryFee);
+          if (branding.deliveryZones && Array.isArray(branding.deliveryZones)) setDeliveryZones(branding.deliveryZones);
         }
       }
       setLoading(false);
@@ -121,6 +131,9 @@ export default function Pengaturan() {
       enableQris,
       enableBankTransfer,
       enableCash,
+      maxDeliveryRadiusKm: Number(maxDeliveryRadiusKm),
+      flatDeliveryFee: Number(flatDeliveryFee),
+      deliveryZones,
     });
     setLoading(false);
     if (res.success) {
@@ -147,18 +160,19 @@ export default function Pengaturan() {
       <div className="flex items-center gap-1 overflow-x-auto pb-1">
         {([
           { key: "branding", label: "🎨 Branding" },
-          { key: "users", label: "👥 Pengguna" },
+          { key: "delivery", label: "🛵 Radius & Ongkir" },
           { key: "payment", label: "💳 Pajak & Pembayaran" },
           { key: "receipt", label: "🧾 Struk Kasir" },
+          { key: "users", label: "👥 Pengguna" },
           { key: "audit", label: "📋 Audit Log" },
         ] as const).map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => setActiveTab(tab.key as any)}
             className={`px-4 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all flex-shrink-0 ${
               activeTab === tab.key
-                ? "bg-orange-500 text-white"
-                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                ? "bg-orange-500 text-white shadow-sm"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
             }`}
           >
             {tab.label}
@@ -248,44 +262,240 @@ export default function Pengaturan() {
                 </div>
               </div>
             </div>
+
+            {/* 1-Click Gradient Presets */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block mb-2">
+                🎨 Pilihan Preset Gradasi Populer (1-Klik)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
+                {[
+                  { name: "Sunset Ember", primary: "#8E0E0E", secondary: "#E05009", desc: "Hangat & Gurih" },
+                  { name: "Royal Gold", primary: "#1A1A1A", secondary: "#D4AF37", desc: "Mewah & Eksklusif" },
+                  { name: "Emerald Gourmet", primary: "#064E3B", secondary: "#10B981", desc: "Segar & Alami" },
+                  { name: "Choco Caramel", primary: "#3E2723", secondary: "#D97706", desc: "Manis & Dessert" },
+                  { name: "Midnight Blue", primary: "#0F172A", secondary: "#2563EB", desc: "Modern & Elegan" },
+                ].map((preset) => (
+                  <button
+                    key={preset.name}
+                    type="button"
+                    onClick={() => {
+                      setPrimaryColor(preset.primary);
+                      setSecondaryColor(preset.secondary);
+                    }}
+                    className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:scale-102 transition-all text-left group flex flex-col gap-1.5 shadow-sm"
+                  >
+                    <div
+                      className="w-full h-7 rounded-lg shadow-inner"
+                      style={{ background: `linear-gradient(135deg, ${preset.primary} 0%, ${preset.secondary} 100%)` }}
+                    />
+                    <div>
+                      <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 leading-tight">{preset.name}</p>
+                      <p className="text-[9px] text-slate-400">{preset.desc}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Brand Preview */}
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-4">Preview Branding</h3>
-            <div className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-              <div className="h-12 flex items-center px-4 border-b border-slate-200 dark:border-slate-700 justify-between bg-white dark:bg-slate-800">
-                <div className="flex items-center gap-2">
-                  <div
-                    className="w-6 h-6 rounded flex items-center justify-center text-white text-xs font-bold"
-                    style={{ backgroundColor: primaryColor }}
-                  >
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Pratinjau Tema Gradasi Brand</h3>
+            <div className="rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+              {/* Header Preview */}
+              <div
+                className="h-14 flex items-center px-5 justify-between text-white transition-all duration-300"
+                style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)` }}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-sm flex items-center justify-center text-white text-xs font-black shadow-inner">
                     {logo}
                   </div>
-                  <span className="text-xs font-bold dark:text-slate-150">{businessName}</span>
+                  <div>
+                    <span className="text-xs font-black block leading-none">{businessName || "Nama Brand"}</span>
+                    <span className="text-[9px] opacity-80">{receiptFooter || "Martabak & Terang Bulan Spesial"}</span>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 rounded-full bg-slate-200" />
-                  <div className="w-12 h-3 bg-slate-200 rounded" />
+                  <span className="text-[10px] font-bold bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+                    BUKA
+                  </span>
                 </div>
               </div>
-              <div className="p-8 flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900">
-                <div className="w-full max-w-[200px] p-4 bg-white dark:bg-slate-850 rounded-xl border border-slate-150 dark:border-slate-750 text-center shadow-sm">
-                  <p className="text-xs text-slate-500">Preview Button</p>
+
+              {/* Body CTA Preview */}
+              <div className="p-6 flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900">
+                <div className="w-full max-w-xs p-5 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 text-center shadow-md space-y-3">
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">Tombol Aksi Gradasi</p>
                   <button
-                    className="mt-3 w-full py-2 px-4 rounded-lg text-xs font-bold text-white transition-opacity hover:opacity-90"
-                    style={{ backgroundColor: primaryColor }}
+                    type="button"
+                    className="w-full py-2.5 px-4 rounded-xl text-xs font-black text-white shadow-lg transition-transform hover:scale-102"
+                    style={{ background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)` }}
                   >
-                    Button Utama
+                    Pesan Sekarang — Rp 35.000
                   </button>
                   <button
-                    className="mt-2 w-full py-2 px-4 rounded-lg text-xs font-bold transition-opacity hover:opacity-90 border"
-                    style={{ borderColor: secondaryColor, color: secondaryColor }}
+                    type="button"
+                    className="w-full py-2 px-4 rounded-xl text-xs font-bold transition-colors border"
+                    style={{ borderColor: primaryColor, color: primaryColor }}
                   >
-                    Button Sekunder
+                    Lihat Rincian Menu
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "delivery" && (
+        <div className="space-y-6 animate-fade-in">
+          {/* Main Delivery Controls */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6 space-y-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>🛵</span> Pengaturan Radius & Ongkos Kirim (Delivery)
+                </h3>
+                <p className="text-xs text-slate-500 mt-1">
+                  Kontrol jangkauan kilometer pengiriman dan tarif ongkir bertingkat yang dihitung otomatis oleh peta.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setMaxDeliveryRadiusKm(10);
+                  setFlatDeliveryFee(8000);
+                  setDeliveryZones([
+                    { name: "Zona 1 (Dekat)", maxKm: 3, fee: 5000 },
+                    { name: "Zona 2 (Sedang)", maxKm: 6, fee: 8000 },
+                    { name: "Zona 3 (Jauh)", maxKm: 10, fee: 12000 },
+                  ]);
+                  alert("Rekomendasi standar F&B delivery Surabaya (0-10 km) berhasil diterapkan!");
+                }}
+                className="flex items-center gap-1.5 text-xs text-orange-600 border-orange-200 bg-orange-50 hover:bg-orange-100"
+              >
+                💡 Terapkan Rekomendasi Sesuai Alamat Gerai
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Input
+                  label="Radius Maksimal Pengiriman (Kilometer)"
+                  type="number"
+                  value={maxDeliveryRadiusKm}
+                  onChange={e => setMaxDeliveryRadiusKm(Math.max(1, Number(e.target.value)))}
+                  placeholder="10"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Pesanan di luar jarak ini akan diarahkan ke opsi Takeaway.</p>
+              </div>
+              <div>
+                <Input
+                  label="Ongkir Cadangan / Fallback (Rp)"
+                  type="number"
+                  value={flatDeliveryFee}
+                  onChange={e => setFlatDeliveryFee(Math.max(0, Number(e.target.value)))}
+                  placeholder="8000"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">Digunakan otomatis jika GPS atau lokasi spesifik customer tidak terdeteksi.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Delivery Zones Table */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Zona Tarif Ongkos Kirim Bertingkat</h4>
+                <p className="text-xs text-slate-500">Tarif otomatis berdasarkan jarak dari outlet ke rumah pelanggan</p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setDeliveryZones(prev => [
+                    ...prev,
+                    { name: `Zona ${prev.length + 1}`, maxKm: (prev[prev.length - 1]?.maxKm || 5) + 3, fee: 15000 }
+                  ]);
+                }}
+              >
+                + Tambah Zona
+              </Button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 dark:bg-slate-800/50 text-slate-400 font-semibold border-b border-slate-100 dark:border-slate-800">
+                  <tr>
+                    <th className="px-5 py-3">Nama Zona</th>
+                    <th className="px-5 py-3">Batas Jarak Maks. (Km)</th>
+                    <th className="px-5 py-3">Biaya Ongkir (Rp)</th>
+                    <th className="px-5 py-3 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {deliveryZones.map((zone, idx) => (
+                    <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                      <td className="px-5 py-3">
+                        <input
+                          type="text"
+                          value={zone.name}
+                          onChange={e => {
+                            const val = e.target.value;
+                            setDeliveryZones(prev => prev.map((z, i) => i === idx ? { ...z, name: val } : z));
+                          }}
+                          className="w-full text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold"
+                        />
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1">
+                          <span>s/d</span>
+                          <input
+                            type="number"
+                            value={zone.maxKm}
+                            onChange={e => {
+                              const val = Number(e.target.value);
+                              setDeliveryZones(prev => prev.map((z, i) => i === idx ? { ...z, maxKm: val } : z));
+                            }}
+                            className="w-20 text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-center font-bold"
+                          />
+                          <span>km</span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1">
+                          <span>Rp</span>
+                          <input
+                            type="number"
+                            value={zone.fee}
+                            onChange={e => {
+                              const val = Number(e.target.value);
+                              setDeliveryZones(prev => prev.map((z, i) => i === idx ? { ...z, fee: val } : z));
+                            }}
+                            className="w-28 text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 font-bold text-orange-600"
+                          />
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        {deliveryZones.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setDeliveryZones(prev => prev.filter((_, i) => i !== idx))}
+                            className="text-red-500 hover:text-red-700 font-bold text-xs p-1"
+                          >
+                            Hapus
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

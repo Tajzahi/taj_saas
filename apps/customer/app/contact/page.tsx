@@ -1,8 +1,23 @@
 "use client";
+import React, { useState, useEffect } from 'react';
 import { MapPin, Clock, Mail, Phone, CheckCircle } from 'lucide-react';
+import { getStoreSettings, DbStoreSettings } from '@/lib/db/menuService';
 
 export default function Contact() {
+  const [settings, setSettings] = useState<DbStoreSettings | null>(null);
+
+  useEffect(() => {
+    getStoreSettings().then(res => setSettings(res)).catch(() => {});
+  }, []);
+
   const getCurrentStatus = () => {
+    if (settings && typeof settings.is_open === 'boolean') {
+      return {
+        open: settings.is_open,
+        label: settings.is_open ? 'BUKA SEKARANG' : 'SEDANG TUTUP',
+        info: settings.opening_hours || (settings.is_open ? 'Tutup jam 01:00' : 'Buka kembali pukul 17:00'),
+      };
+    }
     const now = new Date();
     const hours = now.getHours();
     const minutes = now.getMinutes();
@@ -18,6 +33,11 @@ export default function Contact() {
   };
 
   const status = getCurrentStatus();
+
+  const brandName = settings?.store_name || "A6 Nyuss";
+  const address = settings?.store_address || "Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179";
+  const whatsapp = settings?.whatsapp_number || "6287811123482";
+  const hours = settings?.opening_hours || "Setiap Hari: 17:00 – 01:00";
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -76,7 +96,7 @@ export default function Contact() {
                 <div>
                   <p className="font-bold text-gray-900 mb-1">Alamat</p>
                   <div className="text-gray-600 text-sm leading-relaxed">
-                    <p>Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179</p>
+                    <p>{address}</p>
                     <p className="text-gray-400 text-xs mt-0.5 font-medium">Depan Mess DITPOLARIUD POLDA JATIM SURABAYA.</p>
                   </div>
                 </div>
@@ -92,14 +112,10 @@ export default function Contact() {
                 <div className="flex-1">
                   <p className="font-bold text-gray-900 mb-2">Jam Operasional</p>
                   <div className="space-y-1">
-                    {[
-                      { day: 'Setiap Hari', hours: '17:00 – 01:00' },
-                    ].map((item) => (
-                      <div key={item.day} className="flex justify-between text-sm">
-                        <span className="text-gray-600">{item.day}</span>
-                        <span className="font-semibold text-gray-900">{item.hours}</span>
-                      </div>
-                    ))}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Jadwal Operasional</span>
+                      <span className="font-semibold text-gray-900">{hours}</span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -107,7 +123,7 @@ export default function Contact() {
 
             {/* WhatsApp */}
             <a
-              href="https://wa.me/6287811123482?text=Halo%20A6%20Nyuss%2C%20saya%20ingin%20bertanya"
+              href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo%20${encodeURIComponent(brandName)}%2C%20saya%20ingin%20bertanya`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl p-4 hover:bg-green-100 transition-colors"
@@ -116,8 +132,8 @@ export default function Contact() {
                 <Phone className="w-5 h-5 text-white" />
               </div>
               <div className="flex-1">
-                <p className="font-bold text-gray-900 text-sm">WhatsApp</p>
-                <p className="text-green-700 font-semibold">0878-1112-3482</p>
+                <p className="font-bold text-gray-900 text-sm">WhatsApp Resmi</p>
+                <p className="text-green-700 font-semibold">{whatsapp}</p>
               </div>
               <span className="text-green-600 text-sm font-medium">Chat →</span>
             </a>
