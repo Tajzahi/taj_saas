@@ -97,24 +97,26 @@ Realtime cashier functionality is Ably-based and completely tenant-aware:
 - Cashier applications receive the update instantly without polling.
 
 
-🔑 1. Kredensial & Cara Login
-Semua akun awal telah secara otomatis di-seed ke dalam database dengan kata sandi bawaan: password123.
+---
 
-📊 A. Login ke Aplikasi Owner Cockpit (http://localhost:3002)
-URL: http://localhost:3002/login (atau otomatis dialihkan dari http://localhost:3002)
-Akun Pemilik (Owner):
-Email: a6nyusss@gmail.com
-Password: password123
-Akun Manajer (Manager):
-Email: tajzahielhuda@gmail.com
-Password: password123
-Fungsi: Mengakses analitik penjualan, laporan keuangan PnL, manajemen stok/BOM, SDM, dan konfigurasi cabang.
-📟 B. Login ke Aplikasi Admin / Kasir POS (http://localhost:3001)
-URL: http://localhost:3001
-Akun Kasir Cabang 1 (Demak):
-Email: dedimulyadi@gail.com
-Password: password123
-Akun Kasir Cabang 2 (Pasar Kembang):
-Email: denisetiadi@gmail.com
-Password: password123
-Fungsi: Membuka shift kasir, menerima notifikasi pesanan masuk secara real-time, memperbarui status pesanan, dan melakukan penutupan kasir.
+## 🔑 Onboarding & Initial Account Setup
+
+When starting with a fresh database or creating a new tenant:
+
+### 📊 1. Register First Owner Account
+- **URL:** [http://localhost:3002/register](http://localhost:3002/register)
+- **Action:** Fill in your business name, email, and password.
+- **Result:** This automatically provisions a new Tenant, assigns your account the **Owner** role, and initializes the business configuration.
+
+### 👥 2. Add Employees & Staff (Manager, Kasir, Kitchen)
+- **URL:** [http://localhost:3002/sdm](http://localhost:3002/sdm)
+- **Action:** In the Owner dashboard, go to the **SDM (Karyawan)** menu and click **"Tambah Karyawan"**.
+- **Result:** The system creates the user credentials and provides a temporary password modal for you to share with your staff.
+
+### 📟 3. Staff Access (Admin POS & KDS)
+- **URL:** [http://localhost:3001](http://localhost:3001)
+- **Action:** Staff (Kasir, Manager, Kitchen) can log in using their email or assigned username to manage shifts, process orders, and handle kitchen queues.
+
+### 🛒 4. Customer Storefront
+- **URL:** [http://localhost:3000](http://localhost:3000)
+- **Action:** Public storefront for menu browsing, variant selection, discount code validation, instant checkout, bank transfer proof upload, and Gemini-powered customer assistant.
