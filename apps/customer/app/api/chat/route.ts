@@ -138,8 +138,6 @@ export async function POST(request: Request) {
               orderCode: schema.orders.orderCode,
               status: schema.orders.status,
               paymentStatus: schema.orders.paymentStatus,
-              deliveryType: schema.orders.deliveryType,
-              totalPrice: schema.orders.totalPrice,
               createdAt: schema.orders.createdAt,
             })
             .from(schema.orders)
@@ -152,9 +150,8 @@ export async function POST(request: Request) {
               orderCode: order.orderCode,
               status: order.status,
               paymentStatus: order.paymentStatus,
-              deliveryType: order.deliveryType,
-              totalPrice: Number(order.totalPrice),
               orderDate: order.createdAt.toISOString(),
+              note: "Untuk rincian harga lengkap dan detail pesanan, silakan cek halaman Lacak Pesanan resmi.",
             };
           }
         }

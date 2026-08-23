@@ -112,7 +112,7 @@ export const useCartStore = create<CartState>()(
       clearPromoCode: () => set({ promoCode: null, serverPromoDiscount: 0 }),
     }),
     {
-      name: 'a6nyuss-cart',
+      name: 'taj-saas-cart',
     }
   )
 );
@@ -142,12 +142,14 @@ export interface Order {
 
 interface OrderState {
   currentOrder: Order | null;
-  savedTokens: Record<string, string>; // orderCode -> token
+  savedTokens: Record<string, string>;
   recentCodes: string[];
   setCurrentOrder: (order: Order, token?: string) => void;
+  saveOrderToken: (orderCode: string, token: string) => void;
   getOrderByCode: (code: string) => Order | undefined;
-  updateOrderStatus: (code: string, status: Order['status']) => void;
+  getOrderToken: (orderCode: string) => string | null;
   getTokenForOrder: (code: string) => string | undefined;
+  updateOrderStatus: (code: string, status: Order['status']) => void;
 }
 
 export const useOrderStore = create<OrderState>()(
@@ -165,9 +167,20 @@ export const useOrderStore = create<OrderState>()(
         }));
       },
 
+      saveOrderToken: (orderCode, token) => {
+        set((state) => ({
+          savedTokens: { ...state.savedTokens, [orderCode]: token },
+          recentCodes: [orderCode, ...state.recentCodes.filter((c) => c !== orderCode)].slice(0, 10),
+        }));
+      },
+
       getOrderByCode: (code) => {
         if (get().currentOrder?.orderCode === code) return get().currentOrder!;
         return undefined;
+      },
+
+      getOrderToken: (orderCode) => {
+        return get().savedTokens[orderCode] || null;
       },
 
       getTokenForOrder: (code) => {
@@ -184,7 +197,7 @@ export const useOrderStore = create<OrderState>()(
       },
     }),
     {
-      name: 'a6nyuss-orders-meta',
+      name: 'taj-saas-orders-meta',
       partialize: (state) => ({
         savedTokens: state.savedTokens,
         recentCodes: state.recentCodes,

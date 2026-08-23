@@ -5,10 +5,10 @@ import crypto from "crypto";
 import { resolveTenantFromRequestHost } from "@lib/tenant-authorization";
 import { rateLimiter } from "@lib/server/rate-limiter";
 
-function validateImageMagicBytes(buffer: Buffer): boolean {
-  if (buffer.length < 12) return false;
+function detectImageMimeType(buffer: Buffer): "image/jpeg" | "image/png" | "image/webp" | null {
+  if (buffer.length < 12) return null;
   // JPEG: FF D8 FF
-  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return true;
+  if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return "image/jpeg";
   // PNG: 89 50 4E 47 0D 0A 1A 0A
   if (
     buffer[0] === 0x89 &&
@@ -20,7 +20,7 @@ function validateImageMagicBytes(buffer: Buffer): boolean {
     buffer[6] === 0x1a &&
     buffer[7] === 0x0a
   ) {
-    return true;
+    return "image/png";
   }
   // WebP: RIFF ... WEBP
   if (
@@ -33,9 +33,17 @@ function validateImageMagicBytes(buffer: Buffer): boolean {
     buffer[10] === 0x42 &&
     buffer[11] === 0x50
   ) {
-    return true;
+    return "image/webp";
   }
-  return false;
+  return null;
+}
+
+function timingSafeEqualHex(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const bufA = Buffer.from(a, "hex");
+  const bufB = Buffer.from(b, "hex");
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
 }
 
 export async function POST(request: Request) {
@@ -54,9 +62,9 @@ export async function POST(request: Request) {
       );
     }
 
-    const { fileBase64, fileName, fileType, orderCode, customerToken } = await request.json();
+    const { fileBase64, fileName, orderCode, customerToken } = await request.json();
 
-    if (!fileBase64 || !fileName || !fileType || !orderCode) {
+    if (!fileBase64 || !fileName || !orderCode) {
       return NextResponse.json({ error: "Data unggahan tidak lengkap." }, { status: 400 });
     }
 
@@ -69,8 +77,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Ukuran file maksimal 5MB." }, { status: 400 });
     }
 
-    // Validate magic bytes (SEC-006)
-    if (!validateImageMagicBytes(fileBuffer)) {
+    // Validate magic bytes & detect MIME type strictly (SEC-006 Anti Stored-XSS)
+    const detectedMimeType = detectImageMimeType(fileBuffer);
+    if (!detectedMimeType) {
       return NextResponse.json(
         { error: "Format gambar tidak valid. Hanya file JPG, PNG, atau WebP yang diizinkan." },
         { status: 400 }
@@ -96,7 +105,7 @@ export async function POST(request: Request) {
         "";
 
       const providedTokenHash = crypto.createHash("sha256").update(providedToken).digest("hex");
-      if (providedTokenHash !== order.customerTokenHash) {
+      if (!timingSafeEqualHex(providedTokenHash, order.customerTokenHash)) {
         return NextResponse.json({ error: "Akses tidak diizinkan untuk pesanan ini." }, { status: 403 });
       }
     }
@@ -109,7 +118,7 @@ export async function POST(request: Request) {
           tenantId: tenant.id,
           orderId: order.id,
           fileName: fileName.slice(0, 100).replace(/[^a-zA-Z0-9._-]/g, "_"),
-          fileType: fileType.slice(0, 50),
+          fileType: detectedMimeType,
           content: base64Data,
         })
         .returning();

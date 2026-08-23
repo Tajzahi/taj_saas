@@ -84,9 +84,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
     const base64Data = file.content.split(",")[1] || file.content;
     const buffer = Buffer.from(base64Data, "base64");
 
+    // Defense-in-depth: Enforce strict whitelist on Content-Type to prevent Stored XSS
+    const SAFE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+    const contentType = SAFE_IMAGE_TYPES.has(file.fileType) ? file.fileType : "application/octet-stream";
+
     return new NextResponse(buffer, {
       headers: {
-        "Content-Type": file.fileType,
+        "Content-Type": contentType,
         "Cache-Control": "private, no-cache, no-store, must-revalidate",
         "X-Content-Type-Options": "nosniff",
       },

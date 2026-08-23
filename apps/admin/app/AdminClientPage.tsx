@@ -57,7 +57,7 @@ export default function AdminClientPage({
         tenantSlug={tenantSlug}
         businessName={tenantBranding?.brandName || tenantName || "Portal Operasional"}
         storeTagline={tenantBranding?.receiptHeader || "Portal Operasional Kasir & Dapur"}
-        storeCity={tenantBranding?.storeCity || "Indonesia"}
+        storeCity={tenantBranding?.storeAddress || tenantBranding?.storeCity || "Indonesia"}
         logoUrl={tenantBranding?.logoUrl || tenantBranding?.logo || null}
       />
     );
