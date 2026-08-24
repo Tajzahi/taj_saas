@@ -140,14 +140,16 @@ export async function resolveTenantMiddleware(
 
     let tenant = tenantResult[0];
 
-    // Fallback untuk domain staging/Cloud Run jika slug default 'taj-saas' tidak ditemukan
+    // Fallback untuk domain staging/Cloud Run jika slug default 'taj-saas' tidak ditemukan.
+    // BUG FIX: Kondisi NODE_ENV !== 'production' dihapus.
+    // Cloud Run selalu set NODE_ENV=production, sehingga kondisi tersebut memblokir fallback di staging.
     if (!tenant) {
       const isKnownStagingHost =
         hostname.includes('.a.run.app') ||
         hostname.includes('.run.app') ||
         hostname.includes('localhost');
 
-      if (isKnownStagingHost && process.env.NODE_ENV !== 'production') {
+      if (isKnownStagingHost) {
         const [latestTenant] = await db
           .select()
           .from(schema.tenants)

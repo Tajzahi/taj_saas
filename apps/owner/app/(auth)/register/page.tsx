@@ -93,13 +93,14 @@ export default function RegisterPage() {
 
       if (loginRes.error) {
         toast.error("Pendaftaran berhasil, silakan masuk dengan akun baru Anda.");
-        window.location.href = "/login";
+        router.push("/login");
         return;
       }
 
       // TAHAP 3: Pengalihan Sukses Langsung ke Dashboard /
       toast.success(`Selamat datang! Toko ${res.tenant?.name || ""} berhasil terdaftar.`);
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat pendaftaran.");
     } finally {

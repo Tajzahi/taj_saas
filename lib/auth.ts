@@ -43,12 +43,13 @@ const baseURL = (process.env.NODE_ENV === "production" && !rawBaseUrl.includes("
   : rawBaseUrl;
 
 // [BARIS 39-44]: FITUR PENCEGAHAN DOMAIN MISMATCH RFC 6265
-// Menonaktifkan pembatasan Domain kustom di Cloud Run staging (*.a.run.app) agar Chrome tidak menolak cookie.
+// BUG FIX: Dihapus kondisi !(K_SERVICE || CLOUD_RUN_JOB) karena Cloud Run selalu
+// men-set K_SERVICE, sehingga crossSubDomainCookies tidak pernah aktif.
+// Sekarang cukup: cookieDomain harus ada dan bukan localhost.
 const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
 const shouldEnableCrossDomain = Boolean(
   cookieDomain &&
-  !cookieDomain.includes("localhost") &&
-  !(process.env.K_SERVICE || process.env.CLOUD_RUN_JOB)
+  !cookieDomain.includes("localhost")
 );
 
 // [BARIS 47-80]: KONFIGURASI ENGINE AUTENTIKASI UTAMA

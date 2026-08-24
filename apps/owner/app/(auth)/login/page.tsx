@@ -20,7 +20,7 @@
  * 
  * 🛠️ PETUNJUK PEMECAHAN MASALAH (TROUBLESHOOTING):
  * - Jika Klik Login Tidak Ada Respon -> Periksa Baris 58-67 (`authClient.signIn.email`).
- * - Jika Gagal Mengalihkan Halaman  -> Periksa Baris 69-72 (`window.location.href = "/"`).
+ * - Jika Gagal Mengalihkan Halaman  -> Periksa Baris 69-72 (`router.push("/") + router.refresh()`).
  * =========================================================================================
  */
 
@@ -62,7 +62,8 @@ export default function LoginPage() {
 
       toast.success("Login berhasil!");
       // Me-refresh sesi dan me-redirect ke Dashboard /
-      window.location.href = "/";
+      router.push("/");
+      router.refresh();
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat login.");
       setLoading(false);
