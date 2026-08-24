@@ -13,7 +13,7 @@ interface POSOfflineModalProps {
 
 export default function POSOfflineModal({ onClose, username }: POSOfflineModalProps) {
   const { menuItems, fetchMenuItems, fetchOrders, activeShift } = useAdminStore();
-  const [selectedCategory, setSelectedCategory] = useState<string>('Martabak Telur Ayam');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
   const [tableNo, setTableNo] = useState<string>('');
@@ -68,28 +68,14 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const getItemCategory = (m: any) => {
-    const nameLower = (m.name || '').toLowerCase();
-    const catLower = (m.categoryName || '').toLowerCase();
-
-    if (nameLower.includes('bebek') || catLower.includes('bebek')) {
-      return 'Martabak Telur Bebek';
-    }
-    if (nameLower.includes('ayam') || catLower.includes('ayam') || catLower.includes('martabak telur')) {
-      return 'Martabak Telur Ayam';
-    }
-    if (nameLower.includes('terang bulan') || catLower.includes('terang bulan')) {
-      return 'Terang Bulan';
-    }
-    return 'Topping / Add-on';
-  };
-
-  const categories = ['Martabak Telur Ayam', 'Martabak Telur Bebek', 'Terang Bulan', 'Topping / Add-on'];
+  // Build dynamic categories from actual menu data
+  const categories = Array.from(
+    new Set(menuItems.filter(m => m.isAvailable).map(m => m.categoryName || 'Lainnya'))
+  );
 
   // Filter menu items
   const filteredItems = menuItems.filter(m => {
-    const catName = getItemCategory(m);
-    const matchCat = selectedCategory === 'all' || catName === selectedCategory;
+    const matchCat = selectedCategory === 'all' || (m.categoryName || 'Lainnya') === selectedCategory;
     const matchSearch = searchQuery.trim() === '' || m.name.toLowerCase().includes(searchQuery.toLowerCase().trim());
     return matchCat && matchSearch && m.isAvailable;
   });
