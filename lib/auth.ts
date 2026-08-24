@@ -35,21 +35,38 @@ if (!process.env.BETTER_AUTH_SECRET) {
   );
 }
 
-// [BARIS 31-36]: FITUR RESOLUSI PROTOKOL HTTPS AUTOMATIS
-// Mengubah http:// menjadi https:// di lingkungan produksi (Cloud Run) agar cookie secure diterima browser.
-const rawBaseUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
-const baseURL = (process.env.NODE_ENV === "production" && !rawBaseUrl.includes("localhost"))
-  ? rawBaseUrl.replace(/^http:\/\//i, "https://")
-  : rawBaseUrl;
+// [BARIS 31-36]: FITUR RESOLUSI PROTOKOL HTTPS AUTOMATIS & SERVICE-AWARE BASE URL
+// Memastikan baseURL sesuai dengan service Cloud Run yang sedang berjalan (owner/admin/customer)
+const resolveBaseURL = () => {
+  if (process.env.K_SERVICE === 'taj-owner' && process.env.OWNER_APP_URL) {
+    return process.env.OWNER_APP_URL.replace(/^http:\/\//i, "https://");
+  }
+  if (process.env.K_SERVICE === 'taj-admin' && process.env.ADMIN_APP_URL) {
+    return process.env.ADMIN_APP_URL.replace(/^http:\/\//i, "https://");
+  }
+  const raw = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+  return (process.env.NODE_ENV === "production" && !raw.includes("localhost"))
+    ? raw.replace(/^http:\/\//i, "https://")
+    : raw;
+};
+const baseURL = resolveBaseURL();
 
-// [BARIS 39-44]: FITUR PENCEGAHAN DOMAIN MISMATCH RFC 6265
-// BUG FIX: Dihapus kondisi !(K_SERVICE || CLOUD_RUN_JOB) karena Cloud Run selalu
-// men-set K_SERVICE, sehingga crossSubDomainCookies tidak pernah aktif.
-// Sekarang cukup: cookieDomain harus ada dan bukan localhost.
+// [BARIS 39-44]: FITUR PENCEGAHAN DOMAIN MISMATCH RFC 6265 & PUBLIC SUFFIX LIST
+// Browser akan menolak (drop) cookie jika domain diset ke Public Suffix (*.a.run.app, *.run.app).
+// Cross-subdomain cookie hanya diaktifkan jika domain kustom asli (misal .martabakpakde.com).
 const cookieDomain = process.env.COOKIE_DOMAIN?.trim();
+const isPublicSuffix = Boolean(
+  cookieDomain && (
+    cookieDomain.endsWith('.a.run.app') ||
+    cookieDomain.endsWith('.run.app') ||
+    cookieDomain.endsWith('.vercel.app') ||
+    cookieDomain.endsWith('.netlify.app') ||
+    cookieDomain.includes('localhost')
+  )
+);
 const shouldEnableCrossDomain = Boolean(
   cookieDomain &&
-  !cookieDomain.includes("localhost")
+  !isPublicSuffix
 );
 
 // [BARIS 47-80]: KONFIGURASI ENGINE AUTENTIKASI UTAMA
