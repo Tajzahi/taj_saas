@@ -228,13 +228,15 @@ export async function resolveTenantFromRequestHost(
     .limit(1);
 
   // Fallback for staging/Cloud Run environments if slug 'taj-saas' is not found
+  // BUG FIX: Removed NODE_ENV !== 'production' — Cloud Run always sets NODE_ENV=production,
+  // which blocked this fallback entirely in staging.
   if (tenantResult.length === 0) {
     const isKnownStagingHost =
       norm.hostname.includes('.a.run.app') ||
       norm.hostname.includes('.run.app') ||
       norm.hostname.includes('localhost');
 
-    if (isKnownStagingHost && process.env.NODE_ENV !== 'production') {
+    if (isKnownStagingHost) {
       const [latestTenant] = await db
         .select()
         .from(schema.tenants)
@@ -294,10 +296,11 @@ export async function requireTenantSession(options?: {
 
   if (!profile) {
     // Check if user has a profile on any tenant in single-domain staging (Cloud Run shared URL)
+    // BUG FIX: Removed NODE_ENV !== 'production' — same issue as above.
     const isKnownStagingHost =
       (host || '').includes('.a.run.app');
 
-    if (isKnownStagingHost && process.env.NODE_ENV !== 'production') {
+    if (isKnownStagingHost) {
       const userProfileResult = await db
         .select()
         .from(schema.profiles)
