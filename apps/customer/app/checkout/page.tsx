@@ -712,7 +712,7 @@ export default function Checkout() {
                 <Link href="/terms" className="text-[#8E0E0E] font-medium hover:underline" target="_blank">Syarat & Ketentuan</Link>
                 {' '}dan{' '}
                 <Link href="/privacy" className="text-[#8E0E0E] font-medium hover:underline" target="_blank">Kebijakan Privasi</Link>
-                {' '}A6 Nyuss.
+                {' '}yang berlaku.
               </p>
             </label>
             {errors.agreed && <p className="text-red-500 text-xs mt-2 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.agreed}</p>}
@@ -771,7 +771,7 @@ export default function Checkout() {
                   className="w-48 h-48 object-contain rounded-lg border bg-white shadow-sm"
                 />
                 <p className="text-xs font-bold text-gray-700 mt-2 uppercase tracking-wide text-center">
-                  {storeSettingsState?.store_name || 'A6 NYUSS MARTABAK'}
+                  {storeSettingsState?.store_name || 'MERCHANT RESMI'}
                 </p>
                 {storeSettingsState?.bank_info && (
                   <p className="text-[11px] font-semibold text-blue-700 mt-1 bg-blue-50 px-2.5 py-1 rounded-md border border-blue-200">

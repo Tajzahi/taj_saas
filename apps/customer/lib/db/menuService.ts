@@ -113,19 +113,19 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
   
   const tenant = await getTenantBySlug(slug);
   if (!tenant) {
-    // Return a default mock if database fails or tenant is not yet seeded
+    // Return a neutral default mock if database fails or tenant is not yet seeded
     return {
       id: "default-id",
-      store_name: 'Taj SaaS (Fallback)',
+      store_name: '',
       is_open: true,
-      whatsapp_number: '6287811123482',
+      whatsapp_number: '',
       flat_delivery_fee: 10000,
       minimum_order_amount: 0,
-      store_address: 'Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya',
+      store_address: '',
       google_maps_url: null,
-      opening_hours: 'Setiap Hari: 17:00 – 01:00',
+      opening_hours: '',
       qris_image_url: '/qris.png',
-      bank_info: 'BCA 123-456-7890 a/n Martabak A6 Nyuss',
+      bank_info: '',
       hero_banner_url: '',
       outlet_lat: DEFAULT_OUTLET_LAT,
       outlet_lng: DEFAULT_OUTLET_LNG,
@@ -139,14 +139,14 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     store_name: tenant.name,
     // Honour admin "buka/tutup toko" toggle (branding.storeOpen); fall back ke status SaaS.
     is_open: branding.storeOpen === undefined ? (tenant.isActive ?? true) : branding.storeOpen,
-    whatsapp_number: branding.whatsappNumber || '6287811123482',
+    whatsapp_number: branding.whatsappNumber || '',
     flat_delivery_fee: Number(branding.flatDeliveryFee || 10000),
     minimum_order_amount: Number(branding.minimumOrderAmount || 0),
-    store_address: branding.storeAddress || 'Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179',
-    google_maps_url: branding.googleMapsUrl || 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid',
-    opening_hours: branding.openingHours || 'Setiap Hari: 17:00 – 01:00',
+    store_address: branding.storeAddress || '',
+    google_maps_url: branding.googleMapsUrl || '',
+    opening_hours: branding.openingHours || '',
     qris_image_url: branding.qrisImageUrl || '/qris.png',
-    bank_info: branding.bankInfo || 'BCA 123-456-7890 a/n Martabak A6 Nyuss',
+    bank_info: branding.bankInfo || '',
     hero_banner_url: branding.heroBannerUrl || '',
     outlet_lat: typeof branding.outletLat === 'number' ? branding.outletLat : DEFAULT_OUTLET_LAT,
     outlet_lng: typeof branding.outletLng === 'number' ? branding.outletLng : DEFAULT_OUTLET_LNG,

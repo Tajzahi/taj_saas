@@ -13,7 +13,7 @@ export default function ChatBot() {
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: 'Halo! Saya asisten cerdas Martabak A6 Nyuss. Ada yang bisa saya bantu hari ini?',
+      content: 'Halo! Ada yang bisa saya bantu terkait informasi menu dan pemesanan hari ini?',
     },
   ]);
   const [input, setInput] = useState('');
@@ -227,7 +227,7 @@ export default function ChatBot() {
             <X className="w-6 h-6" />
           ) : (
             <div className="relative w-full h-full flex items-center justify-center">
-              <img src="/logo.svg" alt="A6 Nyuss AI" draggable="false" className="w-7 h-7 object-contain" />
+              <img src="/logo.svg" alt="Asisten AI" draggable="false" className="w-7 h-7 object-contain" />
               <span className="absolute top-2.5 right-2.5 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
@@ -252,12 +252,12 @@ export default function ChatBot() {
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center relative border border-white/20">
-                  <img src="/logo.svg" alt="A6 Nyuss AI" draggable="false" className="w-6 h-6 object-contain" />
+                  <img src="/logo.svg" alt="Asisten AI" draggable="false" className="w-6 h-6 object-contain" />
                   <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
                 </div>
                 <div>
-                  <h4 className="font-bold text-sm leading-tight">Asisten A6 Nyuss</h4>
-                  <p className="text-xs text-white/80">Online • AI Bot</p>
+                  <h4 className="font-bold text-sm leading-tight">Asisten Toko</h4>
+                  <p className="text-xs text-white/80">Online • AI Assistant</p>
                 </div>
               </div>
               <button

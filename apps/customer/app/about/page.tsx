@@ -27,11 +27,11 @@ export default function About() {
     getStoreSettings().then(setSettings);
   }, []);
 
-  const title = settings?.about_title || "Cerita di Balik A6 Nyuss";
-  const story = settings?.about_story || "Tahun 2000, dengan modal tekad dan resep keluarga yang kuat, kami memulai perjalanan kuliner di sudut Jalan Demak, Surabaya. Berawal dari gerobak sederhana, kami terus berkomitmen menjaga keaslian rasa dan kualitas bahan baku terbaik hingga kini.";
+  const title = settings?.about_title || (settings?.store_name ? `Tentang ${settings.store_name}` : "Tentang Kami");
+  const story = settings?.about_story || "Komitmen kami adalah menyajikan produk dan hidangan kuliner terbaik dengan bahan baku pilihan berkualitas dan pelayanan yang ramah untuk seluruh pelanggan.";
   const highlights = settings?.about_highlights && settings.about_highlights.length > 0 
     ? settings.about_highlights 
-    : ["100% Halal Certified", "Bahan Baku Fresh Setiap Hari", "Resep Asli Turun-Temurun 25 Tahun", "Pelayanan Ramah & Higienis"];
+    : ["100% Halal Certified", "Bahan Baku Fresh Berkualitas", "Pelayanan Ramah & Higienis", "Higienis & Terpercaya"];
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -43,13 +43,13 @@ export default function About() {
         </div>
         <div className="max-w-3xl mx-auto text-center relative z-10">
           <div className="inline-flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full text-white text-sm font-medium mb-6">
-            <Award className="w-4 h-4" /> Cita Rasa Asli Sejak 2000
+            <Award className="w-4 h-4" /> Kualitas & Cita Rasa Terbaik
           </div>
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-4 whitespace-pre-line">
             {title}
           </h1>
           <p className="text-white/80 text-lg leading-relaxed">
-            Perjalanan penuh rasa, cinta, dan dedikasi menyajikan kuliner martabak & terang bulan terbaik.
+            Perjalanan penuh dedikasi menyajikan sajian kuliner terbaik untuk Anda.
           </p>
         </div>
       </div>

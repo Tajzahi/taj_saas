@@ -15,22 +15,22 @@ const defaultGalleryItems: GalleryItem[] = [
   { id: 1, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Coklat Keju Premium' },
   { id: 2, src: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Telur Sapi Spesial' },
   { id: 3, src: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Kacang Coklat' },
-  { id: 4, src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=600&fit=crop', category: 'Toko', caption: 'Suasana Toko A6 Nyuss' },
+  { id: 4, src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=600&fit=crop', category: 'Toko', caption: 'Suasana Toko & Gerai' },
   { id: 5, src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=600&fit=crop', category: 'Produk', caption: 'Paket Bundling Hemat' },
-  { id: 6, src: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&h=600&fit=crop', category: 'Produk', caption: 'Terang Bulan Coklat Lumer' },
-  { id: 7, src: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&h=600&fit=crop', category: 'Behind the Scene', caption: 'Proses Pembuatan Martabak' },
-  { id: 8, src: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Telur Ayam' },
-  { id: 9, src: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Keju Full' },
-  { id: 10, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop&sat=-100', category: 'Behind the Scene', caption: 'Dapur Bersih A6 Nyuss' },
-  { id: 11, src: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Pelanggan Setia A6 Nyuss' },
-  { id: 12, src: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Keluarga Bahagia Menikmati A6 Nyuss' },
+  { id: 6, src: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&h=600&fit=crop', category: 'Produk', caption: 'Menu Andalan Pilihan' },
+  { id: 7, src: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&h=600&fit=crop', category: 'Behind the Scene', caption: 'Proses Penyajian Higienis' },
+  { id: 8, src: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=600&fit=crop', category: 'Produk', caption: 'Sajian Gurih Spesial' },
+  { id: 9, src: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=600&fit=crop', category: 'Produk', caption: 'Menu Topping Lengkap' },
+  { id: 10, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop&sat=-100', category: 'Behind the Scene', caption: 'Dapur Bersih & Rapi' },
+  { id: 11, src: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Pelanggan Setia Toko' },
+  { id: 12, src: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Keluarga Bahagia Bersama' },
 ];
 
 export default function Gallery() {
   const [items, setItems] = useState<GalleryItem[]>(defaultGalleryItems);
   const [activeFilter, setActiveFilter] = useState<string>('semua');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
-  const [brandName, setBrandName] = useState<string>('A6 Nyuss');
+  const [brandName, setBrandName] = useState<string>('');
 
   useEffect(() => {
     getStoreSettings().then(settings => {

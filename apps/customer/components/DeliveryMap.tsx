@@ -355,7 +355,7 @@ export default function DeliveryMap({
       });
       L.marker([resolvedOutletLat, resolvedOutletLng], { icon: outletIcon })
         .addTo(map)
-        .bindPopup(`<div style="font-size:13px;text-align:center;min-width:180px"><b style="color:#8E0E0E">A6 Nyuss</b><br/>Jl. Demak No. 253, Bubutan<br/><span style="color:#666">Kota Surabaya</span></div>`)
+        .bindPopup(`<div style="font-size:13px;text-align:center;min-width:180px"><b style="color:#8E0E0E">Lokasi Gerai Toko</b><br/><span style="color:#666">Pusat Operasional & Pengiriman</span></div>`)
         .openPopup();
 
       // Zone labels

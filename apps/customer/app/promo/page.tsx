@@ -12,14 +12,14 @@ const defaultStaticPromos = [
   {
     id: "1",
     icon: "🎁",
-    title: 'Anniversary A6 Nyuss!',
-    desc: 'Rayakan kebersamaan bersama A6 Nyuss! Dapatkan diskon 25% untuk semua menu Terang Bulan.',
+    title: 'Diskon Spesial Pengguna Baru',
+    desc: 'Nikmati potongan harga spesial hingga 20% untuk seluruh pilihan menu favorit Anda.',
     period: 'Berlaku s.d akhir bulan',
-    syarat: 'Berlaku untuk semua menu. Minimum order Rp 50.000.',
+    syarat: 'Berlaku untuk semua menu. Minimum order Rp 30.000.',
     badge: 'HOT',
     badgeCls: 'bg-orange-500',
     active: true,
-    code: 'ANNIV25',
+    code: 'HEMAT20',
   },
   {
     id: "2",
@@ -105,7 +105,7 @@ export default function Promo() {
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 flex items-center justify-center gap-2">
             <Ticket className="w-8 h-8" /> Promo & Kupon Diskon
           </h1>
-          <p className="text-white/80">Penawaran spesial hanya untuk pelanggan setia A6 Nyuss</p>
+          <p className="text-white/80">Penawaran spesial dan potongan harga khusus untuk pelanggan setia</p>
         </div>
       </div>
 

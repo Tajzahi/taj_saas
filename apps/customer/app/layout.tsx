@@ -7,8 +7,8 @@ import ChatBot from "@/components/ChatBot";
 import ToastProvider from "@/components/ToastProvider";
 
 export const metadata: Metadata = {
-  title: "A6 Nyuss - Martabak & Terang Bulan",
-  description: "Cita rasa otentik martabak dan terang bulan khas Surabaya sejak tahun 2000. Dibuat dengan bahan pilihan dan resep turun-temurun.",
+  title: "Online Store & Order System",
+  description: "Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman melalui website pemesanan resmi.",
   icons: {
     icon: "/favicon.ico",
   },

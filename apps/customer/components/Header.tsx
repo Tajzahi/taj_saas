@@ -39,8 +39,8 @@ export default function Header() {
 
   const isHome = location === '/';
   const isWhiteHeader = !isHome || scrolled;
-  const storeName = settings?.store_name || "Nyoman Coffee & Bakery";
-  const tagline = (settings as any)?.tagline || "Coffee & Bakery";
+  const storeName = settings?.store_name || "";
+  const tagline = (settings as any)?.tagline || "";
 
   return (
     <>

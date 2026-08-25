@@ -30,16 +30,16 @@ const orderSteps = [
 export default function Home() {
   const [settings, setSettings] = useState<DbStoreSettings>({
     id: '1',
-    store_name: 'Martabak Terbul A6 Nyuss',
+    store_name: '',
     is_open: true,
-    whatsapp_number: '6287811123482',
+    whatsapp_number: '',
     flat_delivery_fee: 10000,
     minimum_order_amount: 0,
-    store_address: 'Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179\nDepan Mess DITPOLARIUD POLDA JATIM SURABAYA.',
-    google_maps_url: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid',
-    opening_hours: 'Setiap Hari: 17:00 – 01:00',
+    store_address: '',
+    google_maps_url: '',
+    opening_hours: '',
     qris_image_url: '/qris.png',
-    bank_info: 'BCA 123-456-7890 a/n Martabak A6 Nyuss',
+    bank_info: '',
     hero_banner_url: '',
     outlet_lat: -7.2432537,
     outlet_lng: 112.7206275,
@@ -101,16 +101,22 @@ export default function Home() {
         <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto pt-20">
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-4 whitespace-pre-line">
             {settings.hero_title || (
-              <>
-                Martabak &<br />
-                <span className="text-[#E05009]">Terang Bulan</span>
-                <br />A6 Nyuss
-              </>
+              settings.store_name ? (
+                <>
+                  Selamat Datang di<br />
+                  <span className="text-[#E05009]">{settings.store_name}</span>
+                </>
+              ) : (
+                <>
+                  Pilihan Menu Terbaik<br />
+                  <span className="text-[#E05009]">Kualitas Rasa Juara</span>
+                </>
+              )
             )}
           </h1>
 
           <p className="text-white/90 text-lg sm:text-xl md:text-2xl mb-8 max-w-2xl mx-auto leading-relaxed">
-            {settings.hero_subtitle || 'Cita rasa otentik sejak 2000. Dibuat dengan bahan pilihan, disajikan dengan cinta dari Surabaya.'}
+            {settings.hero_subtitle || 'Cita rasa otentik berkualitas tinggi. Dibuat dengan bahan pilihan dan disajikan dengan dedikasi terbaik.'}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

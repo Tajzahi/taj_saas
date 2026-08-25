@@ -34,10 +34,10 @@ export default function Contact() {
 
   const status = getCurrentStatus();
 
-  const brandName = settings?.store_name || "A6 Nyuss";
-  const address = settings?.store_address || "Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179";
-  const whatsapp = settings?.whatsapp_number || "6287811123482";
-  const hours = settings?.opening_hours || "Setiap Hari: 17:00 – 01:00";
+  const brandName = settings?.store_name || "Toko Kami";
+  const address = settings?.store_address || "";
+  const whatsapp = settings?.whatsapp_number || "";
+  const hours = settings?.opening_hours || "";
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -165,21 +165,21 @@ export default function Contact() {
                   },
                   { 
                     platform: 'TikTok', 
-                    handle: '@a6nyuss', 
+                    handle: `@${brandName ? brandName.toLowerCase().replace(/\s+/g, '') : 'official'}`, 
                     icon: <svg className="w-5 h-5 text-black dark:text-white flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.74a4.85 4.85 0 01-1.01-.05z"/></svg>, 
-                    link: 'https://www.tiktok.com/@a6nyuss' 
+                    link: 'https://tiktok.com' 
                   },
                   { 
                     platform: 'Facebook', 
-                    handle: 'A6 Nyuss', 
+                    handle: brandName || 'Official Page', 
                     icon: <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>, 
-                    link: 'https://www.facebook.com/profile.php?id=61590278828752' 
+                    link: 'https://facebook.com' 
                   },
                   { 
                     platform: 'YouTube', 
-                    handle: 'A6 Nyuss', 
+                    handle: brandName || 'Official Channel', 
                     icon: <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>, 
-                    link: 'https://youtube.com/@a6nyuss' 
+                    link: 'https://youtube.com' 
                   },
                 ].map((s) => (
                   <a
@@ -206,7 +206,7 @@ export default function Contact() {
           <img src="/Halal logo.jfif" alt="Halal Certified" className="w-12 h-12 object-contain flex-shrink-0 rounded-lg" />
           <div>
             <p className="font-bold text-green-800">Bersertifikat Halal</p>
-            <p className="text-green-700 text-sm">Seluruh bahan baku dan proses pembuatan A6 Nyuss telah tersertifikasi halal. Aman untuk seluruh keluarga Muslim.</p>
+            <p className="text-green-700 text-sm">Seluruh bahan baku dan proses pembuatan produk {brandName} telah dipastikan halal dan higienis. Aman untuk seluruh keluarga.</p>
           </div>
         </div>
       </div>

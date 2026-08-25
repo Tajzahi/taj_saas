@@ -163,7 +163,7 @@ export default function Tracking() {
       ? (ord.paymentMethod === 'cod' ? 'Tunai COD' : 'QRIS')
       : (ord.paymentMethod === 'cod' ? 'Tunai' : 'QRIS');
     const msg =
-      `Halo A6 Nyuss! Saya sudah melakukan pemesanan online%0A%0A` +
+      `Halo Admin! Saya sudah melakukan pemesanan online%0A%0A` +
       `*Kode Order: ${ord.orderCode}*%0A%0A` +
       `*Detail Pesanan:*%0A${itemsSummary}%0A%0A` +
       `*Total: ${formatPrice(ord.total)}*%0A` +
@@ -936,11 +936,11 @@ export default function Tracking() {
               <div className="bg-gray-50 p-4 rounded-2xl flex flex-col items-center justify-center border border-gray-100 shadow-inner">
                 <img
                   src="/qris.png"
-                  alt="QRIS A6 Nyuss"
+                  alt="QRIS Toko"
                   draggable="false"
                   className="w-48 h-48 object-contain rounded-lg border bg-white shadow-sm"
                 />
-                <p className="text-xs font-bold text-gray-500 mt-2 uppercase tracking-wide">A6 NYUSS MARTABAK</p>
+                <p className="text-xs font-bold text-gray-500 mt-2 uppercase tracking-wide">QRIS RESMI TOKO</p>
               </div>
 
               {/* Instructions */}

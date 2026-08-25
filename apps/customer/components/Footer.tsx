@@ -11,9 +11,10 @@ export default function Footer() {
     getStoreSettings().then(setSettings).catch(console.error);
   }, []);
 
-  const storeName = settings?.store_name || "Nyoman Coffee & Bakery";
-  const address = settings?.store_address || "Jl. Raya Darmo Permai II No. 18, Surabaya";
-  const hours = settings?.opening_hours || "Setiap Hari: 07:00 – 22:00 WIB";
+  const storeName = settings?.store_name || "";
+  const address = settings?.store_address || "";
+  const hours = settings?.opening_hours || "";
+  const tagline = (settings as any)?.tagline || "";
 
   return (
     <footer className="bg-[#1a0a0a] text-white pt-12 pb-6">
@@ -23,28 +24,32 @@ export default function Footer() {
           <div className="lg:col-span-2">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center flex-shrink-0">
-                <img src="/logo.svg" alt={storeName} className="w-8 h-8 object-contain" />
+                <img src="/logo.svg" alt={storeName || "Logo"} className="w-8 h-8 object-contain" />
               </div>
               <div>
-                <p className="font-bold text-xl text-white">{storeName}</p>
-                <p className="text-sm text-gray-400">Artisan Coffee & Fresh Bakery</p>
+                <p className="font-bold text-xl text-white uppercase">{storeName}</p>
+                {tagline && <p className="text-sm text-gray-400">{tagline}</p>}
               </div>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed mb-4 max-w-sm">
-              Cita rasa otentik dan seduhan berkualitas tinggi. 
+              Cita rasa otentik dan sajian berkualitas tinggi. 
               Dibuat dengan bahan pilihan dan dedikasi terbaik untuk pelanggan setia kami.
             </p>
             <div className="space-y-2">
-              <div className="text-sm text-gray-300 flex items-start gap-2">
-                <MapPin className="text-[#E05009] w-4 h-4 shrink-0 mt-0.5" />
-                <div>
-                  <p className="text-white font-medium">{address}</p>
+              {address && (
+                <div className="text-sm text-gray-300 flex items-start gap-2">
+                  <MapPin className="text-[#E05009] w-4 h-4 shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-white font-medium">{address}</p>
+                  </div>
                 </div>
-              </div>
-              <p className="text-sm text-gray-300 flex items-center gap-2">
-                <Clock className="text-[#E05009] w-4 h-4 shrink-0" />
-                <span>{hours}</span>
-              </p>
+              )}
+              {hours && (
+                <p className="text-sm text-gray-300 flex items-center gap-2">
+                  <Clock className="text-[#E05009] w-4 h-4 shrink-0" />
+                  <span>{hours}</span>
+                </p>
+              )}
               <p className="text-sm text-gray-300 flex items-center gap-2">
                 <img src="/Halal logo.jfif" alt="Halal" className="w-5 h-5 object-contain rounded bg-white p-0.5" />
                 <span>Halal Certified</span>
