@@ -9,9 +9,9 @@ const defaultFaqData = [
   {
     label: 'Umum & Toko',
     items: [
-      { q: 'Jam operasional toko?', a: 'Setiap Hari: 17:00 – 01:00. Kami melayani makan di tempat (dine-in), bawa pulang (takeaway), dan pesan antar (delivery).' },
-      { q: 'Apakah produk dijamin Halal?', a: 'Ya! Seluruh bahan baku dan proses pengolahan kami telah tersertifikasi 100% Halal. Aman untuk seluruh keluarga.' },
-      { q: 'Sejak kapan usaha ini berdiri?', a: 'Kami telah melayani pelanggan sejak tahun 2000 dengan resep otentik turun-temurun khas Surabaya.' },
+      { q: 'Bagaimana jam operasional layanan?', a: 'Kami melayani pesanan sesuai jam operasional gerai yang tertera. Kami siap melayani makan di tempat (dine-in), bawa pulang (takeaway), dan pesan antar (delivery).' },
+      { q: 'Apakah produk dijamin Halal dan Bersih?', a: 'Ya! Seluruh bahan baku dan proses pengolahan kami dipastikan 100% Halal, higienis, dan aman dikonsumsi seluruh keluarga.' },
+      { q: 'Apakah bisa memesan untuk jumlah besar / acara?', a: 'Tentu bisa! Kami menyediakan layanan katering dan pemesanan jumlah banyak untuk acara kantor, rapat, pesta, maupun syukuran.' },
     ],
   },
   {

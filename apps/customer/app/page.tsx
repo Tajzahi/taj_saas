@@ -7,24 +7,17 @@ import MenuCard from '@/components/MenuCard';
 import { useEffect, useState } from 'react';
 import { getStoreSettings, getMenuItems, DbStoreSettings } from '@/lib/db/menuService';
 
-const testimonials = [
-  { name: 'Budi S.', rating: 5, text: 'Udah langganan sejak 2010! Rasanya konsisten, martabak coklatnya paling enak se-Surabaya. Wajib coba!', location: 'Gubeng, Surabaya' },
-  { name: 'Sari A.', rating: 5, text: 'Pesan online gampang banget, langsung dateng cepet. Terang bulannya lumer banget. Highly recommended!', location: 'Wonokromo, Surabaya' },
-  { name: 'Rizky P.', rating: 5, text: 'Martabak telurnya juara! Isinya melimpah, tidak pelit. Harga juga sangat reasonable buat kualitas sebagus ini.', location: 'Rungkut, Surabaya' },
-  { name: 'Dewi R.', rating: 5, text: 'Favoritku dari zaman kuliah sampai sekarang udah kerja. Tetap enak, tetap bersih, tetap ramah!', location: 'Kenjeran, Surabaya' },
+const defaultValuePropositions = [
+  { icon: 'Award', title: 'Bahan Baku Pilihan', desc: 'Kami hanya menggunakan bahan-bahan segar berkualitas terbaik untuk cita rasa maksimal.' },
+  { icon: '/Halal logo.jfif', title: 'Bersertifikat Halal', desc: 'Seluruh bahan dan proses pengolahan dipastikan halal dan higienis untuk ketenangan Anda.', isImg: true },
+  { icon: 'BadgePercent', title: 'Harga Terbaik', desc: 'Pesan langsung dari gerai resmi kami dengan jaminan mutu dan harga paling hemat.' },
+  { icon: 'Zap', title: 'Pelayanan Cepat', desc: 'Pesanan diproses secara instan di dapur agar siap dinikmati dalam kondisi segar.' },
 ];
 
-const valuePropositions = [
-  { icon: 'Award', title: '25 Tahun Pengalaman', desc: 'Sejak tahun 2000, kami konsisten menghadirkan rasa terbaik yang tidak pernah berubah.' },
-  { icon: '/Halal logo.jfif', title: 'Bersertifikat Halal', desc: 'Semua bahan baku kami dipastikan halal dan berkualitas tinggi untuk ketenangan Anda.', isImg: true },
-  { icon: 'BadgePercent', title: 'Tanpa Komisi Ojol', desc: 'Pesan langsung dari kami. Harga lebih hemat, kualitas tetap terjaga, layanan lebih personal.' },
-  { icon: 'Zap', title: 'Proses Cepat', desc: 'Pickup siap dalam ~20 menit. Delivery langsung tanpa nunggu lama. Panas, segar, nikmat!' },
-];
-
-const orderSteps = [
-  { step: '01', icon: 'Search', title: 'Pilih Menu', desc: 'Browse menu lengkap kami dan pilih favorit kamu' },
-  { step: '02', icon: 'FileText', title: 'Isi Data & Checkout', desc: 'Masukkan nama dan nomor HP, pilih pickup atau delivery' },
-  { step: '03', icon: 'ShoppingBag', title: 'Ambil / Diantar', desc: 'Pesanan siap dalam ~20 menit. Kami antar atau kamu pickup!' },
+const defaultOrderSteps = [
+  { step: '01', icon: 'Search', title: 'Pilih Menu', desc: 'Pilih menu makanan atau minuman favorit dari daftar menu kami' },
+  { step: '02', icon: 'FileText', title: 'Isi Data & Pesan', desc: 'Tentukan opsi pengambilan atau antar serta metode pembayaran' },
+  { step: '03', icon: 'ShoppingBag', title: 'Siap Dinikmati', desc: 'Pesanan diproses dapur dan siap disajikan untuk Anda' },
 ];
 
 export default function Home() {
@@ -210,7 +203,7 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {valuePropositions.map((vp) => (
+            {(settings.value_props && settings.value_props.length > 0 ? settings.value_props : defaultValuePropositions).map((vp) => (
               <div
                 key={vp.title}
                 className="text-center p-6 rounded-2xl bg-gradient-to-b from-[#8E0E0E]/5 to-transparent border border-[#8E0E0E]/10 hover:border-[#8E0E0E]/30 transition-all duration-200 hover:-translate-y-1 flex flex-col items-center"
@@ -223,6 +216,7 @@ export default function Home() {
                       {vp.icon === 'Award' && <Award className="w-8 h-8" />}
                       {vp.icon === 'BadgePercent' && <BadgePercent className="w-8 h-8" />}
                       {vp.icon === 'Zap' && <Zap className="w-8 h-8" />}
+                      {(!vp.icon || (vp.icon !== 'Award' && vp.icon !== 'BadgePercent' && vp.icon !== 'Zap')) && <Award className="w-8 h-8" />}
                     </div>
                   )}
                 </div>
@@ -248,21 +242,16 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 relative">
-            {orderSteps.map((step, index) => (
-              <div key={step.step} className="text-center relative">
-                {index < orderSteps.length - 1 && (
-                  <div className="hidden sm:block absolute top-8 left-[60%] w-[80%] border-t-2 border-dashed border-white/30" />
-                )}
-                <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center text-white mx-auto mb-4">
-                  {step.icon === 'Search' && <Search className="w-8 h-8" />}
-                  {step.icon === 'FileText' && <FileText className="w-8 h-8" />}
-                  {step.icon === 'ShoppingBag' && <ShoppingBag className="w-8 h-8" />}
+            {(settings.order_steps && settings.order_steps.length > 0 ? settings.order_steps : defaultOrderSteps).map((step, index) => (
+              <div
+                key={step.step || index}
+                className="text-center relative z-10 flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-white text-[#8E0E0E] flex items-center justify-center font-black text-xl mb-4 shadow-lg">
+                  {step.step || `0${index + 1}`}
                 </div>
-                <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-white/30 text-white text-xs font-bold mb-2">
-                  {step.step}
-                </div>
-                <h3 className="text-white font-bold text-lg mb-2">{step.title}</h3>
-                <p className="text-white/70 text-sm">{step.desc}</p>
+                <h3 className="font-bold text-white text-lg mb-2">{step.title}</h3>
+                <p className="text-white/80 text-sm leading-relaxed">{step.desc}</p>
               </div>
             ))}
           </div>
@@ -278,40 +267,44 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ===== TESTIMONIALS ===== */}
-      <section className="py-16 sm:py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Review Pelanggan</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
-              Kata <span className="text-[#8E0E0E]">Mereka</span>
-            </h2>
-            <div className="flex items-center justify-center gap-1 text-yellow-400 mb-1">
-              {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 fill-current" />)}
-            </div>
-            <p className="text-gray-500 text-sm">4.9/5 dari ratusan pelanggan setia</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {(settings.testimonials && settings.testimonials.length > 0 ? settings.testimonials : testimonials).map((t, idx) => (
-              <div key={(t as any).id || t.name || idx} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg transition-shadow">
-                <div className="flex gap-0.5 mb-3">
-                  {[...Array(t.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                  ))}
-                </div>
-                <p className="text-gray-700 text-sm leading-relaxed mb-4 italic">"{t.text}"</p>
-                <div>
-                  <p className="font-bold text-gray-900 text-sm">{t.name}</p>
-                  <p className="text-gray-400 text-xs flex items-center gap-1">
-                    <MapPin className="w-3 h-3" /> {t.location}
-                  </p>
-                </div>
+      {/* ===== TESTIMONIALS (Dynamic) ===== */}
+      {settings.testimonials && settings.testimonials.length > 0 && (
+        <section className="py-16 sm:py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-12">
+              <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Review Pelanggan</span>
+              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
+                Kata <span className="text-[#8E0E0E]">Mereka</span>
+              </h2>
+              <div className="flex items-center justify-center gap-1 text-yellow-400 mb-1">
+                {[...Array(5)].map((_, i) => <Star key={i} className="w-5 h-5 fill-current" />)}
               </div>
-            ))}
+              <p className="text-gray-500 text-sm">Ulasan dari pelanggan setia kami</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {settings.testimonials.map((t, idx) => (
+                <div key={(t as any).id || t.name || idx} className="bg-white rounded-2xl p-5 shadow-md hover:shadow-lg transition-shadow">
+                  <div className="flex gap-0.5 mb-3">
+                    {[...Array(t.rating || 5)].map((_, i) => (
+                      <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    ))}
+                  </div>
+                  <p className="text-gray-700 text-sm leading-relaxed mb-4 italic">"{t.text}"</p>
+                  <div>
+                    <p className="font-bold text-gray-900 text-sm">{t.name}</p>
+                    {t.location && (
+                      <p className="text-gray-400 text-xs flex items-center gap-1">
+                        <MapPin className="w-3 h-3" /> {t.location}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== LOCATION PREVIEW ===== */}
       <section className="py-16 sm:py-20 bg-white">

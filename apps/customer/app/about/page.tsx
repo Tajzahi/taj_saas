@@ -14,10 +14,10 @@ const timeline = [
 ];
 
 const defaultValues = [
-  { icon: Award, title: 'Rasa Autentik', desc: 'Resep original yang tidak pernah berubah sejak 2000. Cita rasa otentik yang bikin kangen!' },
-  { icon: Sprout, title: 'Bahan Pilihan', desc: 'Kami hanya menggunakan bahan-bahan segar berkualitas terbaik setiap harinya.' },
-  { icon: Heart, title: 'Penuh Dedikasi', desc: 'Setiap adonan martabak dibuat dengan dedikasi tinggi demi kepuasan pelanggan.' },
-  { icon: Handshake, title: 'Pelayanan Ramah', desc: 'Kami selalu siap melayani dengan senyum dan memastikan pengalaman belanja terbaik.' },
+  { icon: Award, title: 'Kualitas Rasa', desc: 'Konsistensi rasa dan standar penyajian terbaik yang selalu kami jaga untuk setiap pelanggan.' },
+  { icon: Sprout, title: 'Bahan Pilihan', desc: 'Kami hanya menggunakan bahan-bahan segar berkualitas tinggi demi kepuasan Anda.' },
+  { icon: Heart, title: 'Penuh Dedikasi', desc: 'Setiap sajian disiapkan dengan dedikasi dan standar kebersihan yang ketat.' },
+  { icon: Handshake, title: 'Pelayanan Ramah', desc: 'Kami selalu siap melayani dengan ramah untuk memberikan pengalaman terbaik bagi Anda.' },
 ];
 
 export default function About() {
@@ -101,37 +101,40 @@ export default function About() {
         </div>
       </section>
 
-      {/* Timeline */}
-      <section className="py-16 bg-white">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <span className="text-[#E05009] font-semibold text-sm uppercase tracking-wider">Perjalanan Kami</span>
-            <h2 className="text-3xl font-black text-gray-900 mt-1">Milestone Sejarah</h2>
-          </div>
-          <div className="space-y-6">
-            {timeline.map((item, idx) => (
-              <div key={idx} className="flex gap-4 items-start">
-                <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] text-white font-black text-sm px-3 py-1.5 rounded-xl flex-shrink-0">
-                  {item.year}
+      {/* Timeline (Dynamic if provided by Owner) */}
+      {settings?.timeline && settings.timeline.length > 0 && (
+        <section className="py-16 bg-white">
+          <div className="max-w-3xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-12">
+              <span className="text-[#E05009] font-semibold text-sm uppercase tracking-wider">Perjalanan Kami</span>
+              <h2 className="text-3xl font-black text-gray-900 mt-1">Milestone Sejarah</h2>
+            </div>
+            <div className="space-y-6">
+              {settings.timeline.map((item, idx) => (
+                <div key={idx} className="flex gap-4 items-start">
+                  <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] text-white font-black text-sm px-3 py-1.5 rounded-xl flex-shrink-0">
+                    {item.year}
+                  </div>
+                  <div className="bg-gray-50 rounded-2xl p-4 flex-1 border border-gray-100">
+                    <h4 className="font-bold text-gray-900 text-sm mb-1">{item.event}</h4>
+                    <p className="text-xs text-gray-500">{item.desc}</p>
+                  </div>
                 </div>
-                <div className="bg-gray-50 rounded-2xl p-4 flex-1 border border-gray-100">
-                  <h4 className="font-bold text-gray-900 text-sm mb-1">{item.event}</h4>
-                  <p className="text-xs text-gray-500">{item.desc}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+        </section>
+      )}
 
-          <div className="text-center mt-12">
-            <Link
-              href="/menu"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:scale-105 transition-all"
-            >
-              Lihat Menu & Pesan Sekarang <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* CTA */}
+      <div className="py-12 bg-white text-center">
+        <Link
+          href="/menu"
+          className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white rounded-2xl font-bold shadow-lg shadow-orange-500/20 hover:scale-105 transition-all"
+        >
+          Lihat Menu & Pesan Sekarang <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
     </div>
   );
 }

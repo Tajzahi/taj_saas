@@ -227,7 +227,7 @@ export default function ChatBot() {
             <X className="w-6 h-6" />
           ) : (
             <div className="relative w-full h-full flex items-center justify-center">
-              <img src="/logo.svg" alt="Asisten AI" draggable="false" className="w-7 h-7 object-contain" />
+              <Sparkles className="w-6 h-6 text-white" />
               <span className="absolute top-2.5 right-2.5 flex h-3 w-3">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-3 w-3 bg-green-400"></span>
@@ -251,8 +251,8 @@ export default function ChatBot() {
               className="bg-gradient-to-r from-[#8E0E0E] to-[#E05009] p-4 text-white flex items-center justify-between select-none"
             >
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center relative border border-white/20">
-                  <img src="/logo.svg" alt="Asisten AI" draggable="false" className="w-6 h-6 object-contain" />
+                <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center relative border border-white/30 text-white">
+                  <Sparkles className="w-5 h-5" />
                   <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>
                 </div>
                 <div>

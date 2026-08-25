@@ -65,6 +65,23 @@ const TenantBrandingSchema = z.object({
     answer: z.string().max(2000),
     category: z.string().max(100).optional(),
   })).optional(),
+  // Keunggulan Toko (Value Props) & Timeline Sejarah
+  valueProps: z.array(z.object({
+    icon: z.string().max(100),
+    title: z.string().max(100),
+    desc: z.string().max(300),
+    isImg: z.boolean().optional(),
+  })).optional(),
+  timeline: z.array(z.object({
+    year: z.string().max(20),
+    event: z.string().max(150),
+    desc: z.string().max(500),
+  })).optional(),
+  // Media Sosial
+  socialInstagram: z.string().max(200).optional(),
+  socialFacebook: z.string().max(200).optional(),
+  socialTiktok: z.string().max(200).optional(),
+  socialYoutube: z.string().max(200).optional(),
   // Delivery & Radius Settings
   maxDeliveryRadiusKm: z.number().min(1).max(100).optional(),
   deliveryZones: z.array(z.object({

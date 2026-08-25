@@ -17,17 +17,12 @@ export async function generateMetadata(): Promise<Metadata> {
         template: `%s | ${storeName}`,
       },
       description: `Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman di ${storeName}.`,
-      icons: {
-        icon: "/favicon.ico",
-      },
+      icons: settings?.logo_url ? { icon: settings.logo_url } : undefined,
     };
   } catch {
     return {
       title: "Online Store & Order System",
       description: "Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman melalui website pemesanan resmi.",
-      icons: {
-        icon: "/favicon.ico",
-      },
     };
   }
 }

@@ -55,12 +55,16 @@ export default function Header() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center">
-                <img src="/logo.svg" alt={storeName} className="w-6 h-6 object-contain" />
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center text-white font-black text-lg shadow-sm overflow-hidden">
+                {settings?.logo_url ? (
+                  <img src={settings.logo_url} alt={storeName || 'Logo'} className="w-full h-full object-cover" />
+                ) : (
+                  <span>{storeName ? storeName.charAt(0).toUpperCase() : '🏪'}</span>
+                )}
               </div>
               <div className="hidden sm:block">
                 <p className={`font-black text-base sm:text-lg tracking-wider leading-none uppercase ${isWhiteHeader ? 'text-[#8E0E0E]' : 'text-white'}`}>{storeName}</p>
-                <p className={`text-[8px] sm:text-[9px] tracking-widest leading-none font-black uppercase mt-1 ${isWhiteHeader ? 'text-gray-500' : 'text-white/80'}`}>{tagline}</p>
+                {tagline && <p className={`text-[8px] sm:text-[9px] tracking-widest leading-none font-black uppercase mt-1 ${isWhiteHeader ? 'text-gray-500' : 'text-white/80'}`}>{tagline}</p>}
               </div>
             </Link>
 
@@ -262,12 +266,16 @@ export default function Header() {
           <div className="w-72 bg-white h-full shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center">
-                  <img src="/logo.svg" alt={storeName} className="w-5.5 h-5.5 object-contain" />
+                <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center text-white font-black text-base shadow-sm overflow-hidden flex-shrink-0">
+                  {settings?.logo_url ? (
+                    <img src={settings.logo_url} alt={storeName || 'Logo'} className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{storeName ? storeName.charAt(0).toUpperCase() : '🏪'}</span>
+                  )}
                 </div>
                 <div>
                   <p className="font-black text-sm tracking-wider leading-none text-[#8E0E0E] uppercase">{storeName}</p>
-                  <p className="text-[8px] tracking-widest leading-none font-black uppercase text-gray-500 mt-1">{tagline}</p>
+                  {tagline && <p className="text-[8px] tracking-widest leading-none font-black uppercase text-gray-500 mt-1">{tagline}</p>}
                 </div>
               </div>
               <button

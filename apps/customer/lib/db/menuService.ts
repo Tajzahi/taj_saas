@@ -27,6 +27,11 @@ export interface DbStoreSettings {
   hero_title?: string;
   hero_subtitle?: string;
   hero_badge_text?: string;
+  logo_url?: string;
+  value_props?: { icon: string; title: string; desc: string; isImg?: boolean }[];
+  timeline?: { year: string; event: string; desc: string }[];
+  values?: { title: string; desc: string; icon?: string }[];
+  order_steps?: { step: string; title: string; desc: string; icon?: string }[];
   testimonials?: { id: string; name: string; rating: number; text: string; location?: string }[];
   about_title?: string;
   about_story?: string;
@@ -35,6 +40,7 @@ export interface DbStoreSettings {
   catering_packages?: { id: string; name: string; minPortion: number; pricePerPortion: number; description: string }[];
   max_delivery_radius_km?: number;
   delivery_zones?: { name: string; maxKm: number; fee: number }[];
+  social_links?: { instagram?: string; facebook?: string; tiktok?: string; youtube?: string };
 }
 
 // Fallback topping variant structures for Terang Bulan items
@@ -69,26 +75,6 @@ function resolveMenuItemVariants(
   );
   if (staticMatch && staticMatch.variants && staticMatch.variants.length > 0) {
     return staticMatch.variants;
-  }
-
-  // 4. Fallback based on category or item name keywords
-  const isTerangBulan =
-    categorySlug?.includes('terang') ||
-    name?.toLowerCase().includes('terang bulan') ||
-    normalizedSlug.includes('terang-bulan');
-
-  if (isTerangBulan) {
-    const lowerName = name.toLowerCase();
-    if (
-      lowerName.includes('2 variant') ||
-      lowerName.includes('2 topping') ||
-      lowerName.includes('2 rasa') ||
-      normalizedSlug.includes('2-variant') ||
-      normalizedSlug.includes('2-topping')
-    ) {
-      return default2VariantToppings;
-    }
-    return default1VariantToppings;
   }
 
   return undefined;
@@ -148,12 +134,17 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     qris_image_url: branding.qrisImageUrl || '/qris.png',
     bank_info: branding.bankInfo || '',
     hero_banner_url: branding.heroBannerUrl || '',
+    logo_url: branding.logoUrl || branding.logo || undefined,
     outlet_lat: typeof branding.outletLat === 'number' ? branding.outletLat : DEFAULT_OUTLET_LAT,
     outlet_lng: typeof branding.outletLng === 'number' ? branding.outletLng : DEFAULT_OUTLET_LNG,
     gallery: branding.gallery && Array.isArray(branding.gallery) ? branding.gallery : undefined,
     hero_title: branding.heroTitle || undefined,
     hero_subtitle: branding.heroSubtitle || undefined,
     hero_badge_text: branding.heroBadgeText || undefined,
+    value_props: branding.valueProps && Array.isArray(branding.valueProps) ? branding.valueProps : undefined,
+    timeline: branding.timeline && Array.isArray(branding.timeline) ? branding.timeline : undefined,
+    values: branding.values && Array.isArray(branding.values) ? branding.values : undefined,
+    order_steps: branding.orderSteps && Array.isArray(branding.orderSteps) ? branding.orderSteps : undefined,
     testimonials: branding.testimonials && Array.isArray(branding.testimonials) ? branding.testimonials : undefined,
     about_title: branding.aboutTitle || undefined,
     about_story: branding.aboutStory || undefined,
@@ -162,6 +153,12 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     catering_packages: branding.cateringPackages && Array.isArray(branding.cateringPackages) ? branding.cateringPackages : undefined,
     max_delivery_radius_km: typeof branding.maxDeliveryRadiusKm === 'number' ? branding.maxDeliveryRadiusKm : 10,
     delivery_zones: branding.deliveryZones && Array.isArray(branding.deliveryZones) ? branding.deliveryZones : undefined,
+    social_links: {
+      instagram: branding.socialInstagram || '',
+      facebook: branding.socialFacebook || '',
+      tiktok: branding.socialTiktok || '',
+      youtube: branding.socialYoutube || '',
+    },
   };
 }
 
