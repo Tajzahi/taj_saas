@@ -152,7 +152,7 @@ export default function Menu() {
             Menu Kami
           </h1>
           <p className="text-white/80 text-base sm:text-lg max-w-xl mx-auto">
-            Pilihan martabak & terang bulan terbaik. Semua dibuat fresh setiap hari!
+            Pilihan menu lezat dan terbaik untuk Anda. Dibuat fresh setiap hari!
           </p>
         </div>
       </div>
@@ -162,27 +162,33 @@ export default function Menu() {
         <div className="max-w-7xl mx-auto px-4">
           {/* Category Tabs */}
           <div className="flex gap-2 overflow-x-auto py-3 scrollbar-hide">
-            {allCategories.map((cat) => {
-              const count = cat.id === 'semua'
-                ? menuItemsState.length
-                : menuItemsState.filter((item) => item.category === cat.id).length;
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => handleCategoryChange(cat.id)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
-                    activeCategory === cat.id
-                      ? 'bg-[#8E0E0E] text-white shadow-md'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <span>{cat.label}</span>
-                  <span className={`text-xs ${activeCategory === cat.id ? 'text-white/70' : 'text-gray-400'}`}>
-                    ({count})
-                  </span>
-                </button>
-              );
-            })}
+            {allCategories
+              .filter((cat) => {
+                if (cat.id === 'semua') return true;
+                const count = menuItemsState.filter((item) => item.category === cat.id).length;
+                return count > 0;
+              })
+              .map((cat) => {
+                const count = cat.id === 'semua'
+                  ? menuItemsState.length
+                  : menuItemsState.filter((item) => item.category === cat.id).length;
+                return (
+                  <button
+                    key={cat.id}
+                    onClick={() => handleCategoryChange(cat.id)}
+                    className={`flex-shrink-0 flex items-center gap-1.5 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
+                      activeCategory === cat.id
+                        ? 'bg-[#8E0E0E] text-white shadow-md'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span>{cat.label}</span>
+                    <span className={`text-xs ${activeCategory === cat.id ? 'text-white/70' : 'text-gray-400'}`}>
+                      ({count})
+                    </span>
+                  </button>
+                );
+              })}
           </div>
         </div>
       </div>
