@@ -26,8 +26,8 @@ export default function Menu() {
   const [activeCategory, setActiveCategory] = useState<MenuCategory | 'semua'>('semua');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('default');
-  const [menuItemsState, setMenuItemsState] = useState<MenuItem[]>(staticMenuItems);
-  const [categoriesState, setCategoriesState] = useState<{ id: MenuCategory; label: string; icon: string }[]>(staticCategories);
+  const [menuItemsState, setMenuItemsState] = useState<MenuItem[]>([]);
+  const [categoriesState, setCategoriesState] = useState<{ id: MenuCategory; label: string; icon: string }[]>([]);
 
   // Load filter state from sessionStorage on mount & fetch database data
   useEffect(() => {

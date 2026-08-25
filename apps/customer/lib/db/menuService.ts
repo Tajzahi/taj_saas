@@ -197,20 +197,18 @@ export async function getCategories(): Promise<{ id: MenuCategory; label: string
     .where(eq(schema.categories.tenantId, tenant.id))
     .orderBy(schema.categories.sortOrder);
 
-  if (!dbCategories || dbCategories.length === 0 || (dbCategories.length === 1 && dbCategories[0].slug === 'lainnya')) {
-    return staticCategories;
+  if (!dbCategories || dbCategories.length === 0) {
+    return [{ id: 'semua' as any, label: 'Semua Menu', icon: 'Layers' }];
   }
 
   // Map to the frontend type structure
   const mapped = dbCategories.map(c => ({
     id: c.slug as MenuCategory,
     label: c.name,
-    icon: c.slug.includes('terang') ? 'Moon' : c.slug.includes('bebek') ? 'Egg' : 'Layers'
+    icon: c.slug.includes('kopi') || c.slug.includes('coffee') || c.slug.includes('espresso') ? 'Layers' : c.slug.includes('terang') ? 'Moon' : c.slug.includes('bebek') ? 'Egg' : 'Layers'
   }));
 
-  // Ensure standard categories exist if DB only has custom ones
-  const standardMissing = staticCategories.filter((sc: { id: MenuCategory; label: string; icon: string }) => !mapped.some(m => m.id === sc.id));
-  return [...mapped, ...standardMissing];
+  return mapped;
 }
 
 export async function getMenuItems(): Promise<MenuItem[]> {
@@ -218,15 +216,14 @@ export async function getMenuItems(): Promise<MenuItem[]> {
   const slug = headersList.get('x-tenant-slug') || 'taj-saas';
   
   const tenant = await getTenantBySlug(slug);
-  if (!tenant) return staticMenuItems;
+  if (!tenant) return [];
 
   const dbItems = await db.select()
     .from(schema.menuItems)
     .where(eq(schema.menuItems.tenantId, tenant.id));
 
-  // If DB items are empty, use static menu items
   if (!dbItems || dbItems.length === 0) {
-    return staticMenuItems;
+    return [];
   }
 
   // Fetch dbVariants for this tenant if populated
@@ -310,13 +307,6 @@ export async function getMenuItems(): Promise<MenuItem[]> {
       relatedSlugs: staticItem?.relatedSlugs,
     };
   });
-
-  // If DB only has a small subset of test items (e.g. < 5), merge with staticMenuItems that are not yet in DB
-  if (mappedDbItems.length < staticMenuItems.length) {
-    const existingSlugs = new Set(mappedDbItems.map(i => i.slug));
-    const supplementalItems = staticMenuItems.filter(s => !existingSlugs.has(s.slug));
-    return [...mappedDbItems, ...supplementalItems];
-  }
 
   return mappedDbItems;
 }
