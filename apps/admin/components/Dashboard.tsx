@@ -201,7 +201,8 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `rekap-a6nyuss-${todayDateStr}.csv`;
+    const cleanSlug = (storeName || 'toko').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    link.download = `rekap-${cleanSlug}-${todayDateStr}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -217,7 +218,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
         {/* Left: Logo + Clock */}
         <div className="flex items-center gap-2">
           <div>
-            <h1 className="font-black text-sm leading-none tracking-tight">A6 NYUSS</h1>
+            <h1 className="font-black text-sm leading-none tracking-tight">{storeName || 'Portal Operasional'}</h1>
             <p className="text-white/70 text-[10px] leading-none font-medium">Portal Operasional</p>
           </div>
         </div>
@@ -459,7 +460,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
         <div className="flex items-center gap-4">
           <span>Pesanan Hari Ini: <strong className="text-gray-700">{todayOrders.length}</strong></span>
           <span>Menunggu Verifikasi: <strong className="text-amber-600">{todayOrders.filter(o => o.paymentStatus === 'waiting_verification').length}</strong></span>
-          <span>© 2026 Martabak Terbul A6 Nyuss</span>
+          <span>© {new Date().getFullYear()} {storeName || 'Portal Operasional'}</span>
           {activeShift && (
             <button
               onClick={() => setIsPOSOfflineOpen(true)}

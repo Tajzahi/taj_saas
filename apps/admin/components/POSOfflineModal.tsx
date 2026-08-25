@@ -277,9 +277,21 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5">
                   {filteredItems.map((item) => {
                     const inCart = cart.find(c => c.id === item.id);
-                    const isMartabak = item.name.toLowerCase().includes('martabak');
-                    const isTerangBulan = item.name.toLowerCase().includes('terang bulan') || item.categoryName?.toLowerCase().includes('terang bulan');
-                    const foodIcon = isMartabak ? '🍳' : isTerangBulan ? '🥞' : '🧀';
+                    const lowerName = item.name.toLowerCase();
+                    const foodIcon =
+                      lowerName.includes('kopi') || lowerName.includes('coffee') || lowerName.includes('espresso') || lowerName.includes('macchiato')
+                        ? '☕'
+                        : lowerName.includes('tea') || lowerName.includes('teh') || lowerName.includes('matcha') || lowerName.includes('latte')
+                        ? '🍵'
+                        : lowerName.includes('toast') || lowerName.includes('roti')
+                        ? '🍞'
+                        : lowerName.includes('bebek') || lowerName.includes('ayam')
+                        ? '🍗'
+                        : lowerName.includes('martabak')
+                        ? '🍳'
+                        : lowerName.includes('terang')
+                        ? '🥞'
+                        : '🍽️';
 
                     return (
                       <div

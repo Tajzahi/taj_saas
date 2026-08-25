@@ -9,9 +9,9 @@ interface PrintReceiptProps {
 export default function PrintReceipt({ order }: PrintReceiptProps) {
   const { storeName, branding } = useAdminStore();
 
-  const receiptTitle = branding?.receiptHeader || branding?.businessName || storeName || 'MARTABAK A6 NYUSS';
-  const storeAddress = branding?.storeAddress || 'Jl. Demak No.253, Krembangan, Surabaya';
-  const whatsappNumber = branding?.whatsappNumber || '0878-1112-3482';
+  const receiptTitle = branding?.receiptHeader || branding?.businessName || storeName || 'STRUK PEMBELIAN';
+  const storeAddress = branding?.storeAddress || '';
+  const whatsappNumber = branding?.whatsappNumber || '';
   const receiptFooter = branding?.receiptFooter || '-- Terima kasih & Selamat Menikmati! --';
 
   const paymentLabel =
