@@ -277,62 +277,35 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3.5">
                   {filteredItems.map((item) => {
                     const inCart = cart.find(c => c.id === item.id);
-                    const lowerName = item.name.toLowerCase();
-                    const foodIcon =
-                      lowerName.includes('kopi') || lowerName.includes('coffee') || lowerName.includes('espresso') || lowerName.includes('macchiato')
-                        ? '☕'
-                        : lowerName.includes('tea') || lowerName.includes('teh') || lowerName.includes('matcha') || lowerName.includes('latte')
-                        ? '🍵'
-                        : lowerName.includes('toast') || lowerName.includes('roti')
-                        ? '🍞'
-                        : lowerName.includes('bebek') || lowerName.includes('ayam')
-                        ? '🍗'
-                        : lowerName.includes('martabak')
-                        ? '🍳'
-                        : lowerName.includes('terang')
-                        ? '🥞'
-                        : '🍽️';
 
                     return (
                       <div
                         key={item.id}
                         onClick={() => addToCart(item)}
-                        className={`bg-white dark:bg-slate-900 p-2.5 sm:p-3 rounded-2xl border transition-all cursor-pointer hover:border-orange-500 hover:shadow-md flex items-center gap-2.5 sm:gap-3 relative group ${
+                        className={`bg-white dark:bg-slate-900 p-3 rounded-2xl border transition-all cursor-pointer hover:border-orange-500 hover:shadow-md flex flex-col justify-between relative group ${
                           inCart ? 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/20 dark:bg-orange-950/20' : 'border-slate-200 dark:border-slate-800'
                         }`}
                       >
                         {inCart && (
-                          <span className="absolute top-2 right-2 bg-gradient-to-r from-orange-500 to-rose-500 text-white font-black text-[10px] min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center shadow-md ring-2 ring-white dark:ring-slate-900 z-10">
+                          <span className="absolute top-2.5 right-2.5 bg-gradient-to-r from-orange-500 to-rose-500 text-white font-black text-[10px] min-w-[20px] h-5 px-1.5 rounded-full flex items-center justify-center shadow-md ring-2 ring-white dark:ring-slate-900 z-10">
                             {inCart.qty}
                           </span>
                         )}
 
-                        {/* Thumbnail Gambar di Bagian Kiri Card */}
-                        <div className="w-12 sm:w-14 h-12 sm:h-14 rounded-2xl bg-gradient-to-br from-amber-100 via-orange-100 to-amber-200 dark:from-slate-800 dark:via-orange-950/40 dark:to-slate-800 border border-orange-200/80 dark:border-slate-700/80 flex items-center justify-center text-xl sm:text-2xl shrink-0 shadow-xs group-hover:scale-105 transition-transform overflow-hidden">
-                          {(item as any).image ? (
-                            <img src={(item as any).image} alt={item.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <span>{foodIcon}</span>
-                          )}
+                        <div>
+                          <p className="font-extrabold text-xs sm:text-sm text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug pr-6">
+                            {item.name}
+                          </p>
+                          <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{item.categoryName || 'Menu'}</p>
                         </div>
 
-                        {/* Detail Informasi Menu */}
-                        <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
-                          <div>
-                            <p className="font-extrabold text-xs sm:text-sm text-slate-800 dark:text-slate-100 line-clamp-2 leading-snug">
-                              {item.name}
-                            </p>
-                            <p className="text-[10px] font-semibold text-slate-400 mt-0.5">{item.categoryName || 'Menu'}</p>
-                          </div>
-
-                          <div className="mt-1 flex items-center justify-between">
-                            <span className="text-xs sm:text-sm font-black text-orange-600 dark:text-orange-400">
-                              Rp {Number(item.price).toLocaleString('id-ID')}
-                            </span>
-                            <span className="p-1 rounded-lg bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 group-hover:bg-orange-500 group-hover:text-white transition-colors">
-                              <Plus className="w-3.5 h-3.5" />
-                            </span>
-                          </div>
+                        <div className="mt-2.5 flex items-center justify-between">
+                          <span className="text-xs sm:text-sm font-black text-orange-600 dark:text-orange-400">
+                            Rp {Number(item.price).toLocaleString('id-ID')}
+                          </span>
+                          <span className="p-1.5 rounded-xl bg-orange-50 dark:bg-orange-950/50 text-orange-600 dark:text-orange-400 group-hover:bg-orange-500 group-hover:text-white transition-colors">
+                            <Plus className="w-3.5 h-3.5" />
+                          </span>
                         </div>
                       </div>
                     );
