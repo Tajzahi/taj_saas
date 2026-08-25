@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 
 import { ShoppingCart, Menu, X, ChevronDown } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
+import { getStoreSettings, DbStoreSettings } from '@/lib/db/menuService';
 
 export default function Header() {
   const router = useRouter();
@@ -13,12 +14,16 @@ export default function Header() {
   const [eventOpen, setEventOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [settings, setSettings] = useState<DbStoreSettings | null>(null);
 
   const totalItems = useCartStore((s) => s.getTotalItems());
   const location = usePathname();
 
   // Mark as mounted after first client render to avoid SSR/localStorage hydration mismatch
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    getStoreSettings().then(setSettings).catch(console.error);
+  }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -34,6 +39,8 @@ export default function Header() {
 
   const isHome = location === '/';
   const isWhiteHeader = !isHome || scrolled;
+  const storeName = settings?.store_name || "Nyoman Coffee & Bakery";
+  const tagline = (settings as any)?.tagline || "Coffee & Bakery";
 
   return (
     <>
@@ -49,11 +56,11 @@ export default function Header() {
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center">
-                <img src="/logo.svg" alt="A6 Nyuss" className="w-6 h-6 object-contain" />
+                <img src="/logo.svg" alt={storeName} className="w-6 h-6 object-contain" />
               </div>
               <div className="hidden sm:block">
-                <p className={`font-black text-base sm:text-lg tracking-wider leading-none ${isWhiteHeader ? 'text-[#8E0E0E]' : 'text-white'}`}>A6 NYUSS</p>
-                <p className={`text-[8px] sm:text-[9px] tracking-widest leading-none font-black uppercase mt-1 ${isWhiteHeader ? 'text-gray-500' : 'text-white/80'}`}>Martabak & Terang Bulan</p>
+                <p className={`font-black text-base sm:text-lg tracking-wider leading-none uppercase ${isWhiteHeader ? 'text-[#8E0E0E]' : 'text-white'}`}>{storeName}</p>
+                <p className={`text-[8px] sm:text-[9px] tracking-widest leading-none font-black uppercase mt-1 ${isWhiteHeader ? 'text-gray-500' : 'text-white/80'}`}>{tagline}</p>
               </div>
             </Link>
 
@@ -256,11 +263,11 @@ export default function Header() {
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center">
-                  <img src="/logo.svg" alt="A6 Nyuss" className="w-5.5 h-5.5 object-contain" />
+                  <img src="/logo.svg" alt={storeName} className="w-5.5 h-5.5 object-contain" />
                 </div>
                 <div>
-                  <p className="font-black text-sm tracking-wider leading-none text-[#8E0E0E]">A6 NYUSS</p>
-                  <p className="text-[8px] tracking-widest leading-none font-black uppercase text-gray-500 mt-1">Martabak & Terang Bulan</p>
+                  <p className="font-black text-sm tracking-wider leading-none text-[#8E0E0E] uppercase">{storeName}</p>
+                  <p className="text-[8px] tracking-widest leading-none font-black uppercase text-gray-500 mt-1">{tagline}</p>
                 </div>
               </div>
               <button

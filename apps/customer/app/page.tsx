@@ -199,7 +199,7 @@ export default function Home() {
           <div className="text-center mb-12">
             <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Keunggulan Kami</span>
             <h2 className="text-3xl sm:text-4xl font-black text-gray-900">
-              Kenapa <span className="text-[#8E0E0E]">A6 Nyuss</span>?
+              Kenapa <span className="text-[#8E0E0E]">{settings.store_name}</span>?
             </h2>
           </div>
 
@@ -234,10 +234,10 @@ export default function Home() {
           <div className="text-center mb-12">
             <span className="inline-block text-white/70 font-semibold text-sm mb-2 tracking-wider uppercase">Simple & Mudah</span>
             <h2 className="text-3xl sm:text-4xl font-black text-white mb-3">
-              Cara Order di A6 Nyuss
+              Cara Order di {settings.store_name}
             </h2>
             <p className="text-white/80 max-w-md mx-auto">
-              Hanya 3 langkah untuk menikmati martabak & terang bulan favorit kamu
+              Hanya 3 langkah mudah untuk menikmati menu favorit pilihan Anda
             </p>
           </div>
 
@@ -314,7 +314,7 @@ export default function Home() {
             <div>
               <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Temukan Kami</span>
               <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-                Lokasi <span className="text-[#8E0E0E]">A6 Nyuss</span>
+                Lokasi <span className="text-[#8E0E0E]">{settings.store_name}</span>
               </h2>
               <div className="space-y-4 mb-6">
                 <div className="flex items-start gap-3">
