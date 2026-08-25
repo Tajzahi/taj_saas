@@ -88,16 +88,8 @@ export default function Privacy() {
             </p>
             <ul className="text-gray-600 text-sm space-y-2 mt-3">
               <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-gray-500" />
-                <strong>Email:</strong> <a href="mailto:martabaka6nyusss@gmail.com" className="text-[#8E0E0E] hover:underline">martabaka6nyusss@gmail.com</a>
-              </li>
-              <li className="flex items-center gap-2">
                 <MessageSquare className="w-4 h-4 text-gray-500" />
-                <strong>WhatsApp:</strong> <a href="https://wa.me/6287811123482" className="text-[#8E0E0E] hover:underline">0878-1112-3482</a>
-              </li>
-              <li className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-gray-500 shrink-0 mt-0.5" />
-                <span><strong>Alamat:</strong> Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179 (Depan Mess DITPOLARIUD POLDA JATIM SURABAYA)</span>
+                <span>Silakan hubungi layanan pelanggan resmi kami melalui menu <Link href="/contact" className="text-[#8E0E0E] font-bold hover:underline">Kontak & WhatsApp</Link>.</span>
               </li>
             </ul>
           </section>

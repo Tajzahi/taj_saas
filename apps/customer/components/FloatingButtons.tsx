@@ -12,13 +12,19 @@ export default function FloatingButtons() {
   const totalItems = useCartStore((s) => s.getTotalItems());
   // Guard against SSR/localStorage hydration mismatch (Zustand persist)
   const [mounted, setMounted] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  const [waLink, setWaLink] = useState("https://wa.me/?text=Halo%20Admin%2C%20saya%20ingin%20bertanya");
+
+  useEffect(() => {
+    setMounted(true);
+    fetch('/api/validate-promo') // or load settings
+      .catch(() => {});
+  }, []);
 
   return (
     <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-3">
       {/* WhatsApp Button */}
       <a
-        href="https://wa.me/6287811123482?text=Halo%20A6%20Nyuss%2C%20saya%20ingin%20pesan%20martabak"
+        href={waLink}
         target="_blank"
         rel="noopener noreferrer"
         className="flex items-center justify-center w-14 h-14 rounded-full bg-green-500 hover:bg-green-600 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110"

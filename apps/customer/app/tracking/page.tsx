@@ -786,11 +786,10 @@ export default function Tracking() {
                   <MapPin className="w-4 h-4" /> Lokasi Pengambilan
                 </h3>
                 <div className="text-green-700 text-sm mb-3">
-                  <p className="font-semibold">Jl. Demak No.253, Dupak, Kec. Krembangan, Surabaya, Jawa Timur 60179</p>
-                  <p className="text-green-800 text-xs mt-0.5 font-medium">Depan Mess DITPOLARIUD POLDA JATIM SURABAYA.</p>
+                  <p className="font-semibold">{order.deliveryAddress || 'Gerai Resmi Toko'}</p>
                 </div>
                 <a
-                  href="https://www.google.com/maps?q=-7.243211171142016,112.71769837365488"
+                  href={`https://maps.google.com/maps?q=${encodeURIComponent(order.deliveryAddress || 'Toko')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 transition-colors"

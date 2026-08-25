@@ -121,12 +121,12 @@ export default function Home() {
               <ArrowRight className="w-5 h-5" />
             </Link>
             <a
-              href={`https://wa.me/${settings.whatsapp_number}?text=Halo%20A6%20Nyuss%2C%20saya%20ingin%20tanya%20menu`}
+              href={`https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(`Halo ${settings.store_name}, saya ingin bertanya seputar menu.`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-8 py-4 bg-white/20 backdrop-blur-sm border-2 border-white/40 text-white font-bold text-lg rounded-2xl hover:bg-white/30 transition-all duration-200"
+              className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold text-lg rounded-2xl border border-white/20 transition-all duration-200 hover:scale-105 shadow-xl text-center"
             >
-              <MessageSquare className="w-5 h-5" /> Chat WhatsApp
+              Chat WhatsApp
             </a>
           </div>
         </div>
@@ -137,11 +137,11 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex flex-wrap justify-center gap-6 sm:gap-12">
             {[
-              { icon: 'Award', text: 'Sejak 2000' },
+              { icon: 'Award', text: 'Kualitas Premium' },
               { icon: '/Halal logo.jfif', text: 'Halal Certified', isImg: true },
               { icon: 'Star', text: '4.9 Rating' },
               { icon: 'Truck', text: 'Delivery & Pickup' },
-              { icon: 'MapPin', text: 'Surabaya' },
+              { icon: 'MapPin', text: settings?.store_address ? settings.store_address.split(',').pop()?.trim() || 'Terpercaya' : 'Gerai Resmi' },
             ].map((item) => (
               <div key={item.text} className="flex items-center gap-2 text-white text-sm font-semibold">
                 {item.isImg ? (
@@ -369,7 +369,7 @@ export default function Home() {
             {/* Map Placeholder */}
             <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 bg-gray-100">
               <iframe
-                src={settings.google_maps_url || 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid'}
+                src={settings.google_maps_url || `https://maps.google.com/maps?q=${encodeURIComponent(settings.store_address || settings.store_name)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
                 width="100%"
                 height="100%"
                 style={{ border: 0 }}
@@ -391,7 +391,7 @@ export default function Home() {
             Siap Pesan <span className="text-[#E05009]">Sekarang</span>?
           </h2>
           <p className="text-gray-300 mb-8 text-lg">
-            Martabak & terang bulan otentik siap dikirim atau diambil. Pesan sekarang, siap ~20 menit!
+            Sajian menu favorit pilihan Anda siap disajikan hangat dan diantar langsung ke tempat Anda. Pesan sekarang!
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
@@ -401,7 +401,7 @@ export default function Home() {
               <ShoppingBag className="w-5 h-5" /> Lihat Menu
             </Link>
             <a
-              href={`https://wa.me/${settings.whatsapp_number}?text=Halo%20A6%20Nyuss%2C%20saya%20mau%20pesan`}
+              href={`https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(`Halo ${settings.store_name}, saya ingin memesan menu.`)}`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center justify-center gap-2 px-10 py-4 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-2xl transition-all duration-200 hover:scale-105 shadow-xl"
