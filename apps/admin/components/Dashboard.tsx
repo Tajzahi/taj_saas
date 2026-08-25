@@ -39,6 +39,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
     fetchActiveShift,
     openShift,
     closeShift,
+    storeName,
   } = useAdminStore();
 
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
