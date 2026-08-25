@@ -6,6 +6,8 @@ import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 
+import { getStoreSettings } from '@/lib/db/menuService';
+
 export default function FloatingButtons() {
   const router = useRouter();
   const pathname = usePathname();
@@ -16,8 +18,13 @@ export default function FloatingButtons() {
 
   useEffect(() => {
     setMounted(true);
-    fetch('/api/validate-promo') // or load settings
-      .catch(() => {});
+    getStoreSettings().then(st => {
+      if (st && st.whatsapp_number) {
+        const cleanWa = st.whatsapp_number.replace(/[^0-9]/g, '');
+        const name = st.store_name || "Admin";
+        setWaLink(`https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${name}, saya ingin bertanya seputar menu.`)}`);
+      }
+    }).catch(() => {});
   }, []);
 
   return (

@@ -59,9 +59,12 @@ export default function Home() {
     return settings.is_open;
   };
 
-  const popularMenus = items.length > 0
-    ? items.filter((item) => item.badge === 'terlaris').slice(0, 6)
-    : popularMenuSlugs.map((slug) => staticMenuItems.find((i) => i.slug === slug)).filter(Boolean) as MenuItem[];
+  const terlarisItems = items.filter((item) => item.badge === 'terlaris');
+  const popularMenus = terlarisItems.length > 0
+    ? terlarisItems.slice(0, 6)
+    : items.length > 0
+      ? items.slice(0, 6)
+      : (popularMenuSlugs.map((slug) => staticMenuItems.find((i) => i.slug === slug)).filter(Boolean) as MenuItem[]);
 
   return (
     <div className="min-h-screen">

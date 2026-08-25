@@ -24,10 +24,10 @@ const defaultStaticPromos = [
   {
     id: "2",
     icon: "🛍️",
-    title: 'Bundling Hemat Keluarga',
-    desc: '2 Terang Bulan + 1 Martabak Telur hanya Rp 85.000! Hemat lebih dari 20% dari harga normal.',
+    title: 'Bundling Hemat Spesial',
+    desc: 'Paket kombinasi menu makanan dan minuman hemat hingga 20% dari harga normal.',
     period: 'Berlaku setiap hari',
-    syarat: 'Harga sudah termasuk varian regular. Berlaku untuk pickup dan delivery.',
+    syarat: 'Harga sudah termasuk paket pilihan. Berlaku untuk pickup dan delivery.',
     badge: 'NEW',
     badgeCls: 'bg-blue-500',
     active: true,
