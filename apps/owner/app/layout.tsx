@@ -3,8 +3,8 @@ import ToastProvider from "@/components/ToastProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Owner Dashboard - A6 Nyuss",
-  description: "Dashboard analitik dan manajemen operasional untuk pemilik gerai F&B A6 Nyuss.",
+  title: "Owner Dashboard | Taj SaaS",
+  description: "Platform Manajemen Bisnis & Operasional Restoran Multi-Tenant Taj SaaS.",
 };
 
 export default function RootLayout({
