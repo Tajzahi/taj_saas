@@ -234,13 +234,25 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
 
               {/* Categories Navigation */}
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
+                    selectedCategory === 'all'
+                      ? 'bg-gradient-to-r from-orange-500 to-rose-600 text-white shadow-md'
+                      : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 hover:border-orange-300'
+                  }`}
+                >
+                  Semua ({menuItems.filter(m => m.isAvailable).length})
+                </button>
                 {categories.map((cat) => {
-                  const count = menuItems.filter(m => getItemCategory(m) === cat && m.isAvailable).length;
-                  if (count === 0 && cat === 'Topping / Add-on') return null;
+                  const count = menuItems.filter(m => (m.categoryName || 'Lainnya') === cat && m.isAvailable).length;
+                  if (count === 0) return null;
 
                   return (
                     <button
                       key={cat}
+                      type="button"
                       onClick={() => setSelectedCategory(cat)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer ${
                         selectedCategory === cat
