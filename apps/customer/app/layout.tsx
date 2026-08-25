@@ -5,14 +5,32 @@ import Footer from "@/components/Footer";
 import FloatingButtons from "@/components/FloatingButtons";
 import ChatBot from "@/components/ChatBot";
 import ToastProvider from "@/components/ToastProvider";
+import { getStoreSettings } from "@/lib/db/menuService";
 
-export const metadata: Metadata = {
-  title: "Online Store & Order System",
-  description: "Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman melalui website pemesanan resmi.",
-  icons: {
-    icon: "/favicon.ico",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  try {
+    const settings = await getStoreSettings();
+    const storeName = settings?.store_name || "Online Store & Order System";
+    return {
+      title: {
+        default: storeName,
+        template: `%s | ${storeName}`,
+      },
+      description: `Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman di ${storeName}.`,
+      icons: {
+        icon: "/favicon.ico",
+      },
+    };
+  } catch {
+    return {
+      title: "Online Store & Order System",
+      description: "Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman melalui website pemesanan resmi.",
+      icons: {
+        icon: "/favicon.ico",
+      },
+    };
+  }
+}
 
 export default function RootLayout({
   children,
