@@ -13,6 +13,7 @@ const TenantBrandingSchema = z.object({
   tagline: z.string().max(200).optional(),
   logoUrl: z.string().max(500).optional(),
   logo: z.string().max(500).optional(),
+  faviconUrl: z.string().max(500).optional(),
   primaryColor: z.string().max(50).optional(),
   secondaryColor: z.string().max(50).optional(),
   storeAddress: z.string().max(300).optional(),

@@ -17,7 +17,11 @@ export async function generateMetadata(): Promise<Metadata> {
         template: `%s | ${storeName}`,
       },
       description: `Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman di ${storeName}.`,
-      icons: settings?.logo_url ? { icon: settings.logo_url } : undefined,
+      icons: settings?.favicon_url ? {
+        icon: settings.favicon_url,
+        shortcut: settings.favicon_url,
+        apple: settings.favicon_url,
+      } : undefined,
     };
   } catch {
     return {

@@ -28,6 +28,7 @@ export interface DbStoreSettings {
   hero_subtitle?: string;
   hero_badge_text?: string;
   logo_url?: string;
+  favicon_url?: string;
   value_props?: { icon: string; title: string; desc: string; isImg?: boolean }[];
   timeline?: { year: string; event: string; desc: string }[];
   values?: { title: string; desc: string; icon?: string }[];
@@ -135,6 +136,7 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     bank_info: branding.bankInfo || '',
     hero_banner_url: branding.heroBannerUrl || '',
     logo_url: branding.logoUrl || branding.logo || undefined,
+    favicon_url: branding.faviconUrl || branding.logoUrl || undefined,
     outlet_lat: typeof branding.outletLat === 'number' ? branding.outletLat : DEFAULT_OUTLET_LAT,
     outlet_lng: typeof branding.outletLng === 'number' ? branding.outletLng : DEFAULT_OUTLET_LNG,
     gallery: branding.gallery && Array.isArray(branding.gallery) ? branding.gallery : undefined,

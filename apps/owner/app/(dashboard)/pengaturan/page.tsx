@@ -28,6 +28,8 @@ export default function Pengaturan() {
   const [secondaryColor, setSecondaryColor] = useState("#eab308");
   const [businessName, setBusinessName] = useState("");
   const [logo, setLogo] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
+  const [faviconUrl, setFaviconUrl] = useState("");
   const [receiptHeader, setReceiptHeader] = useState("MARTABAK A6 NYUSS");
   const [receiptFooter, setReceiptFooter] = useState("-- Terima kasih & Selamat Menikmati! --");
   const [receiptPaperWidth, setReceiptPaperWidth] = useState("58mm");
@@ -64,7 +66,9 @@ export default function Pengaturan() {
         if (branding) {
           if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
           if (branding.secondaryColor) setSecondaryColor(branding.secondaryColor);
-          if (branding.logoUrl || branding.logo) setLogo(branding.logoUrl || branding.logo || "");
+          if (branding.logoUrl) setLogoUrl(branding.logoUrl);
+          if (branding.faviconUrl) setFaviconUrl(branding.faviconUrl);
+          if (branding.logo) setLogo(branding.logo);
           if (branding.brandName) setBusinessName(branding.brandName);
           if (branding.receiptHeader) setReceiptHeader(branding.receiptHeader);
           if (branding.receiptFooter) setReceiptFooter(branding.receiptFooter);
@@ -123,6 +127,8 @@ export default function Pengaturan() {
     setLoading(true);
     const res = await updateTenantBrandingAction({
       logo,
+      logoUrl,
+      faviconUrl,
       primaryColor,
       secondaryColor,
       brandName: businessName,
@@ -202,23 +208,143 @@ export default function Pengaturan() {
           <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-5">
             <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Identitas Bisnis</h3>
 
-            {/* Logo Upload */}
-            <div>
-              <label className="text-xs font-medium text-slate-700 dark:text-slate-300">Logo Bisnis (Emoji / Simbol)</label>
-              <div className="mt-2 flex items-center gap-4">
-                <input
-                  type="text"
-                  maxLength={2}
-                  className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center text-3xl shadow-md border-none text-center text-white focus:outline-none"
-                  value={logo}
-                  onChange={(e) => setLogo(e.target.value)}
-                />
-                <div className="flex-1">
-                  <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-xl p-3 text-center">
-                    <p className="text-xs font-medium text-slate-600 dark:text-slate-400">Masukkan Emoji atau Ikon Text</p>
-                    <p className="text-[10px] text-slate-400 mt-0.5">Maksimal 2 karakter</p>
+            {/* Logo Bisnis */}
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">Logo Bisnis (Header & Footer)</label>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 flex items-center justify-center text-3xl shadow-md overflow-hidden text-white font-black flex-shrink-0">
+                  {logoUrl ? (
+                    <img src={logoUrl} alt="Logo Preview" className="w-full h-full object-cover" />
+                  ) : logo ? (
+                    <span>{logo}</span>
+                  ) : (
+                    <span>{businessName ? businessName.charAt(0).toUpperCase() : "🏪"}</span>
+                  )}
+                </div>
+                <div className="flex-1 space-y-2">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="https://... atau unggah gambar logo"
+                      value={logoUrl}
+                      onChange={(e) => setLogoUrl(e.target.value)}
+                      className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                    />
+                    <label className="cursor-pointer inline-flex items-center justify-center text-xs font-bold text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-950/40 border border-orange-200 dark:border-orange-900/40 px-3 py-2 rounded-xl hover:bg-orange-100 transition-colors whitespace-nowrap">
+                      📁 Upload Logo
+                      <input
+                        type="file"
+                        accept="image/png, image/jpeg, image/jpg, image/webp, image/svg+xml"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 2 * 1024 * 1024) {
+                              alert("Ukuran file logo maksimal 2MB.");
+                              return;
+                            }
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              if (typeof reader.result === "string") setLogoUrl(reader.result);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-slate-500">Atau gunakan Emoji/Inisial:</span>
+                    <input
+                      type="text"
+                      maxLength={2}
+                      placeholder="☕"
+                      value={logo}
+                      onChange={(e) => setLogo(e.target.value)}
+                      className="w-12 text-center text-xs px-2 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
+                    />
+                    {logoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setLogoUrl("")}
+                        className="text-[11px] text-red-500 hover:underline ml-auto"
+                      >
+                        Reset ke Inisial
+                      </button>
+                    )}
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* Favicon Browser Tab Upload */}
+            <div className="p-4 rounded-xl border border-orange-200 dark:border-orange-900/40 bg-orange-50/40 dark:bg-orange-950/20 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                  <span>🔖</span> Favicon Kustom (Ikon Tab Browser)
+                </label>
+                <Badge variant="neutral" size="sm">Tab Browser</Badge>
+              </div>
+
+              {/* Tab Mockup Preview */}
+              <div className="flex items-center gap-2 bg-slate-200/70 dark:bg-slate-800 p-2 rounded-lg max-w-xs">
+                <div className="w-4 h-4 rounded-full bg-orange-500 flex items-center justify-center overflow-hidden text-[9px] text-white font-black flex-shrink-0">
+                  {faviconUrl ? (
+                    <img src={faviconUrl} alt="Favicon" className="w-full h-full object-cover" />
+                  ) : logoUrl ? (
+                    <img src={logoUrl} alt="Favicon" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{businessName ? businessName.charAt(0).toUpperCase() : "🏪"}</span>
+                  )}
+                </div>
+                <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 truncate">
+                  {businessName || "Nama Toko Anda"}
+                </span>
+                <span className="text-[10px] text-slate-400 ml-auto">✕</span>
+              </div>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="https://... / link file favicon (.ico, .png, .svg)"
+                  value={faviconUrl}
+                  onChange={(e) => setFaviconUrl(e.target.value)}
+                  className="flex-1 text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                />
+                <label className="cursor-pointer inline-flex items-center justify-center text-xs font-bold text-orange-600 dark:text-orange-400 bg-white dark:bg-slate-900 border border-orange-300 dark:border-orange-800 px-3 py-2 rounded-xl hover:bg-orange-50 transition-colors whitespace-nowrap">
+                  📁 Upload Favicon
+                  <input
+                    type="file"
+                    accept="image/png, image/x-icon, image/vnd.microsoft.icon, image/svg+xml, image/jpeg, image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        if (file.size > 1024 * 1024) {
+                          alert("Ukuran favicon maksimal 1MB.");
+                          return;
+                        }
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          if (typeof reader.result === "string") setFaviconUrl(reader.result);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              <div className="flex items-center justify-between text-[10px] text-slate-500">
+                <span>Rekomendasi: File <strong>.ico</strong> atau <strong>PNG</strong> 32x32 / 64x64 px.</span>
+                {faviconUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setFaviconUrl("")}
+                    className="text-red-500 hover:underline font-bold"
+                  >
+                    Gunakan Otomatis
+                  </button>
+                )}
               </div>
             </div>
 
