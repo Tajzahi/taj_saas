@@ -710,7 +710,7 @@ export default function Pengaturan() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <Input
-                  label="PB1 (Pajak Restoran %)"
+                  label="PPN / Pajak Restoran (%)"
                   type="number"
                   value={taxRate}
                   onChange={(e) => setTaxRate(Number(e.target.value))}
@@ -872,7 +872,7 @@ export default function Pengaturan() {
                   <span className="font-semibold">Rp 100.000</span>
                 </div>
                 <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                  <span>PB1 (Pajak {taxRate}%):</span>
+                  <span>PPN ({taxRate}%):</span>
                   <span className="font-semibold text-orange-600">Rp {(100000 * (taxRate / 100)).toLocaleString("id-ID")}</span>
                 </div>
                 {serviceChargeRate > 0 && (
@@ -1005,7 +1005,7 @@ export default function Pengaturan() {
                     <span>100.000</span>
                   </div>
                   <div className="flex justify-between text-slate-600 dark:text-slate-400">
-                    <span>PB1 ({taxRate}%):</span>
+                    <span>PPN ({taxRate}%):</span>
                     <span>{(100000 * (taxRate / 100)).toLocaleString("id-ID")}</span>
                   </div>
                   {serviceChargeRate > 0 && (

@@ -596,7 +596,7 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
                     <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between text-slate-500">
-                    <span>Pajak (PB1 10%):</span>
+                    <span>Pajak (PPN 10%):</span>
                     <span>Rp {tax.toLocaleString('id-ID')}</span>
                   </div>
                   <div className="flex justify-between font-extrabold text-sm text-slate-900 dark:text-slate-100 pt-1.5 border-t border-slate-200 dark:border-slate-800">
