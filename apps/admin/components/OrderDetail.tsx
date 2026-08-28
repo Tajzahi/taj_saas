@@ -87,7 +87,7 @@ function StatusStepIndicator({ currentStatus }: { currentStatus: AdminOrder['sta
 }
 
 export default function OrderDetail({ order }: OrderDetailProps) {
-  const { updateOrderStatus, verifyPaymentStatus } = useAdminStore();
+  const { updateOrderStatus, verifyPaymentStatus, storeName } = useAdminStore();
   const [showProofPopup, setShowProofPopup] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ type: string; label: string; desc: string; onConfirm: () => void } | null>(null);
@@ -355,13 +355,14 @@ export default function OrderDetail({ order }: OrderDetailProps) {
                 const cleanPhone = order.customerPhone.replace(/\D/g, '');
                 const waPhone = cleanPhone.startsWith('0') ? '62' + cleanPhone.slice(1) : cleanPhone;
                 
-                let waMessageText = `Halo Kak ${order.customerName}, kami dari Martabak A6 Nyuss. Ada yang bisa kami bantu mengenai pesanan Kakak (${order.orderCode})?`;
+                const activeStoreName = storeName || 'Toko';
+                let waMessageText = `Halo Kak ${order.customerName}, kami dari ${activeStoreName}. Ada yang bisa kami bantu mengenai pesanan Kakak (${order.orderCode})?`;
                 if (order.status === 'received') {
-                  waMessageText = `Halo Kak ${order.customerName}, kami dari Martabak A6 Nyuss. Pesanan Kakak dengan kode ${order.orderCode} telah kami terima dan sedang diproses. Terima kasih!`;
+                  waMessageText = `Halo Kak ${order.customerName}, kami dari ${activeStoreName}. Pesanan Kakak dengan kode ${order.orderCode} telah kami terima dan sedang diproses. Terima kasih!`;
                 } else if (order.status === 'processing') {
-                  waMessageText = `Halo Kak ${order.customerName}, kami dari Martabak A6 Nyuss. Pesanan Kakak (${order.orderCode}) saat ini sedang dimasak di dapur. Kami akan kabari begitu siap!`;
+                  waMessageText = `Halo Kak ${order.customerName}, kami dari ${activeStoreName}. Pesanan Kakak (${order.orderCode}) saat ini sedang dimasak di dapur. Kami akan kabari begitu siap!`;
                 } else if (order.status === 'ready') {
-                  waMessageText = `Halo Kak ${order.customerName}, kami dari Martabak A6 Nyuss. Pesanan Kakak (${order.orderCode}) sudah siap dan siap ${order.deliveryType === 'delivery' ? 'diantar oleh kurir' : 'diambil di gerai'}. Terima kasih!`;
+                  waMessageText = `Halo Kak ${order.customerName}, kami dari ${activeStoreName}. Pesanan Kakak (${order.orderCode}) sudah siap dan siap ${order.deliveryType === 'delivery' ? 'diantar oleh kurir' : 'diambil di gerai'}. Terima kasih!`;
                 }
                 const waText = encodeURIComponent(waMessageText);
 

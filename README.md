@@ -42,8 +42,8 @@ taj_saas/
 
 ## 🔒 Key Design Patterns
 
-### 1. Zero-Supabase Architecture
-All data storage, queries, and RLS mechanisms run natively on Neon Serverless Postgres + Drizzle ORM. Better Auth acts as the single auth provider, fully decoupling the codebase from Supabase services.
+### 1. Serverless PostgreSQL & Drizzle ORM Architecture
+All data storage, queries, and multi-tenant scoping mechanisms run natively on Neon Serverless Postgres + Drizzle ORM. Better Auth acts as the unified authentication engine with subdomain session sharing.
 
 ### 2. Tenant Isolation
 Middleware automatically resolves hostnames to inject tenant contexts via HTTP headers (`x-tenant-id`, `x-tenant-slug`). Drizzle ORM queries explicitly scope transactions using `tenantId` indexes to prevent cross-tenant data leaks.

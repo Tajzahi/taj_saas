@@ -171,7 +171,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
   const exportToCSV = () => {
     const dateLabel = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
     const rows = [
-      ['REKAP PENJUALAN HARIAN - MARTABAK A6 NYUSS'],
+      [`REKAP PENJUALAN HARIAN - ${storeName || 'TOKO'}`],
       [''],
       ['Tanggal', dateLabel],
       ['Operator Shift', activeShift ? activeShift.operatorName : username],
@@ -823,7 +823,7 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
       <div className="print-report-container hidden">
         <div className="header text-center">
           <h2>REKAP PENJUALAN HARIAN</h2>
-          <h3>MARTABAK A6 NYUSS</h3>
+          <h3>{storeName || 'TOKO'}</h3>
           <p>Tanggal: {new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' })}</p>
           <div className="divider">===============================</div>
         </div>

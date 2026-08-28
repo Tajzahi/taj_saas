@@ -38,109 +38,125 @@ export default function ContactClient() {
   const address = settings?.store_address || "";
   const whatsapp = settings?.whatsapp_number || "";
   const hours = settings?.opening_hours || "";
+  const email = settings?.email || settings?.store_email || "kontak@restoran.com";
+  const instagramHandle = settings?.instagram ? (settings.instagram.startsWith('@') ? settings.instagram : `@${settings.instagram}`) : (brandName ? `@${brandName.toLowerCase().replace(/[^a-z0-9]/g, '')}` : '@official');
+  const instagramLink = settings?.instagram ? (settings.instagram.startsWith('http') ? settings.instagram : `https://instagram.com/${settings.instagram.replace(/^@/, '')}`) : 'https://instagram.com/';
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
-      {/* Header */}
-      <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] py-14 px-4">
-        <div className="max-w-3xl mx-auto text-center">
-          <h1 className="text-3xl sm:text-4xl font-black text-white mb-2">Lokasi & Kontak</h1>
-          <p className="text-white/80">Temukan kami atau hubungi langsung — kami selalu siap melayani!</p>
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] py-12 px-4">
+        <div className="max-w-3xl mx-auto">
+          <span className="inline-block bg-white/20 backdrop-blur-sm text-white text-xs font-bold px-3 py-1 rounded-full mb-3 uppercase tracking-wider">
+            Hubungi Kami
+          </span>
+          <h1 className="text-3xl sm:text-4xl font-black text-white">Lokasi & Kontak</h1>
+          <p className="text-white/80 mt-1 text-sm">
+            Temukan kami atau hubungi langsung — kami selalu siap melayani!
+          </p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-10">
-        {/* Status Banner */}
-        <div className={`flex items-center gap-3 p-4 rounded-2xl mb-8 ${status.open ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}>
-          <div className={`w-3 h-3 rounded-full flex-shrink-0 animate-pulse ${status.open ? 'bg-green-500' : 'bg-red-500'}`} />
-          <div>
-            <p className={`font-bold text-base ${status.open ? 'text-green-700' : 'text-red-700'}`}>
-              {status.label}
-            </p>
-            <p className={`text-sm ${status.open ? 'text-green-600' : 'text-red-600'}`}>{status.info}</p>
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-6">
+        {/* Status Toko Live */}
+        <div className={`rounded-2xl p-5 border flex items-center justify-between shadow-sm ${
+          status.open ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className={`w-3 h-3 rounded-full animate-pulse ${
+              status.open ? 'bg-green-500' : 'bg-red-500'
+            }`} />
+            <div>
+              <p className={`font-black text-sm ${status.open ? 'text-green-800' : 'text-red-800'}`}>
+                {status.label}
+              </p>
+              <p className="text-xs text-gray-500">{status.info}</p>
+            </div>
           </div>
+          <Clock className={`w-5 h-5 ${status.open ? 'text-green-600' : 'text-red-500'}`} />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Map */}
-          <div className="bg-white rounded-3xl overflow-hidden shadow-lg">
+        {/* Peta Lokasi */}
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <MapPin className="w-5 h-5 text-[#8E0E0E]" />
+            <h2 className="text-lg font-black text-gray-900">Peta Lokasi</h2>
+          </div>
+
+          <div className="rounded-xl overflow-hidden border border-gray-200 aspect-video w-full mb-4">
             <iframe
               src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid"
               width="100%"
-              height="320"
+              height="100%"
               style={{ border: 0 }}
-              allowFullScreen
+              allowFullScreen={false}
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
+              title={`Lokasi ${brandName}`}
             />
-            <div className="p-4">
-              <a
-                href="https://maps.google.com/?q=Martabak+%26+Terang+Bulan+A6+Nyuss"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-3 bg-[#8E0E0E] hover:bg-[#9C1B0B] text-white rounded-xl font-semibold text-sm transition-colors"
-              >
-                <MapPin className="w-4 h-4" /> Buka di Google Maps
-              </a>
+          </div>
+
+          <div className="flex items-center justify-between pt-2">
+            <p className="text-xs text-gray-500">
+              Patokan: Depan Mess DITPOLARIUD POLDA JATIM SURABAYA.
+            </p>
+            <a
+              href="https://maps.google.com/?q=Martabak+%26+Terang+Bulan+A6+Nyuss"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold text-[#8E0E0E] hover:underline"
+            >
+              Buka di Google Maps →
+            </a>
+          </div>
+        </div>
+
+        {/* Info Kontak & Jam Buka */}
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
+                <MapPin className="w-5 h-5 text-[#8E0E0E]" />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 text-sm">Alamat</p>
+                <p className="text-gray-600 text-sm mt-0.5 leading-relaxed">
+                  {address || "Depan Mess DITPOLARIUD POLDA JATIM SURABAYA."}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 pt-2 border-t border-gray-100">
+              <div className="w-10 h-10 rounded-xl bg-orange-100 flex items-center justify-center flex-shrink-0">
+                <Clock className="w-5 h-5 text-[#E05009]" />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 text-sm">Jam Operasional</p>
+                <p className="text-gray-600 text-sm mt-0.5">
+                  {hours || "Jadwal Operasional Resmi"}
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Info */}
-          <div className="space-y-5">
-            {/* Address */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
-                  <MapPin className="w-5 h-5 text-[#8E0E0E]" />
-                </div>
-                <div>
-                  <p className="font-bold text-gray-900 mb-1">Alamat</p>
-                  <div className="text-gray-600 text-sm leading-relaxed">
-                    <p>{address}</p>
-                    <p className="text-gray-400 text-xs mt-0.5 font-medium">Depan Mess DITPOLARIUD POLDA JATIM SURABAYA.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Hours */}
-            <div className="bg-white rounded-2xl p-5 shadow-sm">
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
-                  <Clock className="w-5 h-5 text-[#8E0E0E]" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-bold text-gray-900 mb-2">Jam Operasional</p>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Jadwal Operasional</span>
-                      <span className="font-semibold text-gray-900">{hours}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
+          <div className="space-y-4">
             {/* WhatsApp */}
             <a
-              href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=Halo%20${encodeURIComponent(brandName)}%2C%20saya%20ingin%20bertanya`}
+              href={`https://wa.me/${whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(`Halo ${brandName}, saya ingin bertanya`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-2xl p-4 hover:bg-green-100 transition-colors"
+              className="flex items-center justify-between bg-green-50 border border-green-200 rounded-2xl p-4 hover:bg-green-100 transition-colors"
             >
-              <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center flex-shrink-0">
-                <Phone className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1">
+              <div>
                 <p className="font-bold text-gray-900 text-sm">WhatsApp Resmi</p>
-                <p className="text-green-700 font-semibold">{whatsapp}</p>
+                <p className="text-green-700 font-semibold">{whatsapp || "Hubungi WhatsApp"}</p>
               </div>
               <span className="text-green-600 text-sm font-medium">Chat →</span>
             </a>
 
             {/* Email */}
             <a
-              href="mailto:martabaka6nyusss@gmail.com"
+              href={`mailto:${email}`}
               className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm hover:shadow-md transition-shadow"
             >
               <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
@@ -148,7 +164,7 @@ export default function ContactClient() {
               </div>
               <div>
                 <p className="font-bold text-gray-900 text-sm">Email</p>
-                <p className="text-[#8E0E0E] font-medium text-sm">martabaka6nyusss@gmail.com</p>
+                <p className="text-[#8E0E0E] font-medium text-sm">{email}</p>
               </div>
             </a>
 
@@ -159,9 +175,9 @@ export default function ContactClient() {
                 {[
                   { 
                     platform: 'Instagram', 
-                    handle: '@a6nyuss', 
+                    handle: instagramHandle, 
                     icon: <img src="/instagram.svg" className="w-5 h-5 flex-shrink-0 object-contain" alt="Instagram" />, 
-                    link: 'https://www.instagram.com/a6nyusss' 
+                    link: instagramLink 
                   },
                   { 
                     platform: 'TikTok', 
@@ -176,23 +192,23 @@ export default function ContactClient() {
                     link: 'https://facebook.com' 
                   },
                   { 
-                    platform: 'YouTube', 
-                    handle: brandName || 'Official Channel', 
-                    icon: <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 00-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 00.502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 002.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 002.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>, 
-                    link: 'https://youtube.com' 
+                    platform: 'G-Maps', 
+                    handle: brandName || 'Rating & Ulasan', 
+                    icon: <MapPin className="w-5 h-5 text-red-500 flex-shrink-0" />, 
+                    link: 'https://maps.google.com' 
                   },
-                ].map((s) => (
+                ].map((item) => (
                   <a
-                    key={s.platform}
-                    href={s.link}
+                    key={item.platform}
+                    href={item.link}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2.5 p-2.5 bg-gray-50 dark:bg-stone-850 rounded-xl hover:bg-[#8E0E0E]/5 transition-colors"
+                    className="flex items-center gap-2 p-2.5 rounded-xl border border-gray-150 hover:bg-gray-50 transition-colors text-xs font-semibold text-gray-700"
                   >
-                    {s.icon}
-                    <div>
-                      <p className="text-xs font-bold text-gray-800 dark:text-gray-200">{s.platform}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400">{s.handle}</p>
+                    {item.icon}
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-400 font-normal uppercase">{item.platform}</p>
+                      <p className="truncate font-bold text-gray-800">{item.handle}</p>
                     </div>
                   </a>
                 ))}

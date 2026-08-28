@@ -47,6 +47,9 @@ export const revenueTrend30d = Array.from({ length: 30 }, (_, i) => {
   };
 });
 
+// ============================================================
+// REVENUE TREND (90 Hari)
+// ============================================================
 export const revenueTrend90d = Array.from({ length: 90 }, (_, i) => {
   const base = 8000000 + (i / 90) * 2000000;
   const weekend = (i % 7 === 5 || i % 7 === 6) ? 1.4 : 1;
@@ -63,24 +66,24 @@ export const revenueTrend90d = Array.from({ length: 90 }, (_, i) => {
 // MENU DATA
 // ============================================================
 export const menuList = [
-  { id: "m1", name: "Martabak Telur Spesial", category: "Martabak", price: 45000, cost: 14200, margin: 68.4, soldToday: 142, revenue: 6390000, status: "star", stock: "ok" },
-  { id: "m2", name: "Terang Bulan Keju Meses", category: "Terang Bulan", price: 38000, cost: 11400, margin: 70.0, soldToday: 128, revenue: 4864000, status: "star", stock: "ok" },
-  { id: "m3", name: "Martabak Keju Susu", category: "Martabak", price: 52000, cost: 17000, margin: 67.3, soldToday: 98, revenue: 5096000, status: "star", stock: "ok" },
-  { id: "m4", name: "Gorengan Mix (10 pcs)", category: "Gorengan", price: 25000, cost: 9500, margin: 62.0, soldToday: 215, revenue: 5375000, status: "plow-horse", stock: "ok" },
-  { id: "m5", name: "Terang Bulan Kacang", category: "Terang Bulan", price: 35000, cost: 11200, margin: 68.0, soldToday: 89, revenue: 3115000, status: "star", stock: "ok" },
-  { id: "m6", name: "Martabak Mini Assorted", category: "Martabak", price: 30000, cost: 10800, margin: 64.0, soldToday: 76, revenue: 2280000, status: "puzzle", stock: "low" },
-  { id: "m7", name: "Es Teh Manis", category: "Minuman", price: 8000, cost: 2100, margin: 73.8, soldToday: 310, revenue: 2480000, status: "plow-horse", stock: "ok" },
-  { id: "m8", name: "Es Jeruk Peras", category: "Minuman", price: 12000, cost: 3500, margin: 70.8, soldToday: 185, revenue: 2220000, status: "plow-horse", stock: "ok" },
-  { id: "m9", name: "Martabak Telur Biasa", category: "Martabak", price: 35000, cost: 12800, margin: 63.4, soldToday: 68, revenue: 2380000, status: "dog", stock: "ok" },
-  { id: "m10", name: "Terang Bulan Coklat", category: "Terang Bulan", price: 40000, cost: 13500, margin: 66.3, soldToday: 55, revenue: 2200000, status: "dog", stock: "ok" },
+  { id: "m1", name: "Nasi Goreng Spesial Taj", category: "Makanan Utama", price: 35000, cost: 15000, margin: 57.1, soldToday: 142, revenue: 4970000, status: "star", stock: "ok" },
+  { id: "m2", name: "Ayam Goreng Lengkuas Taj", category: "Makanan Utama", price: 38000, cost: 18000, margin: 52.6, soldToday: 128, revenue: 4864000, status: "star", stock: "ok" },
+  { id: "m3", name: "Paket Nasi Liwet Komplit", category: "Makanan Utama", price: 45000, cost: 19000, margin: 57.8, soldToday: 98, revenue: 4410000, status: "star", stock: "ok" },
+  { id: "m4", name: "Gorengan Mix Platter", category: "Camilan", price: 25000, cost: 9500, margin: 62.0, soldToday: 215, revenue: 5375000, status: "plow-horse", stock: "ok" },
+  { id: "m5", name: "Tahu Tempe Bacem", category: "Camilan", price: 15000, cost: 5000, margin: 66.7, soldToday: 89, revenue: 1335000, status: "star", stock: "ok" },
+  { id: "m6", name: "Soto Ayam Lamongan", category: "Makanan Utama", price: 30000, cost: 10800, margin: 64.0, soldToday: 76, revenue: 2280000, status: "puzzle", stock: "low" },
+  { id: "m7", name: "Es Teh Manis Segar", category: "Minuman", price: 8000, cost: 2100, margin: 73.8, soldToday: 310, revenue: 2480000, status: "plow-horse", stock: "ok" },
+  { id: "m8", name: "Es Jeruk Peras Murni", category: "Minuman", price: 12000, cost: 3500, margin: 70.8, soldToday: 185, revenue: 2220000, status: "plow-horse", stock: "ok" },
+  { id: "m9", name: "Jus Alpukat Kocok", category: "Minuman", price: 20000, cost: 7800, margin: 61.0, soldToday: 68, revenue: 1360000, status: "dog", stock: "ok" },
+  { id: "m10", name: "Kopi Susu Gula Aren", category: "Minuman", price: 18000, cost: 6500, margin: 63.9, soldToday: 55, revenue: 990000, status: "dog", stock: "ok" },
 ];
 
 // ============================================================
 // REVENUE BY CABANG
 // ============================================================
 export const revenueByCabang = [
-  { name: "Demak", revenue: 0, target: 50000000, orders: 0 },
-  { name: "Pasar Kembang", revenue: 0, target: 45000000, orders: 0 },
+  { name: "Cabang Utama", revenue: 2450000, target: 3000000, orders: 68 },
+  { name: "Cabang Timur", revenue: 1800000, target: 2500000, orders: 41 },
 ];
 
 // ============================================================
@@ -104,8 +107,8 @@ export const aiInsights = [
     id: "ai1",
     type: "opportunity",
     icon: "📈",
-    title: "Peluang Upsell Topping Keju",
-    description: "78% pelanggan Martabak Telur Spesial tidak menambah topping. Tambahkan prompt topping di kasir bisa meningkatkan AOV hingga Rp 12.000.",
+    title: "Peluang Upsell Minuman Segar",
+    description: "68% pelanggan yang memesan Nasi Goreng Spesial Taj berpotensi menambah Es Teh Manis jika ditawarkan saat checkout.",
     impact: "+Rp 1.7M/bulan",
     confidence: 87,
     cabang: "Semua Cabang",

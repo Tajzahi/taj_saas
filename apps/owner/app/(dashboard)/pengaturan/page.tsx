@@ -457,7 +457,7 @@ export default function Pengaturan() {
                   </div>
                   <div>
                     <span className="text-xs font-black block leading-none">{businessName || "Nama Brand"}</span>
-                    <span className="text-[9px] opacity-80">{receiptFooter || "Martabak & Terang Bulan Spesial"}</span>
+                    <span className="text-[9px] opacity-80">{receiptFooter || "Sajian Kuliner Spesial"}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">

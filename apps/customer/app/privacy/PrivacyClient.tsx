@@ -62,7 +62,7 @@ export default function PrivacyClient() {
               <li>Menolak penggunaan data untuk tujuan tertentu</li>
             </ul>
             <p className="text-gray-600 text-sm mt-2">
-              Untuk mengajukan permintaan tersebut, hubungi kami di <a href="mailto:martabaka6nyusss@gmail.com" className="text-[#8E0E0E] font-medium">martabaka6nyusss@gmail.com</a>.
+              Untuk mengajukan permintaan tersebut, hubungi kami melalui halaman <Link href="/contact" className="text-[#8E0E0E] font-medium underline">Hubungi Kami</Link> atau saluran WhatsApp resmi gerai.
             </p>
           </section>
 

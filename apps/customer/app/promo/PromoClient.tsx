@@ -49,9 +49,11 @@ const defaultStaticPromos = [
 export default function PromoClient() {
   const router = useRouter();
   const [promos, setPromos] = useState<any[]>(defaultStaticPromos);
+  const [settings, setSettings] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    fetch('/api/settings').then(res => res.json()).then(res => setSettings(res)).catch(() => {});
     fetch('/api/menu-data').then(res => res.json()).then(data => {
       const dbPromos = data.promos;
       if (dbPromos && dbPromos.length > 0) {
@@ -183,12 +185,12 @@ export default function PromoClient() {
             Jangan sampai ketinggalan promo terbaru! Follow akun resmi kami untuk update harian dan flash sale eksklusif.
           </p>
           <a
-            href="https://www.instagram.com/a6nyusss"
+            href={settings?.instagram ? (settings.instagram.startsWith('http') ? settings.instagram : `https://instagram.com/${settings.instagram.replace(/^@/, '')}`) : "https://instagram.com/"}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-6 py-3 bg-white text-purple-700 font-bold rounded-xl hover:bg-gray-100 transition-colors"
           >
-            Follow @a6nyuss
+            Follow {settings?.instagram ? (settings.instagram.startsWith('@') ? settings.instagram : `@${settings.instagram}`) : `@${settings?.store_name ? settings.store_name.toLowerCase().replace(/[^a-z0-9]/g, '') : 'official'}`}
           </a>
         </div>
       </div>
