@@ -152,7 +152,7 @@ export async function POST(request: Request) {
       ],
       config: {
         systemInstruction,
-        tools,
+        tools: tools as any,
       },
     });
 
