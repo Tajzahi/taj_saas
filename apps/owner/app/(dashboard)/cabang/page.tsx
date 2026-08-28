@@ -532,14 +532,14 @@ export default function Cabang() {
               <div className="grid grid-cols-2 gap-3">
                 <Input
                   label="Nama Cabang"
-                  placeholder="Cabang Pasar Kembang"
+                  placeholder="misal: Cabang Utama / Cabang Kemang"
                   value={newName}
                   onChange={e => setNewName(e.target.value)}
                   required
                 />
                 <Input
                   label="Kota"
-                  placeholder="Surabaya"
+                  placeholder="misal: Surabaya / Jakarta"
                   value={newCity}
                   onChange={e => setNewCity(e.target.value)}
                   required
@@ -547,13 +547,13 @@ export default function Cabang() {
               </div>
               <Input
                 label="Alamat Lengkap"
-                placeholder="Jl. Pasar Kembang No. 88..."
+                placeholder="misal: Jl. Raya No. 123..."
                 value={newAddress}
                 onChange={e => setNewAddress(e.target.value)}
               />
               <Input
                 label="No. Telepon / WhatsApp"
-                placeholder="087811123482"
+                placeholder="misal: 081234567890"
                 value={newPhone}
                 onChange={e => setNewPhone(e.target.value)}
               />

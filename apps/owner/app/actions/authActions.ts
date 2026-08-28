@@ -146,55 +146,6 @@ export async function registerOwnerAction(params: RegisterParams) {
         salary: "0",
       });
 
-      // [BARIS 137-148]: TAHAP 7.5 - SEED INITIAL MENU CATEGORIES & ITEMS
-      try {
-        const [catMartabak] = await db.insert(schema.categories).values({
-          tenantId: newTenant.id,
-          name: 'Martabak Telur',
-          slug: 'martabak-telur',
-          sortOrder: 1,
-        }).returning();
-
-        const [catTerbul] = await db.insert(schema.categories).values({
-          tenantId: newTenant.id,
-          name: 'Terang Bulan',
-          slug: 'terang-bulan',
-          sortOrder: 2,
-        }).returning();
-
-        await db.insert(schema.menuItems).values([
-          {
-            tenantId: newTenant.id,
-            categoryId: catMartabak.id,
-            name: 'Martabak Telur Ayam - 1 Telur (Rp 20.000)',
-            slug: 'martabak-telur-ayam-1-telur-20k',
-            price: '20000',
-            description: 'Martabak gurih dengan isian daging ayam cincang dan 1 butir telur ayam.',
-            isAvailable: true,
-          },
-          {
-            tenantId: newTenant.id,
-            categoryId: catMartabak.id,
-            name: 'Martabak Telur Bebek - 1 Telur (Rp 20.000)',
-            slug: 'martabak-telur-bebek-1-telur-20k',
-            price: '20000',
-            description: 'Martabak gurih dengan isian daging bebek spesial dan 1 butir telur bebek.',
-            isAvailable: true,
-          },
-          {
-            tenantId: newTenant.id,
-            categoryId: catTerbul.id,
-            name: 'Terang Bulan 2 Variant Topping',
-            slug: 'terang-bulan-2-variant-topping',
-            price: '20000',
-            description: 'Terang bulan lembut khas dengan kombinasi 2 pilihan topping.',
-            isAvailable: true,
-          },
-        ]);
-      } catch (seedMenuErr) {
-        console.warn("[registerOwnerAction] Menu seeding warning:", seedMenuErr);
-      }
-
       return {
         success: true,
         tenant: newTenant,

@@ -26,11 +26,7 @@ export default function KateringManagementPage() {
         if (branding.cateringPackages && Array.isArray(branding.cateringPackages)) {
           setCateringPackages(branding.cateringPackages);
         } else {
-          // Default initial template
-          setCateringPackages([
-            { id: "1", name: "Paket Syukuran Keluarga", minPortion: 10, pricePerPortion: 25000, description: "Kombinasi 5 Martabak Telur Spesial + 5 Terang Bulan Aneka Topping" },
-            { id: "2", name: "Paket Kantor / Gathering", minPortion: 30, pricePerPortion: 22000, description: "Porsi hemat untuk acara kantor, ulang tahun, dan arisan keluarga." },
-          ]);
+          setCateringPackages([]);
         }
       }
       setLoading(false);

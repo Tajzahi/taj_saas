@@ -34,12 +34,7 @@ export default function GaleriPage() {
         if (branding.gallery && Array.isArray(branding.gallery)) {
           setPhotos(branding.gallery);
         } else {
-          // Default initial demo photos if empty
-          setPhotos([
-            { id: "1", src: "https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop", category: "Produk", caption: "Martabak Coklat Keju Premium" },
-            { id: "2", src: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=600&fit=crop", category: "Suasana Toko", caption: "Gerai Pusat Surabaya" },
-            { id: "3", src: "https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&h=600&fit=crop", category: "Dapur & Tim", caption: "Proses Pembuatan Martabak Higienis" },
-          ]);
+          setPhotos([]);
         }
       }
       setLoading(false);

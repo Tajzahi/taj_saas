@@ -30,11 +30,11 @@ export default function Pengaturan() {
   const [logo, setLogo] = useState("");
   const [logoUrl, setLogoUrl] = useState("");
   const [faviconUrl, setFaviconUrl] = useState("");
-  const [receiptHeader, setReceiptHeader] = useState("MARTABAK A6 NYUSS");
-  const [receiptFooter, setReceiptFooter] = useState("-- Terima kasih & Selamat Menikmati! --");
+  const [receiptHeader, setReceiptHeader] = useState("");
+  const [receiptFooter, setReceiptFooter] = useState("-- Terima kasih atas kunjungan Anda --");
   const [receiptPaperWidth, setReceiptPaperWidth] = useState("58mm");
   const [qrisImageUrl, setQrisImageUrl] = useState("/qris.png");
-  const [bankInfo, setBankInfo] = useState("BCA 123-456-7890 a/n Martabak A6 Nyuss");
+  const [bankInfo, setBankInfo] = useState("");
   const [heroBannerUrl, setHeroBannerUrl] = useState("");
   const [taxRate, setTaxRate] = useState<number>(10);
   const [serviceChargeRate, setServiceChargeRate] = useState<number>(0);
@@ -987,13 +987,13 @@ export default function Pengaturan() {
                 <div className="space-y-1.5 border-b border-dashed border-slate-400 pb-3 text-[11px]">
                   <div className="space-y-0.5">
                     <div className="flex justify-between font-bold">
-                      <span>2x Martabak Manis Spesial</span>
+                      <span>2x Menu Spesial Pilihan</span>
                       <span>80.000</span>
                     </div>
-                    <p className="text-[9px] text-slate-500 pl-2">+ Keju Kraft & Cokelat Toblerone</p>
+                    <p className="text-[9px] text-slate-500 pl-2">+ Varian / Topping Tambahan</p>
                   </div>
                   <div className="flex justify-between font-bold">
-                    <span>2x Es Teh Manis Jumbo</span>
+                    <span>2x Minuman Segar Signature</span>
                     <span>20.000</span>
                   </div>
                 </div>

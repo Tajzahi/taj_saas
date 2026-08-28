@@ -62,9 +62,7 @@ export default function Home() {
   const terlarisItems = items.filter((item) => item.badge === 'terlaris');
   const popularMenus = terlarisItems.length > 0
     ? terlarisItems.slice(0, 6)
-    : items.length > 0
-      ? items.slice(0, 6)
-      : (popularMenuSlugs.map((slug) => staticMenuItems.find((i) => i.slug === slug)).filter(Boolean) as MenuItem[]);
+    : items.slice(0, 6);
 
   return (
     <div className="min-h-screen">
@@ -165,35 +163,37 @@ export default function Home() {
       </section>
 
       {/* ===== MENU HIGHLIGHT ===== */}
-      <section className="py-16 sm:py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-10">
-            <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Menu Favorit</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
-              Menu <span className="text-[#8E0E0E]">Terlaris</span>
-            </h2>
-            <p className="text-gray-500 max-w-xl mx-auto">
-              Pilihan favorit pelanggan setia kami. Dibuat fresh setiap hari dengan bahan berkualitas.
-            </p>
-          </div>
+      {popularMenus.length > 0 && (
+        <section className="py-16 sm:py-20 bg-gray-50">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-10">
+              <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Menu Favorit</span>
+              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
+                Menu <span className="text-[#8E0E0E]">Terlaris</span>
+              </h2>
+              <p className="text-gray-500 max-w-xl mx-auto">
+                Pilihan favorit pelanggan setia kami. Dibuat fresh setiap hari dengan bahan berkualitas.
+              </p>
+            </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6 mb-10">
-            {popularMenus.slice(0, 6).map((item) => (
-              <MenuCard key={item.id} item={item} />
-            ))}
-          </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6 mb-10">
+              {popularMenus.slice(0, 6).map((item) => (
+                <MenuCard key={item.id} item={item} />
+              ))}
+            </div>
 
-          <div className="text-center">
-            <Link
-              href="/menu"
-              className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white font-bold rounded-2xl hover:from-[#9C1B0B] hover:to-[#D94708] transition-all duration-200 hover:scale-105 shadow-lg"
-            >
-              Lihat Semua Menu
-              <ChevronRight className="w-5 h-5" />
-            </Link>
+            <div className="text-center">
+              <Link
+                href="/menu"
+                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white font-bold rounded-2xl hover:from-[#9C1B0B] hover:to-[#D94708] transition-all duration-200 hover:scale-105 shadow-lg"
+              >
+                Lihat Semua Menu
+                <ChevronRight className="w-5 h-5" />
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== WHY A6 NYUSS ===== */}
       <section className="py-16 sm:py-20 bg-white">

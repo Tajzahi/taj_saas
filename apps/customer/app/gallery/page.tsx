@@ -11,23 +11,8 @@ interface GalleryItem {
   caption?: string;
 }
 
-const defaultGalleryItems: GalleryItem[] = [
-  { id: 1, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Coklat Keju Premium' },
-  { id: 2, src: 'https://images.unsplash.com/photo-1484723091739-30a097e8f929?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Telur Sapi Spesial' },
-  { id: 3, src: 'https://images.unsplash.com/photo-1567620905732-2d1ec7ab7445?w=600&h=600&fit=crop', category: 'Produk', caption: 'Martabak Kacang Coklat' },
-  { id: 4, src: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&h=600&fit=crop', category: 'Toko', caption: 'Suasana Toko & Gerai' },
-  { id: 5, src: 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=600&h=600&fit=crop', category: 'Produk', caption: 'Paket Bundling Hemat' },
-  { id: 6, src: 'https://images.unsplash.com/photo-1563805042-7684c019e1cb?w=600&h=600&fit=crop', category: 'Produk', caption: 'Menu Andalan Pilihan' },
-  { id: 7, src: 'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=600&h=600&fit=crop', category: 'Behind the Scene', caption: 'Proses Penyajian Higienis' },
-  { id: 8, src: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=600&h=600&fit=crop', category: 'Produk', caption: 'Sajian Gurih Spesial' },
-  { id: 9, src: 'https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=600&h=600&fit=crop', category: 'Produk', caption: 'Menu Topping Lengkap' },
-  { id: 10, src: 'https://images.unsplash.com/photo-1565958011703-44f9829ba187?w=600&h=600&fit=crop&sat=-100', category: 'Behind the Scene', caption: 'Dapur Bersih & Rapi' },
-  { id: 11, src: 'https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Pelanggan Setia Toko' },
-  { id: 12, src: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=600&h=600&fit=crop', category: 'Pelanggan', caption: 'Keluarga Bahagia Bersama' },
-];
-
 export default function Gallery() {
-  const [items, setItems] = useState<GalleryItem[]>(defaultGalleryItems);
+  const [items, setItems] = useState<GalleryItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<string>('semua');
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [brandName, setBrandName] = useState<string>('');
@@ -36,7 +21,7 @@ export default function Gallery() {
     getStoreSettings().then(settings => {
       if (settings) {
         if (settings.store_name) setBrandName(settings.store_name);
-        if (settings.gallery && Array.isArray(settings.gallery) && settings.gallery.length > 0) {
+        if (settings.gallery && Array.isArray(settings.gallery)) {
           setItems(settings.gallery);
         }
       }
@@ -97,32 +82,40 @@ export default function Gallery() {
         </div>
 
         {/* Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-          {filtered.map((item, idx) => (
-            <button
-              key={item.id}
-              onClick={() => setLightboxIdx(idx)}
-              className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer border border-gray-100 shadow-sm"
-            >
-              <img
-                src={item.src}
-                alt={item.caption || "Galeri"}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                loading="lazy"
-              />
-              <div className="absolute top-2 left-2">
-                <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
-                  {item.category}
-                </span>
-              </div>
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-end">
-                <p className="text-white text-xs font-medium p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
-                  {item.caption || brandName}
-                </p>
-              </div>
-            </button>
-          ))}
-        </div>
+        {filtered.length === 0 ? (
+          <div className="bg-white rounded-3xl p-12 text-center border border-gray-100 shadow-sm max-w-lg mx-auto my-8">
+            <span className="text-5xl block mb-3">📸</span>
+            <h3 className="text-lg font-bold text-gray-800">Galeri Foto Sedang Dipersiapkan</h3>
+            <p className="text-xs text-gray-500 mt-1">Pengelola toko sedang mempersiapkan dokumentasi foto menu dan suasana gerai terbaik untuk Anda.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            {filtered.map((item, idx) => (
+              <button
+                key={item.id}
+                onClick={() => setLightboxIdx(idx)}
+                className="relative aspect-square overflow-hidden rounded-2xl group cursor-pointer border border-gray-100 shadow-sm"
+              >
+                <img
+                  src={item.src}
+                  alt={item.caption || "Galeri"}
+                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  loading="lazy"
+                />
+                <div className="absolute top-2 left-2">
+                  <span className="bg-black/60 backdrop-blur-md text-white text-[10px] font-bold px-2 py-0.5 rounded-md">
+                    {item.category}
+                  </span>
+                </div>
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-end">
+                  <p className="text-white text-xs font-medium p-2 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                    {item.caption || brandName}
+                  </p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* CTA */}
         <div className="text-center mt-12 bg-gradient-to-br from-[#8E0E0E]/10 to-[#E05009]/5 rounded-2xl p-8">
