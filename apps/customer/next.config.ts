@@ -33,19 +33,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default process.env.NODE_ENV === "production"
+export default (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_SENTRY_DSN)
   ? withSentryConfig(nextConfig, {
-      // Sentry org & project (dari dashboard)
       org: "taj-saas",
       project: "taj-saas-customer",
-
-      // Hanya upload source maps saat build production
-      silent: !process.env.CI,
-
-      // Upload source maps ke Sentry untuk stack trace yang readable
+      silent: true,
       widenClientFileUpload: true,
-
-      // Routing instrumentation otomatis
-      tunnelRoute: "/monitoring",
     })
   : nextConfig;
