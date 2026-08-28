@@ -139,7 +139,7 @@ export default function RegisterPage() {
                 type="text"
                 required
                 className="mt-1 appearance-none block w-full px-3.5 py-2.5 border border-gray-300 placeholder-gray-400 text-gray-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#8E0E0E] text-sm"
-                placeholder="misal: Martabak A6 Nyuss"
+                placeholder="misal: Dapur Nusantara / Kopi Senja"
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
               />

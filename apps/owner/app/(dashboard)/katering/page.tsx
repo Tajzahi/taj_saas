@@ -212,7 +212,7 @@ export default function KateringManagementPage() {
                   rows={3}
                   value={newCatDesc}
                   onChange={e => setNewCatDesc(e.target.value)}
-                  placeholder="misal: 10 Martabak Telur Ayam + 10 Terang Bulan Coklat Keju Special..."
+                  placeholder="misal: 20 Porsi Paket Menu Utama Lengkap + Minuman Segar & Pelengkap..."
                   className="w-full text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
                   required
                 />

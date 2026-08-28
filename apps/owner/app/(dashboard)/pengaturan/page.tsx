@@ -9,6 +9,7 @@ import { getTenantSettingsAction, updateTenantBrandingAction, getAuditLogsAction
 import { getProfilesAction } from "@/app/actions/hr";
 import { ExportDropdown } from "@/components/ui/ExportDropdown";
 import Link from "next/link";
+import toast from "react-hot-toast";
 
 const roleLabels: Record<string, string> = {
   owner: "Owner / Pemilik",
@@ -154,13 +155,13 @@ export default function Pengaturan() {
       if (res.data && typeof (res.data as any).settingsVersion === "number") {
         setSettingsVersion((res.data as any).settingsVersion);
       }
-      alert("Pengaturan berhasil disimpan ke Database!");
+      toast.success("Pengaturan berhasil disimpan ke Database!");
     } else {
       if (res.error && res.error.includes("pengguna lain")) {
-        alert("Pengaturan telah diperbarui oleh pengguna lain. Halaman akan dimuat ulang.");
-        window.location.reload();
+        toast.error("Pengaturan telah diperbarui oleh pengguna lain. Halaman akan dimuat ulang.");
+        setTimeout(() => window.location.reload(), 1500);
       } else {
-        alert("Gagal menyimpan pengaturan: " + res.error);
+        toast.error("Gagal menyimpan pengaturan: " + res.error);
       }
     }
   };
@@ -781,7 +782,7 @@ export default function Pengaturan() {
                   label="Info Bank / Nomor Rekening Transfer"
                   value={bankInfo}
                   onChange={(e) => setBankInfo(e.target.value)}
-                  placeholder="misal: BCA 123-456-7890 a/n Martabak A6 Nyuss"
+                  placeholder="misal: BCA 123-456-7890 a/n PT Bisnis Kuliner"
                 />
 
                 <Input
@@ -907,7 +908,7 @@ export default function Pengaturan() {
                 label="Teks Header Struk (Nama Toko / Slogan)"
                 value={receiptHeader}
                 onChange={(e) => setReceiptHeader(e.target.value)}
-                placeholder="misal: MARTABAK A6 NYUSS - RASA LEZAT A6 BANGET"
+                placeholder="misal: NAMA BRAND - SAJIAN LEZAT & HIGIENIS"
               />
 
               <div>

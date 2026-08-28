@@ -191,11 +191,13 @@ export default function SDM() {
       };
       setEmployees(prev => [...prev, newEmp]);
       if (res.data.tempPassword) {
+        const foundRole = customRolesList.find(r => r.code === addRole);
+        const displayRole = foundRole ? foundRole.name : (addRole === "owner" ? "Owner / Pemilik" : addRole.replace(/_+/g, " "));
         setCreatedCredentials({
           name: addName,
           email: addEmail,
           tempPassword: res.data.tempPassword,
-          role: addRole,
+          role: displayRole,
         });
       }
       setShowAddEmployee(false);
@@ -802,7 +804,7 @@ export default function SDM() {
                 type="email"
                 value={addEmail}
                 onChange={e => setAddEmail(e.target.value)}
-                placeholder="misal: dedi@a6nyuss.com"
+                placeholder="misal: staf@bisnis.com"
                 required
               />
               <Input
@@ -1209,7 +1211,7 @@ export default function SDM() {
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Role / Posisi:</span>
-                <span className="text-orange-600 dark:text-orange-400 font-bold uppercase">{createdCredentials.role}</span>
+                <span className="text-orange-600 dark:text-orange-400 font-bold">{createdCredentials.role}</span>
               </div>
               <div className="pt-2 border-t border-slate-200 dark:border-slate-800">
                 <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 block font-sans">Password Sementara:</span>

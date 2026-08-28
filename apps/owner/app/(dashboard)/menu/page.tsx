@@ -989,7 +989,7 @@ export default function MenuResep() {
                 label="Nama Menu"
                 value={addName}
                 onChange={e => setAddName(e.target.value)}
-                placeholder="misal: Martabak Manis Keju"
+                placeholder="misal: Nasi Goreng Spesial / Menu Signature"
                 required
               />
               <div>

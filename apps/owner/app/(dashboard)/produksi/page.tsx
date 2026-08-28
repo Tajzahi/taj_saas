@@ -406,7 +406,7 @@ export default function Produksi() {
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nama Menu Masakan</label>
                 <Input 
-                  placeholder="Contoh: Martabak Spesial Daging" 
+                  placeholder="Contoh: Nasi Goreng Spesial / Menu Signature" 
                   value={addMenuName} 
                   onChange={e => setAddMenuName(e.target.value)} 
                   required 

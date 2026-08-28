@@ -264,7 +264,7 @@ export default function GaleriPage() {
                   list="gallery-cat-options"
                   value={newCategory}
                   onChange={e => setNewCategory(e.target.value)}
-                  placeholder="misal: Martabak Viral, Suasana Toko, Artis..."
+                  placeholder="misal: Menu Signature, Suasana Toko, Acara..."
                   className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
                   required
                 />
@@ -281,7 +281,7 @@ export default function GaleriPage() {
               {/* Caption */}
               <Input
                 label="Judul / Caption Foto"
-                placeholder="misal: Momen hangat bersama keluarga di gerai Demak"
+                placeholder="misal: Momen hangat bersama keluarga di gerai utama"
                 value={newCaption}
                 onChange={e => setNewCaption(e.target.value)}
               />

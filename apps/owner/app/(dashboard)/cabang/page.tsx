@@ -350,9 +350,9 @@ export default function Cabang() {
                   <p className="text-sm font-bold text-slate-900 dark:text-slate-100">{cabang.orders.toLocaleString("id-ID")}</p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
-                  <p className="text-xs text-slate-500 mb-1">Modal Bahan Baku</p>
-                  <p className={`text-sm font-bold ${cabang.foodCost > 30 ? "text-red-600" : "text-emerald-600"}`}>
-                    {formatPercent(cabang.foodCost)}
+                  <p className="text-xs text-slate-500 mb-1">kasir aktif</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    {cabang.kasir ?? 0} Orang
                   </p>
                 </div>
                 <div className="bg-slate-50 dark:bg-slate-800/50 rounded-lg p-3">
@@ -699,7 +699,7 @@ export default function Cabang() {
               
               <div>
                 <p className="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wider">Alamat Lengkap</p>
-                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{selectedDetailBranch.address || "Jl. Contoh Alamat No. 123, " + selectedDetailBranch.city}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{selectedDetailBranch.address || (selectedDetailBranch.city ? `Kota ${selectedDetailBranch.city}` : "Alamat belum diatur")}</p>
               </div>
 
               <div>
@@ -715,7 +715,7 @@ export default function Cabang() {
                   </div>
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 py-2">
                     <span className="text-sm text-slate-600 dark:text-slate-400">Kasir Aktif</span>
-                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{selectedDetailBranch.kasir} Orang</span>
+                    <span className="text-sm font-bold text-slate-900 dark:text-slate-100">{selectedDetailBranch.kasir ?? 0} Orang</span>
                   </div>
                   <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 py-2">
                     <span className="text-sm text-slate-600 dark:text-slate-400">Rating</span>

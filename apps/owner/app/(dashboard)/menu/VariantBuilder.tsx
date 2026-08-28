@@ -115,7 +115,7 @@ export default function VariantBuilder({ variants, onChange }: VariantBuilderPro
       {variants.length === 0 ? (
         <div className="border border-dashed border-slate-200 dark:border-slate-800 rounded-xl p-3 text-center bg-slate-50/50 dark:bg-slate-900/50">
           <p className="text-xs text-slate-400">
-            Belum ada topping / varian untuk menu ini. Klik tombol <strong className="text-slate-600 dark:text-slate-300">+ Tambah Grup Topping</strong> di atas jika ingin menambahkan topping ekstra atau pilihan varian porsi/telur.
+            Belum ada topping / varian untuk menu ini. Klik tombol <strong className="text-slate-600 dark:text-slate-300">+ Tambah Grup Topping</strong> di atas jika ingin menambahkan topping ekstra atau pilihan varian porsi, level pedas, atau opsi lainnya.
           </p>
         </div>
       ) : (
@@ -130,7 +130,7 @@ export default function VariantBuilder({ variants, onChange }: VariantBuilderPro
                   type="text"
                   value={grp.label}
                   onChange={(e) => handleGroupLabelChange(gIdx, e.target.value)}
-                  placeholder="Nama Grup (misal: Extra Topping, Pilihan Telur)..."
+                  placeholder="Nama Grup (misal: Extra Topping, Level Pedas, Porsi)..."
                   className="flex-1 text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 font-bold focus:outline-none focus:border-orange-500"
                   required
                 />
