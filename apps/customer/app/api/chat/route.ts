@@ -5,8 +5,7 @@ import { and, eq, ilike, or } from "drizzle-orm";
 import { resolveTenantFromRequestHost } from "@lib/tenant-authorization";
 import { rateLimiter } from "@lib/server/rate-limiter";
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-
+// MAX_PROMPT_LENGTH constraint
 const MAX_PROMPT_LENGTH = 1000;
 
 function sanitizePrompt(raw: unknown): { valid: boolean; prompt: string; reason?: string } {
@@ -57,11 +56,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ message: reason || "Input tidak valid." }, { status: 400 });
     }
 
-    if (!process.env.GEMINI_API_KEY) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
       return NextResponse.json({
         message: `Halo! Selamat datang di ${tenant.name}. Asisten AI saat ini sedang offline, silakan hubungi admin kami melalui WhatsApp.`,
       });
     }
+
+    const ai = new GoogleGenAI({ apiKey });
 
     const branding = tenant.branding || {};
     const storeName = branding.businessName || tenant.name;
