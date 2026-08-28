@@ -150,10 +150,10 @@ export default function ChatBot() {
   };
 
   const quickReplies = [
-    'Rekomendasi menu?',
-    'Lokasi & Jam buka?',
-    'Cara pesan antar?',
-    'Berapa harga terang bulan?'
+    'Rekomendasi menu favorit?',
+    'Lokasi & Jam operasional?',
+    'Cara pesan antar / pickup?',
+    'Apakah ada promo hari ini?'
   ];
 
   // Auto scroll to bottom of messages

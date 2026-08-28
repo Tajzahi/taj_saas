@@ -49,7 +49,8 @@ export default function RootLayout({
         </main>
         <Footer />
         <FloatingButtons />
-        <ChatBot />
+        {/* Fitur AI Chatbot sementara dinonaktifkan: aktifkan kembali dengan menghapus komentar di bawah ini */}
+        {/* <ChatBot /> */}
       </body>
     </html>
   );

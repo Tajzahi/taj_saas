@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { db, schema } from "@taj-saas/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, ilike, or } from "drizzle-orm";
 import { resolveTenantFromRequestHost } from "@lib/tenant-authorization";
 import { rateLimiter } from "@lib/server/rate-limiter";
 
@@ -65,21 +65,81 @@ export async function POST(request: Request) {
 
     const branding = tenant.branding || {};
     const storeName = branding.businessName || tenant.name;
-    const storeHours = branding.openingHours || "Setiap Hari";
+    const storeHours = branding.openingHours || "Setiap Hari (08:00 - 22:00)";
     const storeAddress = branding.storeAddress || "Cabang Utama";
+    const waNumber = branding.whatsappNumber || "-";
 
     // Build system instructions dynamically for this tenant
     const systemInstruction = `
-      Anda adalah asisten cerdas dan ramah untuk "${storeName}".
-      Jawab pelanggan secara ringkas, ramah, santun, dan solutif layaknya manusia yang tulus melayani.
+      Anda adalah Asisten Virtual resmi dan cerdas untuk "${storeName}".
+      Tugas utama Anda adalah melayani pelanggan dengan ramah, santun, solutif, dan cepat layaknya staf profesional.
 
-      Pedoman perilaku Anda:
-      - **Bahasa**: Gunakan bahasa Indonesia yang santai tapi sopan (gunakan panggilan "Kak" atau "Kakak").
-      - **Informasi Toko**: Toko buka ${storeHours}. Alamat: ${storeAddress}.
-      - **Formatting**: Tuliskan kata-kata secara rapi dan bersahabat.
-      - **Status Pesanan**: Jika pengguna menanyakan status pesanan mereka dengan menyertakan kode order (contoh: A6-XXXXXX atau POS-XXXXXX), gunakan tool "checkOrderStatus" untuk mencari statusnya di database.
-      - **Keamanan & Privasi**: Jangan pernah mengembalikan nomor telepon, alamat lengkap rumah, atau data sensitif pelanggan lain di chat.
+      Pedoman perilaku & gaya komunikasi:
+      - **Gaya Bicara**: Gunakan bahasa Indonesia yang ramah, sopan, dan hangat. Sapa pelanggan dengan panggilan "Kak" atau "Kakak".
+      - **Informasi Toko**:
+        * Nama Toko: ${storeName}
+        * Jam Buka Utama: ${storeHours}
+        * Alamat: ${storeAddress}
+        * WhatsApp Bantuan: ${waNumber}
+      - **Integrasi Database (Gunakan Tools yang Disediakan)**:
+        1. **Melihat/Rekomendasi Menu**: Selalu gunakan tool "getAvailableMenu" untuk melihat daftar menu, harga resmi, dan status ketersediaan saat pelanggan bertanya tentang menu, rekomendasi, harga, atau varian. JANGAN MENGARANG MENU YANG TIDAK ADA DI DATABASE!
+        2. **Cek Promo/Diskon**: Gunakan tool "getActivePromos" saat pelanggan menanyakan promo, diskon, atau kupon voucher yang berlaku hari ini.
+        3. **Informasi Cabang & Lokasi**: Gunakan tool "getBranches" saat pelanggan menanyakan lokasi cabang lain, kota, atau link Google Maps.
+        4. **Status Pesanan**: Gunakan tool "checkOrderStatus" jika pelanggan menyertakan kode order (misal: A6-XXXXXX atau POS-XXXXXX).
+      - **Privasi & Keamanan**: Jangan pernah membeberkan nomor telepon, alamat rumah pribadi, atau data transaksi pelanggan lain.
+      - **Call to Action**: Setelah menjawab menu atau promo, ajak pelanggan dengan santun untuk memesan langsung melalui tombol menu di website atau WhatsApp.
     `;
+
+    // Tool declarations
+    const tools = [
+      {
+        functionDeclarations: [
+          {
+            name: "checkOrderStatus",
+            description: "Mengecek status pesanan pelanggan secara realtime di database berdasarkan kode order unik",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                orderCode: {
+                  type: Type.STRING,
+                  description: "Kode order unik pesanan pelanggan",
+                },
+              },
+              required: ["orderCode"],
+            },
+          },
+          {
+            name: "getAvailableMenu",
+            description: "Mengambil daftar menu makanan/minuman aktif, harga resmi, dan status ketersediaan dari database restoran",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {
+                query: {
+                  type: Type.STRING,
+                  description: "Kata kunci pencarian menu makanan/minuman (opsional)",
+                },
+              },
+            },
+          },
+          {
+            name: "getActivePromos",
+            description: "Mengambil daftar kupon diskon dan promo yang sedang aktif dan berlaku hari ini",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {},
+            },
+          },
+          {
+            name: "getBranches",
+            description: "Mengambil daftar seluruh cabang resmi, alamat lengkap, kota, jam buka, dan link Google Maps",
+            parameters: {
+              type: Type.OBJECT,
+              properties: {},
+            },
+          },
+        ],
+      },
+    ];
 
     // First Generation Call to Gemini
     const response = await ai.models.generateContent({
@@ -92,105 +152,185 @@ export async function POST(request: Request) {
       ],
       config: {
         systemInstruction,
-        tools: [
-          {
-            functionDeclarations: [
-              {
-                name: "checkOrderStatus",
-                description:
-                  "Mengecek status pesanan pelanggan secara realtime di database berdasarkan kode order unik",
-                parameters: {
-                  type: Type.OBJECT,
-                  properties: {
-                    orderCode: {
-                      type: Type.STRING,
-                      description: "Kode order lengkap pesanan pelanggan",
-                    },
-                  },
-                  required: ["orderCode"],
-                },
-              },
-            ],
-          },
-        ],
+        tools,
       },
     });
 
-    // Handle Function Calling
+    // Handle Function Calling if Gemini requested database tools
     if (response.functionCalls && response.functionCalls.length > 0) {
-      const call = response.functionCalls[0];
-      if (call.name === "checkOrderStatus") {
-        const { orderCode } = call.args as any;
+      const candidateContent = response.candidates?.[0]?.content;
+      if (!candidateContent) {
+        return NextResponse.json({
+          message: "Maaf, asisten sedang memproses permintaan. Silakan tanyakan kembali.",
+        });
+      }
 
-        const candidateContent = response.candidates?.[0]?.content;
-        if (!candidateContent) {
-          return NextResponse.json({
-            message: "Maaf, asisten sedang memproses permintaan. Silakan tanyakan kembali.",
-          });
-        }
+      const functionResponseParts = await Promise.all(
+        response.functionCalls.map(async (call) => {
+          let functionResult: any = { error: "Fungsi tidak ditemukan" };
 
-        // Execute database query strictly scoped to current tenant
-        let functionResult: any = { error: "Pesanan tidak ditemukan." };
-        if (orderCode) {
-          const cleanCode = String(orderCode).trim().toUpperCase();
-          const [order] = await db
-            .select({
-              orderCode: schema.orders.orderCode,
-              status: schema.orders.status,
-              paymentStatus: schema.orders.paymentStatus,
-              createdAt: schema.orders.createdAt,
-            })
-            .from(schema.orders)
-            .where(and(eq(schema.orders.orderCode, cleanCode), eq(schema.orders.tenantId, tenant.id)))
-            .limit(1);
+          // 1. Tool checkOrderStatus
+          if (call.name === "checkOrderStatus") {
+            const { orderCode } = (call.args as any) || {};
+            if (orderCode) {
+              const cleanCode = String(orderCode).trim().toUpperCase();
+              const [order] = await db
+                .select({
+                  orderCode: schema.orders.orderCode,
+                  status: schema.orders.status,
+                  paymentStatus: schema.orders.paymentStatus,
+                  createdAt: schema.orders.createdAt,
+                  totalPrice: schema.orders.totalPrice,
+                })
+                .from(schema.orders)
+                .where(and(eq(schema.orders.orderCode, cleanCode), eq(schema.orders.tenantId, tenant.id)))
+                .limit(1);
 
-          if (order) {
+              if (order) {
+                functionResult = {
+                  found: true,
+                  orderCode: order.orderCode,
+                  status: order.status,
+                  paymentStatus: order.paymentStatus,
+                  orderDate: order.createdAt.toISOString(),
+                  totalPrice: order.totalPrice,
+                  note: "Pesanan ditemukan di sistem.",
+                };
+              } else {
+                functionResult = { found: false, error: `Pesanan dengan kode ${cleanCode} tidak ditemukan.` };
+              }
+            }
+          }
+
+          // 2. Tool getAvailableMenu
+          else if (call.name === "getAvailableMenu") {
+            const { query } = (call.args as any) || {};
+            let conditions = [
+              eq(schema.menuItems.tenantId, tenant.id),
+              eq(schema.menuItems.isAvailable, true),
+            ];
+
+            if (query && typeof query === "string" && query.trim().length > 0) {
+              const searchPattern = `%${query.trim()}%`;
+              conditions.push(
+                or(
+                  ilike(schema.menuItems.name, searchPattern),
+                  ilike(schema.menuItems.description, searchPattern)
+                )!
+              );
+            }
+
+            const items = await db
+              .select({
+                name: schema.menuItems.name,
+                price: schema.menuItems.price,
+                description: schema.menuItems.description,
+                isBestSeller: schema.menuItems.isBestSeller,
+                isNew: schema.menuItems.isNew,
+                variants: schema.menuItems.variants,
+              })
+              .from(schema.menuItems)
+              .where(and(...conditions))
+              .limit(15);
+
             functionResult = {
-              found: true,
-              orderCode: order.orderCode,
-              status: order.status,
-              paymentStatus: order.paymentStatus,
-              orderDate: order.createdAt.toISOString(),
-              note: "Untuk rincian harga lengkap dan detail pesanan, silakan cek halaman Lacak Pesanan resmi.",
+              totalFound: items.length,
+              menuList: items.map((m) => ({
+                nama: m.name,
+                harga: `Rp ${Number(m.price).toLocaleString("id-ID")}`,
+                keterangan: m.description || "-",
+                unggulan: m.isBestSeller ? "Best Seller" : m.isNew ? "Menu Baru" : "Standar",
+              })),
             };
           }
-        }
 
-        // Send function response back to Gemini
-        const secondResponse = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: prompt }],
+          // 3. Tool getActivePromos
+          else if (call.name === "getActivePromos") {
+            const activePromos = await db
+              .select({
+                code: schema.promos.code,
+                type: schema.promos.type,
+                value: schema.promos.value,
+                minOrder: schema.promos.minOrder,
+                expiresAt: schema.promos.expiresAt,
+              })
+              .from(schema.promos)
+              .where(and(eq(schema.promos.tenantId, tenant.id), eq(schema.promos.isActive, true)))
+              .limit(5);
+
+            functionResult = {
+              availablePromos: activePromos.map((p) => ({
+                kodeKupon: p.code,
+                diskon: p.type === "percent" ? `${p.value}%` : `Rp ${Number(p.value).toLocaleString("id-ID")}`,
+                minimalBelanja: `Rp ${Number(p.minOrder).toLocaleString("id-ID")}`,
+                berlakuHingga: p.expiresAt ? p.expiresAt.toISOString().split("T")[0] : "Selama persediaan ada",
+              })),
+            };
+          }
+
+          // 4. Tool getBranches
+          else if (call.name === "getBranches") {
+            const activeBranches = await db
+              .select({
+                name: schema.branches.name,
+                city: schema.branches.city,
+                address: schema.branches.address,
+                phone: schema.branches.phone,
+                googleMapsUrl: schema.branches.googleMapsUrl,
+                operationalHours: schema.branches.operationalHours,
+              })
+              .from(schema.branches)
+              .where(and(eq(schema.branches.tenantId, tenant.id), eq(schema.branches.status, "active")))
+              .limit(10);
+
+            functionResult = {
+              branches: activeBranches.map((b) => ({
+                namaCabang: b.name,
+                kota: b.city,
+                alamat: b.address || "-",
+                telepon: b.phone || "-",
+                linkMaps: b.googleMapsUrl || "-",
+                jamBuka: b.operationalHours || "08:00 - 22:00",
+              })),
+            };
+          }
+
+          return {
+            functionResponse: {
+              name: call.name,
+              response: functionResult,
             },
-            candidateContent,
-            {
-              role: "tool",
-              parts: [
-                {
-                  functionResponse: {
-                    name: "checkOrderStatus",
-                    response: functionResult,
-                  },
-                },
-              ],
-            },
-          ] as any,
-          config: {
-            systemInstruction,
+          };
+        })
+      );
+
+      // Send function execution results back to Gemini for the final cohesive answer
+      const secondResponse = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: prompt }],
           },
-        });
+          candidateContent,
+          {
+            role: "tool",
+            parts: functionResponseParts,
+          },
+        ] as any,
+        config: {
+          systemInstruction,
+        },
+      });
 
-        return NextResponse.json({ message: secondResponse.text || "Status pesanan berhasil diperiksa." });
-      }
+      return NextResponse.json({ message: secondResponse.text || "Informasi berhasil ditemukan." });
     }
 
     return NextResponse.json({ message: response.text || "Ada yang bisa saya bantu, Kak?" });
   } catch (err: unknown) {
     console.error("[chat/route] Error:", err);
     return NextResponse.json(
-      { message: "Maaf, terjadi kesalahan pada layanan bantuan. Silakan hubungi kami langsung via WhatsApp." },
+      { message: "Maaf, terjadi kendala teknis pada layanan asisten AI. Silakan hubungi kami via WhatsApp." },
       { status: 500 }
     );
   }
