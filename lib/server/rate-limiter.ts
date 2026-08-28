@@ -135,6 +135,7 @@ export const RATE_LIMIT_PRESETS: Record<string, { limit: number; windowSec: numb
   upload_proof: { limit: 10, windowSec: 60 },
   validate_promo: { limit: 20, windowSec: 60 },
   customer_chat: { limit: 20, windowSec: 60 },
+  owner_registration: { limit: 5, windowSec: 300 },
 };
 
 export const rateLimiter = {

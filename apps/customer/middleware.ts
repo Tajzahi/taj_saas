@@ -8,11 +8,6 @@ export const middleware = async (request: NextRequest) => {
     return NextResponse.next();
   }
 
-  // Bypass if header indicates internal Next.js build worker
-  const ua = request.headers.get('user-agent') || '';
-  if (ua.includes('Next.js') || request.headers.get('x-next-prerender')) {
-    return NextResponse.next();
-  }
 
   const result = await resolveTenantMiddleware(request as any, 'customer');
 

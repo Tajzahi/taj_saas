@@ -111,7 +111,6 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'production:read',
     'production:manage',
     'branches:read',
-    'finance:read',
     'payments:refund',
     'cancellations:review',
     'hr:read',

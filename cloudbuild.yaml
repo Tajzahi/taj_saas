@@ -24,7 +24,6 @@ steps:
     entrypoint: "bash"
     secretEnv:
       - 'NEXT_PUBLIC_BETTER_AUTH_URL'
-      - 'NEXT_PUBLIC_ABLY_API_KEY'
       - 'NEXT_PUBLIC_SENTRY_DSN'
       - 'NEXT_PUBLIC_POSTHOG_KEY'
       - 'NEXT_PUBLIC_TENANT_SLUG'
@@ -34,7 +33,6 @@ steps:
         docker build \
           --build-arg APP=${_APP} \
           --build-arg NEXT_PUBLIC_BETTER_AUTH_URL=$$NEXT_PUBLIC_BETTER_AUTH_URL \
-          --build-arg NEXT_PUBLIC_ABLY_API_KEY=$$NEXT_PUBLIC_ABLY_API_KEY \
           --build-arg NEXT_PUBLIC_SENTRY_DSN=$$NEXT_PUBLIC_SENTRY_DSN \
           --build-arg NEXT_PUBLIC_POSTHOG_KEY=$$NEXT_PUBLIC_POSTHOG_KEY \
           --build-arg NEXT_PUBLIC_TENANT_SLUG=$$NEXT_PUBLIC_TENANT_SLUG \
@@ -79,8 +77,6 @@ availableSecrets:
   secretManager:
     - versionName: projects/$PROJECT_ID/secrets/TAJ_BETTER_AUTH_URL/versions/latest
       env: 'NEXT_PUBLIC_BETTER_AUTH_URL'
-    - versionName: projects/$PROJECT_ID/secrets/TAJ_ABLY_API_KEY/versions/latest
-      env: 'NEXT_PUBLIC_ABLY_API_KEY'
     - versionName: projects/$PROJECT_ID/secrets/TAJ_SENTRY_DSN/versions/latest
       env: 'NEXT_PUBLIC_SENTRY_DSN'
     - versionName: projects/$PROJECT_ID/secrets/TAJ_POSTHOG_KEY/versions/latest

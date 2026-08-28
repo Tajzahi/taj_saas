@@ -32,6 +32,8 @@
 import { db, schema } from "@taj-saas/db";
 import { auth } from "@lib/auth";
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
+import { rateLimiter } from "@lib/server/rate-limiter";
 
 interface RegisterParams {
   name: string;
@@ -55,6 +57,19 @@ export async function registerOwnerAction(params: RegisterParams) {
   const normalizedEmail = email.trim().toLowerCase();
 
   try {
+    // TAHAP 1.5 - DISTRIBUTED RATE LIMITING (Anti-DoS / Account Flooding)
+    const reqHeaders = await headers();
+    const forwardedFor = reqHeaders.get("x-forwarded-for") || "";
+    const clientIp = forwardedFor.split(",")[0]?.trim() || "127.0.0.1";
+
+    const rateResult = await rateLimiter.check(clientIp, "owner_registration");
+    if (!rateResult.allowed) {
+      return {
+        success: false,
+        error: "Terlalu banyak permintaan pendaftaran. Silakan tunggu beberapa menit sebelum mencoba lagi.",
+      };
+    }
+
     // [BARIS 48-58]: TAHAP 2 - PREFLIGHT CHECK (CEK EMAIL DUPLIKAT)
     const existingUser = await db
       .select({ id: schema.user.id })
