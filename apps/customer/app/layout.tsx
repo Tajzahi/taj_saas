@@ -3,7 +3,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import FloatingButtons from "@/components/FloatingButtons";
-import ChatBot from "@/components/ChatBot";
+// import ChatBot from "@/components/ChatBot";
 import ToastProvider from "@/components/ToastProvider";
 import { getStoreSettings } from "@/lib/db/menuService";
 

@@ -212,12 +212,13 @@ export async function POST(request: Request) {
 
             if (query && typeof query === "string" && query.trim().length > 0) {
               const searchPattern = `%${query.trim()}%`;
-              conditions.push(
-                or(
-                  ilike(schema.menuItems.name, searchPattern),
-                  ilike(schema.menuItems.description, searchPattern)
-                )!
+              const filterOr = or(
+                ilike(schema.menuItems.name, searchPattern),
+                ilike(schema.menuItems.description, searchPattern)
               );
+              if (filterOr) {
+                conditions.push(filterOr);
+              }
             }
 
             const items = await db
