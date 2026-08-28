@@ -82,16 +82,21 @@ function resolveMenuItemVariants(
 }
 
 async function getTenantBySlug(slug: string) {
-  let result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
-  if (result.length === 0) {
-    result = await db
-      .select()
-      .from(schema.tenants)
-      .where(eq(schema.tenants.isActive, true))
-      .orderBy(desc(schema.tenants.createdAt))
-      .limit(1);
+  try {
+    let result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
+    if (result.length === 0) {
+      result = await db
+        .select()
+        .from(schema.tenants)
+        .where(eq(schema.tenants.isActive, true))
+        .orderBy(desc(schema.tenants.createdAt))
+        .limit(1);
+    }
+    return result[0] || null;
+  } catch (err) {
+    console.error("[menuService] Error fetching tenant by slug:", err);
+    return null;
   }
-  return result[0] || null;
 }
 
 async function getTenantSlugFromHeaders(): Promise<string> {
