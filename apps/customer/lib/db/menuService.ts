@@ -94,9 +94,17 @@ async function getTenantBySlug(slug: string) {
   return result[0] || null;
 }
 
+async function getTenantSlugFromHeaders(): Promise<string> {
+  try {
+    const headersList = await headers();
+    return headersList.get('x-tenant-slug') || 'taj-saas';
+  } catch {
+    return 'taj-saas';
+  }
+}
+
 export async function getStoreSettings(): Promise<DbStoreSettings> {
-  const headersList = await headers();
-  const slug = headersList.get('x-tenant-slug') || 'taj-saas';
+  const slug = await getTenantSlugFromHeaders();
   
   const tenant = await getTenantBySlug(slug);
   if (!tenant) {
@@ -166,8 +174,7 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
 
 export async function getStorePromos(): Promise<any[]> {
   try {
-    const headersList = await headers();
-    const slug = headersList.get('x-tenant-slug') || 'taj-saas';
+    const slug = await getTenantSlugFromHeaders();
     const tenant = await getTenantBySlug(slug);
     if (!tenant) return [];
 
@@ -185,8 +192,7 @@ export async function getStorePromos(): Promise<any[]> {
 }
 
 export async function getCategories(): Promise<{ id: MenuCategory; label: string; icon: string }[]> {
-  const headersList = await headers();
-  const slug = headersList.get('x-tenant-slug') || 'taj-saas';
+  const slug = await getTenantSlugFromHeaders();
   
   const tenant = await getTenantBySlug(slug);
   if (!tenant) return staticCategories;
@@ -211,8 +217,7 @@ export async function getCategories(): Promise<{ id: MenuCategory; label: string
 }
 
 export async function getMenuItems(): Promise<MenuItem[]> {
-  const headersList = await headers();
-  const slug = headersList.get('x-tenant-slug') || 'taj-saas';
+  const slug = await getTenantSlugFromHeaders();
   
   const tenant = await getTenantBySlug(slug);
   if (!tenant) return [];
