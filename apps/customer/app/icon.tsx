@@ -1,6 +1,8 @@
 import { ImageResponse } from 'next/og';
 import { getStoreSettings } from '@/lib/db/menuService';
 
+export const dynamic = 'force-dynamic';
+
 export const size = {
   width: 32,
   height: 32,
