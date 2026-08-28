@@ -41,13 +41,11 @@ export const middleware = async (request: NextRequest) => {
 export const config = {
   matcher: [
     /*
-     * Match all request paths except for the ones starting with:
+     * Match all request paths except for:
      * - api/auth (handled by Better Auth directly)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     * - assets (tenant image assets)
+     * - _next, _global-error, _not-found (internal Next.js routes)
+     * - favicon.ico, assets, static files
      */
-    '/((?!api/auth|_next/static|_next/image|favicon.ico|assets|.*\\..*).*)',
+    '/((?!api/auth|_next|_global-error|_not-found|favicon.ico|assets|.*\\..*).*)',
   ],
 };
