@@ -197,125 +197,135 @@ export async function getStorePromos(): Promise<any[]> {
 }
 
 export async function getCategories(): Promise<{ id: MenuCategory; label: string; icon: string }[]> {
-  const slug = await getTenantSlugFromHeaders();
-  
-  const tenant = await getTenantBySlug(slug);
-  if (!tenant) return staticCategories;
+  try {
+    const slug = await getTenantSlugFromHeaders();
+    
+    const tenant = await getTenantBySlug(slug);
+    if (!tenant) return staticCategories;
 
-  const dbCategories = await db.select()
-    .from(schema.categories)
-    .where(eq(schema.categories.tenantId, tenant.id))
-    .orderBy(schema.categories.sortOrder);
+    const dbCategories = await db.select()
+      .from(schema.categories)
+      .where(eq(schema.categories.tenantId, tenant.id))
+      .orderBy(schema.categories.sortOrder);
 
-  if (!dbCategories || dbCategories.length === 0) {
-    return [{ id: 'semua' as any, label: 'Semua Menu', icon: 'Layers' }];
+    if (!dbCategories || dbCategories.length === 0) {
+      return [{ id: 'semua' as any, label: 'Semua Menu', icon: 'Layers' }];
+    }
+
+    // Map to the frontend type structure
+    const mapped = dbCategories.map(c => ({
+      id: c.slug as MenuCategory,
+      label: c.name,
+      icon: c.slug.includes('kopi') || c.slug.includes('coffee') || c.slug.includes('espresso') ? 'Layers' : c.slug.includes('terang') ? 'Moon' : c.slug.includes('bebek') ? 'Egg' : 'Layers'
+    }));
+
+    return mapped;
+  } catch (err) {
+    console.error("[menuService] Error fetching categories:", err);
+    return staticCategories;
   }
-
-  // Map to the frontend type structure
-  const mapped = dbCategories.map(c => ({
-    id: c.slug as MenuCategory,
-    label: c.name,
-    icon: c.slug.includes('kopi') || c.slug.includes('coffee') || c.slug.includes('espresso') ? 'Layers' : c.slug.includes('terang') ? 'Moon' : c.slug.includes('bebek') ? 'Egg' : 'Layers'
-  }));
-
-  return mapped;
 }
 
 export async function getMenuItems(): Promise<MenuItem[]> {
-  const slug = await getTenantSlugFromHeaders();
-  
-  const tenant = await getTenantBySlug(slug);
-  if (!tenant) return [];
+  try {
+    const slug = await getTenantSlugFromHeaders();
+    
+    const tenant = await getTenantBySlug(slug);
+    if (!tenant) return [];
 
-  const dbItems = await db.select()
-    .from(schema.menuItems)
-    .where(eq(schema.menuItems.tenantId, tenant.id));
+    const dbItems = await db.select()
+      .from(schema.menuItems)
+      .where(eq(schema.menuItems.tenantId, tenant.id));
 
-  if (!dbItems || dbItems.length === 0) {
-    return [];
-  }
-
-  // Fetch dbVariants for this tenant if populated
-  const dbVariants = await db.select()
-    .from(schema.menuVariants)
-    .where(eq(schema.menuVariants.tenantId, tenant.id));
-  
-  const variantsMap = new Map<string, { label: string; required: boolean; options: any[] }[]>();
-  for (const v of dbVariants) {
-    const existing = variantsMap.get(v.menuItemId) || [];
-    existing.push({
-      label: v.label,
-      required: v.required,
-      options: v.options as any[],
-    });
-    variantsMap.set(v.menuItemId, existing);
-  }
-
-  // Get categories to map category ID to slug
-  const dbCategories = await db.select()
-    .from(schema.categories)
-    .where(eq(schema.categories.tenantId, tenant.id));
-
-  const categoryMap = new Map(dbCategories.map(c => [c.id, c.slug]));
-  const categoryLabelMap = new Map(dbCategories.map(c => [c.id, c.name]));
-  const staticMap = new Map(staticMenuItems.map(s => [s.slug, s]));
-
-  const mappedDbItems: MenuItem[] = dbItems.map(item => {
-    let categorySlug = item.categoryId ? categoryMap.get(item.categoryId) : undefined;
-    let categoryLabel = item.categoryId ? categoryLabelMap.get(item.categoryId) : undefined;
-    const staticItem = staticMap.get(item.slug);
-
-    // Smart inference if category in DB is missing or 'lainnya'
-    if (!categorySlug || categorySlug === 'lainnya') {
-      if (staticItem) {
-        categorySlug = staticItem.category;
-        categoryLabel = staticItem.categoryLabel;
-      } else {
-        const lowerName = item.name.toLowerCase();
-        const lowerSlug = item.slug.toLowerCase();
-        if (lowerSlug.includes('bebek') || lowerName.includes('bebek')) {
-          categorySlug = 'martabak-telur-bebek';
-          categoryLabel = 'Martabak Telur Bebek';
-        } else if (lowerSlug.includes('ayam') || lowerName.includes('ayam')) {
-          categorySlug = 'martabak-telur-ayam';
-          categoryLabel = 'Martabak Telur Ayam';
-        } else if (lowerSlug.includes('terang') || lowerName.includes('terang bulan')) {
-          categorySlug = 'terang-bulan';
-          categoryLabel = 'Terang Bulan';
-        } else {
-          categorySlug = 'lainnya';
-          categoryLabel = 'Lainnya';
-        }
-      }
+    if (!dbItems || dbItems.length === 0) {
+      return [];
     }
 
-    const dbItemTableVariants = variantsMap.get(item.id);
+    // Fetch dbVariants for this tenant if populated
+    const dbVariants = await db.select()
+      .from(schema.menuVariants)
+      .where(eq(schema.menuVariants.tenantId, tenant.id));
+    
+    const variantsMap = new Map<string, { label: string; required: boolean; options: any[] }[]>();
+    for (const v of dbVariants) {
+      const existing = variantsMap.get(v.menuItemId) || [];
+      existing.push({
+        label: v.label,
+        required: v.required,
+        options: v.options as any[],
+      });
+      variantsMap.set(v.menuItemId, existing);
+    }
 
-    const variants = resolveMenuItemVariants(
-      dbItemTableVariants,
-      item.variants as any[],
-      item.slug,
-      item.name,
-      categorySlug
-    );
+    // Get categories to map category ID to slug
+    const dbCategories = await db.select()
+      .from(schema.categories)
+      .where(eq(schema.categories.tenantId, tenant.id));
 
-    const badge: MenuItem['badge'] = item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined;
+    const categoryMap = new Map(dbCategories.map(c => [c.id, c.slug]));
+    const categoryLabelMap = new Map(dbCategories.map(c => [c.id, c.name]));
+    const staticMap = new Map(staticMenuItems.map(s => [s.slug, s]));
 
-    return {
-      id: item.id,
-      name: item.name,
-      slug: item.slug,
-      description: item.description || staticItem?.description || '',
-      price: Number(item.price),
-      image: item.imageUrl || staticItem?.image || `/assets/menu/placeholder.jpg`,
-      category: categorySlug as MenuCategory,
-      categoryLabel: categoryLabel || 'Menu Spesial',
-      isAvailable: item.isAvailable,
-      badge,
-      variants,
-      relatedSlugs: staticItem?.relatedSlugs,
-    };
-  });
+    const mappedDbItems: MenuItem[] = dbItems.map(item => {
+      let categorySlug = item.categoryId ? categoryMap.get(item.categoryId) : undefined;
+      let categoryLabel = item.categoryId ? categoryLabelMap.get(item.categoryId) : undefined;
+      const staticItem = staticMap.get(item.slug);
 
-  return mappedDbItems;
+      // Smart inference if category in DB is missing or 'lainnya'
+      if (!categorySlug || categorySlug === 'lainnya') {
+        if (staticItem) {
+          categorySlug = staticItem.category;
+          categoryLabel = staticItem.categoryLabel;
+        } else {
+          const lowerName = item.name.toLowerCase();
+          const lowerSlug = item.slug.toLowerCase();
+          if (lowerSlug.includes('bebek') || lowerName.includes('bebek')) {
+            categorySlug = 'martabak-telur-bebek';
+            categoryLabel = 'Martabak Telur Bebek';
+          } else if (lowerSlug.includes('ayam') || lowerName.includes('ayam')) {
+            categorySlug = 'martabak-telur-ayam';
+            categoryLabel = 'Martabak Telur Ayam';
+          } else if (lowerSlug.includes('terang') || lowerName.includes('terang bulan')) {
+            categorySlug = 'terang-bulan';
+            categoryLabel = 'Terang Bulan';
+          } else {
+            categorySlug = 'lainnya';
+            categoryLabel = 'Lainnya';
+          }
+        }
+      }
+
+      const dbItemTableVariants = variantsMap.get(item.id);
+
+      const variants = resolveMenuItemVariants(
+        dbItemTableVariants,
+        item.variants as any[],
+        item.slug,
+        item.name,
+        categorySlug
+      );
+
+      const badge: MenuItem['badge'] = item.isBestSeller ? 'terlaris' : item.isNew ? 'baru' : undefined;
+
+      return {
+        id: item.id,
+        name: item.name,
+        slug: item.slug,
+        description: item.description || staticItem?.description || '',
+        price: Number(item.price),
+        image: item.imageUrl || staticItem?.image || `/assets/menu/placeholder.jpg`,
+        category: categorySlug as MenuCategory,
+        categoryLabel: categoryLabel || 'Menu Spesial',
+        isAvailable: item.isAvailable,
+        badge,
+        variants,
+        relatedSlugs: staticItem?.relatedSlugs,
+      };
+    });
+
+    return mappedDbItems;
+  } catch (err) {
+    console.error("[menuService] Error fetching menu items:", err);
+    return [];
+  }
 }
