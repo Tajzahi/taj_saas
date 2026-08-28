@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { NextResponse } from "next/server";
 import { GoogleGenAI, Type } from "@google/genai";
 import { db, schema } from "@taj-saas/db";

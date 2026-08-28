@@ -1,5 +1,4 @@
 import { ImageResponse } from 'next/og';
-import { getStoreSettings } from '@/lib/db/menuService';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,15 +8,7 @@ export const size = {
 };
 export const contentType = 'image/png';
 
-export default async function Icon() {
-  let initial = '🏪';
-  try {
-    const settings = await getStoreSettings();
-    if (settings?.store_name) {
-      initial = settings.store_name.charAt(0).toUpperCase();
-    }
-  } catch {}
-
+export default function Icon() {
   return new ImageResponse(
     (
       <div
@@ -34,7 +25,7 @@ export default async function Icon() {
           borderRadius: 8,
         }}
       >
-        {initial}
+        T
       </div>
     ),
     {

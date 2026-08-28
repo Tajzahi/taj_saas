@@ -16,24 +16,38 @@ if (typeof window === 'undefined') {
   }
 }
 
-const databaseUrl = (typeof process !== 'undefined' && process.env?.DATABASE_URL)
-  ? process.env.DATABASE_URL.trim()
-  : undefined;
+let _dbInstance: NeonDatabase<typeof schema> | null = null;
+let _poolInstance: Pool | null = null;
 
-if (typeof window === 'undefined' && !databaseUrl) {
-  console.warn('[db/index] DATABASE_URL environment variable is not defined.');
+function getDbInstance(): NeonDatabase<typeof schema> {
+  if (typeof window !== 'undefined') {
+    return null as any;
+  }
+  if (!_dbInstance) {
+    const databaseUrl = (typeof process !== 'undefined' && process.env?.DATABASE_URL)
+      ? process.env.DATABASE_URL.trim()
+      : undefined;
+
+    _poolInstance = new Pool({
+      connectionString: databaseUrl || 'postgresql://placeholder-user:placeholder-pass@placeholder-host.tld/neondb',
+    });
+    _dbInstance = drizzle(_poolInstance, { schema });
+  }
+  return _dbInstance;
 }
 
-const pool = (typeof window === 'undefined')
-  ? new Pool({
-      connectionString: databaseUrl || 'postgresql://placeholder-user:placeholder-pass@placeholder-host.tld/neondb',
-    })
-  : null as any;
-
-// Client-safe strongly-typed database instance with multi-statement ACID transaction support
-export const db: NeonDatabase<typeof schema> = (typeof window === 'undefined')
-  ? drizzle(pool, { schema })
-  : null as any;
+// Lazy Proxy: prevents Neon Pool WebSocket background connection at module import time during Next.js builds
+export const db: NeonDatabase<typeof schema> = new Proxy({} as any, {
+  get(_target, prop) {
+    const instance = getDbInstance();
+    if (!instance) return undefined;
+    const value = (instance as any)[prop];
+    if (typeof value === 'function') {
+      return value.bind(instance);
+    }
+    return value;
+  },
+});
 
 export * as schema from './schema';
 export * from './schema';

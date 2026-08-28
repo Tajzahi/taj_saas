@@ -1,5 +1,3 @@
-"use server";
-
 import { db, schema } from "@taj-saas/db";
 import { eq, desc, and } from "drizzle-orm";
 import { headers } from "next/headers";
@@ -100,6 +98,9 @@ async function getTenantBySlug(slug: string) {
 }
 
 async function getTenantSlugFromHeaders(): Promise<string> {
+  if (process.env.NEXT_PHASE === "phase-production-build") {
+    return 'taj-saas';
+  }
   try {
     const headersList = await headers();
     return headersList.get('x-tenant-slug') || 'taj-saas';

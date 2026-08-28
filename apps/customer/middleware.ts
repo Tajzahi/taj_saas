@@ -3,6 +3,17 @@ import type { NextRequest } from 'next/server';
 import { resolveTenantMiddleware } from '@taj-saas/shared';
 
 export const middleware = async (request: NextRequest) => {
+  // Bypass middleware during Next.js static build phase / internal prerender requests
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return NextResponse.next();
+  }
+
+  // Bypass if header indicates internal Next.js build worker
+  const ua = request.headers.get('user-agent') || '';
+  if (ua.includes('Next.js') || request.headers.get('x-next-prerender')) {
+    return NextResponse.next();
+  }
+
   const result = await resolveTenantMiddleware(request as any, 'customer');
 
   if ('redirect' in result) {

@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 
 import { ShoppingCart, Menu, X, ChevronDown } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-import { getStoreSettings, DbStoreSettings } from '@/lib/db/menuService';
+type DbStoreSettings = any;
 
 export default function Header() {
   const router = useRouter();
@@ -22,7 +22,7 @@ export default function Header() {
   // Mark as mounted after first client render to avoid SSR/localStorage hydration mismatch
   useEffect(() => { 
     setMounted(true); 
-    getStoreSettings().then(setSettings).catch(console.error);
+    fetch('/api/settings').then(res => res.json()).then(setSettings).catch(console.error);
   }, []);
 
   useEffect(() => {

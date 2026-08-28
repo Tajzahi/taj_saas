@@ -2,13 +2,13 @@
 import Link from 'next/link';
 import { MapPin, Clock } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getStoreSettings, DbStoreSettings } from '@/lib/db/menuService';
+type DbStoreSettings = any;
 
 export default function Footer() {
   const [settings, setSettings] = useState<DbStoreSettings | null>(null);
 
   useEffect(() => {
-    getStoreSettings().then(setSettings).catch(console.error);
+    fetch('/api/settings').then(res => res.json()).then(setSettings).catch(console.error);
   }, []);
 
   const storeName = settings?.store_name || "";

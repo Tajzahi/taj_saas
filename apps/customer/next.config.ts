@@ -1,6 +1,5 @@
 import path from "node:path";
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -33,11 +32,16 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_SENTRY_DSN)
-  ? withSentryConfig(nextConfig, {
-      org: "taj-saas",
-      project: "taj-saas-customer",
-      silent: true,
-      widenClientFileUpload: true,
-    })
-  : nextConfig;
+let exportedConfig = nextConfig;
+
+if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  const { withSentryConfig } = require("@sentry/nextjs");
+  exportedConfig = withSentryConfig(nextConfig, {
+    org: "taj-saas",
+    project: "taj-saas-customer",
+    silent: true,
+    widenClientFileUpload: true,
+  });
+}
+
+export default exportedConfig;

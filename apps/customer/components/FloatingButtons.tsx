@@ -6,25 +6,25 @@ import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 
-import { getStoreSettings } from '@/lib/db/menuService';
-
 export default function FloatingButtons() {
   const router = useRouter();
   const pathname = usePathname();
   const totalItems = useCartStore((s) => s.getTotalItems());
-  // Guard against SSR/localStorage hydration mismatch (Zustand persist)
   const [mounted, setMounted] = useState(false);
   const [waLink, setWaLink] = useState("https://wa.me/?text=Halo%20Admin%2C%20saya%20ingin%20bertanya");
 
   useEffect(() => {
     setMounted(true);
-    getStoreSettings().then(st => {
-      if (st && st.whatsapp_number) {
-        const cleanWa = st.whatsapp_number.replace(/[^0-9]/g, '');
-        const name = st.store_name || "Admin";
-        setWaLink(`https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${name}, saya ingin bertanya seputar menu.`)}`);
-      }
-    }).catch(() => {});
+    fetch('/api/settings')
+      .then((res) => res.json())
+      .then((st) => {
+        if (st && st.whatsapp_number) {
+          const cleanWa = st.whatsapp_number.replace(/[^0-9]/g, '');
+          const name = st.store_name || "Admin";
+          setWaLink(`https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${name}, saya ingin bertanya seputar menu.`)}`);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   return (
