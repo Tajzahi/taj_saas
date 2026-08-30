@@ -53,12 +53,13 @@ export default function FloatingButtons() {
               router.push('/cart');
             }
           }}
-          className="flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] hover:from-[#9C1B0B] hover:to-[#D94708] shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 cursor-pointer"
+          className="flex items-center justify-center w-14 h-14 rounded-full text-white shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-110 hover:opacity-90 cursor-pointer"
+          style={{ background: 'linear-gradient(to bottom right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}
           title="Lihat Keranjang"
         >
           <div className="relative">
             <ShoppingCart className="w-6 h-6 text-white" />
-            <span className="absolute -top-3 -right-3 w-5 h-5 bg-yellow-400 text-[#8E0E0E] text-xs font-bold rounded-full flex items-center justify-center">
+            <span className="absolute -top-3 -right-3 w-5 h-5 bg-yellow-400 text-black text-xs font-bold rounded-full flex items-center justify-center">
               {totalItems > 9 ? '9+' : totalItems}
             </span>
           </div>

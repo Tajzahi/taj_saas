@@ -46,8 +46,20 @@ const TenantBrandingSchema = z.object({
   })).optional(),
   // Homepage & Testimoni
   heroTitle: z.string().max(200).optional(),
+  heroHighlightTitle: z.string().max(200).optional(),
   heroSubtitle: z.string().max(500).optional(),
   heroBadgeText: z.string().max(100).optional(),
+  badgeStripItems: z.array(z.string().max(100)).optional(),
+  popularMenuSubtitle: z.string().max(300).optional(),
+  ctaTitle: z.string().max(200).optional(),
+  ctaSubtitle: z.string().max(500).optional(),
+  sectionsVisibility: z.record(z.boolean()).optional(),
+  // Subjudul Sub-Halaman Website
+  menuSubtitle: z.string().max(300).optional(),
+  promoSubtitle: z.string().max(300).optional(),
+  cateringSubtitle: z.string().max(300).optional(),
+  gallerySubtitle: z.string().max(300).optional(),
+  aboutSubtitle: z.string().max(300).optional(),
   testimonials: z.array(z.object({
     id: z.string(),
     name: z.string().max(100),

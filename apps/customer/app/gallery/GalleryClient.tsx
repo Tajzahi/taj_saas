@@ -16,9 +16,12 @@ export default function GalleryClient() {
   const [lightboxIdx, setLightboxIdx] = useState<number | null>(null);
   const [brandName, setBrandName] = useState<string>('');
 
+  const [settings, setSettings] = useState<any>(null);
+
   useEffect(() => {
     fetch('/api/settings').then(res => res.json()).then(settings => {
       if (settings) {
+        setSettings(settings);
         if (settings.store_name) setBrandName(settings.store_name);
         if (settings.gallery && Array.isArray(settings.gallery)) {
           setItems(settings.gallery);
@@ -52,12 +55,14 @@ export default function GalleryClient() {
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] py-14 px-4">
+      <div className="py-14 px-4 text-white" style={{ background: 'linear-gradient(to bottom right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}>
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 flex items-center justify-center gap-2">
             <ImageIcon className="w-8 h-8" /> Gallery
           </h1>
-          <p className="text-white/80">Lihat lebih dekat keistimewaan & kelezatan {brandName}</p>
+          <p className="text-white/90">
+            {settings?.gallery_subtitle || `Lihat lebih dekat keistimewaan & kelezatan ${brandName}`}
+          </p>
         </div>
       </div>
 

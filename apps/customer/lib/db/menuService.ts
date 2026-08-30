@@ -23,8 +23,21 @@ export interface DbStoreSettings {
   outlet_lng?: number;
   gallery?: { id: string; src: string; category: string; caption?: string }[];
   hero_title?: string;
+  hero_highlight_title?: string;
   hero_subtitle?: string;
   hero_badge_text?: string;
+  primary_color?: string;
+  secondary_color?: string;
+  badge_strip_items?: string[];
+  popular_menu_subtitle?: string;
+  cta_title?: string;
+  cta_subtitle?: string;
+  sections_visibility?: Record<string, boolean>;
+  menu_subtitle?: string;
+  promo_subtitle?: string;
+  catering_subtitle?: string;
+  gallery_subtitle?: string;
+  about_subtitle?: string;
   logo_url?: string;
   favicon_url?: string;
   value_props?: { icon: string; title: string; desc: string; isImg?: boolean }[];
@@ -155,8 +168,21 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     outlet_lng: typeof branding.outletLng === 'number' ? branding.outletLng : DEFAULT_OUTLET_LNG,
     gallery: branding.gallery && Array.isArray(branding.gallery) ? branding.gallery : undefined,
     hero_title: branding.heroTitle || undefined,
+    hero_highlight_title: branding.heroHighlightTitle || undefined,
     hero_subtitle: branding.heroSubtitle || undefined,
     hero_badge_text: branding.heroBadgeText || undefined,
+    primary_color: branding.primaryColor || '#8E0E0E',
+    secondary_color: branding.secondaryColor || '#E05009',
+    badge_strip_items: branding.badgeStripItems || undefined,
+    popular_menu_subtitle: branding.popularMenuSubtitle || undefined,
+    cta_title: branding.ctaTitle || undefined,
+    cta_subtitle: branding.ctaSubtitle || undefined,
+    sections_visibility: branding.sectionsVisibility || undefined,
+    menu_subtitle: branding.menuSubtitle || undefined,
+    promo_subtitle: branding.promoSubtitle || undefined,
+    catering_subtitle: branding.cateringSubtitle || undefined,
+    gallery_subtitle: branding.gallerySubtitle || undefined,
+    about_subtitle: branding.aboutSubtitle || undefined,
     value_props: branding.valueProps && Array.isArray(branding.valueProps) ? branding.valueProps : undefined,
     timeline: branding.timeline && Array.isArray(branding.timeline) ? branding.timeline : undefined,
     values: branding.values && Array.isArray(branding.values) ? branding.values : undefined,
@@ -210,7 +236,7 @@ export async function getCategories(): Promise<{ id: MenuCategory; label: string
       .orderBy(schema.categories.sortOrder);
 
     if (!dbCategories || dbCategories.length === 0) {
-      return [{ id: 'semua' as any, label: 'Semua Menu', icon: 'Layers' }];
+      return [];
     }
 
     // Map to the frontend type structure

@@ -32,6 +32,7 @@ pnpm-debug.log*
 Thumbs.db
 
 # Test & Debug Artifacts
+*.png
 login-failure.png
 check_login.js
 cloud_run_*.png

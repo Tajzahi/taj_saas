@@ -56,26 +56,30 @@ export default function PromoClient() {
     fetch('/api/settings').then(res => res.json()).then(res => setSettings(res)).catch(() => {});
     fetch('/api/menu-data').then(res => res.json()).then(data => {
       const dbPromos = data.promos;
-      if (dbPromos && dbPromos.length > 0) {
-        const mapped = dbPromos.map((p: any) => ({
-          id: p.id,
-          icon: p.type === 'percent' ? '🏷️' : '💰',
-          title: `Diskon Promo ${p.code}`,
-          desc: p.type === 'percent' 
-            ? `Dapatkan potongan harga sebesar ${p.value}% untuk pesanan Anda!`
-            : `Dapatkan potongan harga langsung sebesar ${formatPrice(p.value)}!`,
-          period: p.expiresAt 
-            ? `Berlaku s.d ${new Date(p.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
-            : 'Berlaku setiap hari',
-          syarat: Number(p.minOrder) > 0 
-            ? `Minimal transaksi belanja ${formatPrice(p.minOrder)}.`
-            : 'Tanpa minimum belanja.',
-          badge: p.type === 'percent' ? `${p.value}% OFF` : 'POTONGAN RP',
-          badgeCls: 'bg-orange-500',
-          active: p.isActive,
-          code: p.code,
-        }));
-        setPromos(mapped);
+      if (dbPromos && Array.isArray(dbPromos)) {
+        if (dbPromos.length > 0) {
+          const mapped = dbPromos.map((p: any) => ({
+            id: p.id,
+            icon: p.type === 'percent' ? '🏷️' : '💰',
+            title: p.title || `Diskon Promo ${p.code}`,
+            desc: p.description || (p.type === 'percent' 
+              ? `Dapatkan potongan harga sebesar ${p.value}% untuk pesanan Anda!`
+              : `Dapatkan potongan harga langsung sebesar ${formatPrice(p.value)}!`),
+            period: p.expiresAt 
+              ? `Berlaku s.d ${new Date(p.expiresAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}`
+              : 'Berlaku setiap hari',
+            syarat: Number(p.minOrder) > 0 
+              ? `Minimal transaksi belanja ${formatPrice(p.minOrder)}.`
+              : 'Tanpa minimum belanja.',
+            badge: p.type === 'percent' ? `${p.value}% OFF` : 'POTONGAN RP',
+            badgeCls: 'bg-orange-500',
+            active: p.isActive !== false,
+            code: p.code,
+          }));
+          setPromos(mapped);
+        } else {
+          setPromos([]);
+        }
       }
       setLoading(false);
     });
@@ -102,12 +106,14 @@ export default function PromoClient() {
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] py-14 px-4">
+      <div className="py-14 px-4 text-white" style={{ background: 'linear-gradient(to bottom right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}>
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 flex items-center justify-center gap-2">
             <Ticket className="w-8 h-8" /> Promo & Kupon Diskon
           </h1>
-          <p className="text-white/80">Penawaran spesial dan potongan harga khusus untuk pelanggan setia</p>
+          <p className="text-white/90">
+            {settings?.promo_subtitle || "Penawaran spesial dan potongan harga khusus untuk pelanggan setia"}
+          </p>
         </div>
       </div>
 
@@ -118,41 +124,61 @@ export default function PromoClient() {
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
             Promo Aktif
           </h2>
-          <div className="space-y-4">
-            {activePromos.map((promo) => (
-              <div
-                key={promo.id}
-                className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-shadow border border-orange-100"
-              >
-                <div className="bg-gradient-to-r from-[#8E0E0E] to-[#E05009] px-5 py-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl">{promo.icon}</span>
-                    <h3 className="text-white font-bold text-base">{promo.title}</h3>
+          {activePromos.length > 0 ? (
+            <div className="space-y-4">
+              {activePromos.map((promo) => (
+                <div
+                  key={promo.id}
+                  className="bg-white rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-shadow border border-gray-100"
+                >
+                  <div className="px-5 py-3 flex items-center justify-between text-white" style={{ background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl">{promo.icon}</span>
+                      <h3 className="text-white font-bold text-base">{promo.title}</h3>
+                    </div>
+                    <span className="text-xs font-bold px-2.5 py-1 rounded-full text-white bg-white/20 backdrop-blur border border-white/30">
+                      {promo.badge}
+                    </span>
                   </div>
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-full text-white ${promo.badgeCls}`}>
-                    {promo.badge}
-                  </span>
+                  <div className="p-5">
+                    <p className="text-gray-700 mb-3 leading-relaxed font-medium">{promo.desc}</p>
+                    <div className="flex items-center gap-2 text-sm mb-2 font-semibold" style={{ color: 'var(--primary-color, #8E0E0E)' }}>
+                      <Calendar className="w-4 h-4" />
+                      <span>{promo.period}</span>
+                    </div>
+                    <div className="flex items-start gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl p-3">
+                      <Tag className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: 'var(--secondary-color, #E05009)' }} />
+                      <span><strong>S&K:</strong> {promo.syarat}</span>
+                    </div>
+                    <button
+                      onClick={() => handleClaim(promo)}
+                      className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 text-white rounded-xl font-semibold text-sm hover:opacity-90 transition-all cursor-pointer shadow-md"
+                      style={{ background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}
+                    >
+                      Klaim Kupon: {promo.code}
+                    </button>
+                  </div>
                 </div>
-                <div className="p-5">
-                  <p className="text-gray-700 mb-3 leading-relaxed font-medium">{promo.desc}</p>
-                  <div className="flex items-center gap-2 text-sm text-[#8E0E0E] mb-2">
-                    <Calendar className="w-4 h-4" />
-                    <span className="font-medium">{promo.period}</span>
-                  </div>
-                  <div className="flex items-start gap-2 text-sm text-gray-500 bg-gray-50 rounded-xl p-3">
-                    <Tag className="w-4 h-4 flex-shrink-0 mt-0.5 text-orange-500" />
-                    <span><strong>S&K:</strong> {promo.syarat}</span>
-                  </div>
-                  <button
-                    onClick={() => handleClaim(promo)}
-                    className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white rounded-xl font-semibold text-sm hover:from-[#9C1B0B] hover:to-[#D94708] transition-all cursor-pointer shadow-md shadow-orange-500/20"
-                  >
-                    Klaim Kupon: {promo.code}
-                  </button>
-                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-gray-100 shadow-sm flex flex-col items-center">
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100/80 shadow-inner">
+                <Ticket className="w-8 h-8" style={{ color: 'var(--secondary-color, #E05009)' }} />
               </div>
-            ))}
-          </div>
+              <h3 className="text-xl font-extrabold text-gray-900 mb-2">Promo sedang dipersiapkan</h3>
+              <p className="text-gray-500 text-sm leading-relaxed mb-6 max-w-md">
+                Belum ada kupon promo aktif saat ini. Tim gerai kami sedang menyiapkan promo & kejutan menarik untuk Anda!
+              </p>
+              <button
+                onClick={() => router.push('/menu')}
+                className="px-6 py-3 text-white font-bold text-sm rounded-xl shadow-md hover:opacity-90 transition-all cursor-pointer"
+                style={{ background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}
+              >
+                Lihat Menu & Pesan Sekarang
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Inactive / Coming Soon */}

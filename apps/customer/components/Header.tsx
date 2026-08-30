@@ -42,6 +42,9 @@ export default function Header() {
   const storeName = settings?.store_name || "";
   const tagline = (settings as any)?.tagline || "";
 
+  const primaryColor = (settings as any)?.primary_color || (settings as any)?.primaryColor || '#8E0E0E';
+  const secondaryColor = (settings as any)?.secondary_color || (settings as any)?.secondaryColor || '#E05009';
+
   return (
     <>
       <header
@@ -55,7 +58,7 @@ export default function Header() {
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#8E0E0E] to-[#E05009] flex items-center justify-center text-white font-black text-lg shadow-sm overflow-hidden">
+              <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-lg shadow-sm overflow-hidden" style={{ background: `linear-gradient(to bottom right, ${primaryColor}, ${secondaryColor})` }}>
                 {settings?.logo_url ? (
                   <img src={settings.logo_url} alt={storeName || 'Logo'} className="w-full h-full object-cover" />
                 ) : (
@@ -63,7 +66,7 @@ export default function Header() {
                 )}
               </div>
               <div className="hidden sm:block">
-                <p className={`font-black text-base sm:text-lg tracking-wider leading-none uppercase ${isWhiteHeader ? 'text-[#8E0E0E]' : 'text-white'}`}>{storeName}</p>
+                <p className={`font-black text-base sm:text-lg tracking-wider leading-none uppercase ${isWhiteHeader ? '' : 'text-white'}`} style={isWhiteHeader ? { color: primaryColor } : {}}>{storeName}</p>
                 {tagline && <p className={`text-[8px] sm:text-[9px] tracking-widest leading-none font-black uppercase mt-1 ${isWhiteHeader ? 'text-gray-500' : 'text-white/80'}`}>{tagline}</p>}
               </div>
             </Link>
@@ -235,11 +238,12 @@ export default function Header() {
                     router.push('/cart');
                   }
                 }}
-                className="relative flex items-center justify-center w-10 h-10 rounded-full bg-[#E05009] hover:bg-[#D13E08] transition-colors cursor-pointer"
+                className="relative flex items-center justify-center w-10 h-10 rounded-full hover:opacity-90 transition-colors cursor-pointer shadow-sm text-white"
+                style={{ backgroundColor: secondaryColor }}
               >
                 <ShoppingCart className="w-5 h-5 text-white" />
                 {mounted && totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 text-[#8E0E0E] text-xs font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 text-black text-xs font-bold rounded-full flex items-center justify-center">
                     {totalItems > 9 ? '9+' : totalItems}
                   </span>
                 )}

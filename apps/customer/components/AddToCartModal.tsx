@@ -144,14 +144,15 @@ export default function AddToCartModal({ item, onClose }: AddToCartModalProps) {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                className="w-9 h-9 flex items-center justify-center rounded-full border-2 border-gray-300 hover:border-[#8E0E0E] transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-full border-2 border-gray-300 hover:border-gray-400 transition-colors"
               >
                 <Minus className="w-4 h-4 text-gray-600" />
               </button>
               <span className="w-6 text-center font-bold text-gray-900">{quantity}</span>
               <button
                 onClick={() => setQuantity((q) => q + 1)}
-                className="w-9 h-9 flex items-center justify-center rounded-full bg-[#8E0E0E] hover:bg-[#9C1B0B] transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-full text-white hover:opacity-90 transition-colors"
+                style={{ backgroundColor: 'var(--primary-color, #8E0E0E)' }}
               >
                 <Plus className="w-4 h-4 text-white" />
               </button>
@@ -166,9 +167,10 @@ export default function AddToCartModal({ item, onClose }: AddToCartModalProps) {
             disabled={!allRequiredSelected}
             className={`w-full py-3.5 rounded-xl font-bold text-base flex items-center justify-between px-4 transition-all ${
               allRequiredSelected
-                ? 'bg-gradient-to-r from-[#8E0E0E] to-[#E05009] hover:from-[#9C1B0B] hover:to-[#D94708] text-white shadow-md'
+                ? 'text-white shadow-md hover:opacity-90'
                 : 'bg-gray-200 text-gray-400 cursor-not-allowed'
             }`}
+            style={allRequiredSelected ? { background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' } : {}}
           >
             <span>Tambah ke Keranjang</span>
             <span>{formatPrice(totalPrice)}</span>

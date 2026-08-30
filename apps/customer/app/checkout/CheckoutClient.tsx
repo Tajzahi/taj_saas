@@ -734,7 +734,8 @@ export default function CheckoutClient() {
           <button
             type="submit"
             disabled={loading || !isStoreOpen || (orderType === 'delivery' && mapResult?.isOutOfRange === true)}
-            className="w-full flex items-center justify-center gap-3 py-4 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white rounded-2xl font-bold text-base hover:from-[#9C1B0B] hover:to-[#D94708] transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-3 py-4 text-white rounded-2xl font-bold text-base hover:opacity-90 transition-all shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}
           >
             {loading ? (
               <>

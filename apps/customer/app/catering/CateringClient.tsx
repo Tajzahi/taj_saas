@@ -88,12 +88,14 @@ export default function CateringClient() {
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[#8E0E0E] to-[#E05009] py-14 px-4">
+      <div className="py-14 px-4 text-white" style={{ background: 'linear-gradient(to bottom right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}>
         <div className="max-w-3xl mx-auto text-center">
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 flex items-center justify-center gap-2">
             <Package className="w-8 h-8" /> Paket Katering & Pesanan Besar
           </h1>
-          <p className="text-white/80">Solusi lezat dan hemat untuk acara keluarga, kantor, arisan, dan pesta</p>
+          <p className="text-white/90">
+            {settings?.catering_subtitle || "Solusi lezat dan hemat untuk acara keluarga, kantor, arisan, dan pesta"}
+          </p>
         </div>
       </div>
 

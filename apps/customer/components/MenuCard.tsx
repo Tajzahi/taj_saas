@@ -73,7 +73,7 @@ export default function MenuCard({ item, showDetail = true }: MenuCardProps) {
           <h3 className="font-semibold text-gray-900 text-sm sm:text-base mb-1 line-clamp-2 flex-1">
             {item.name}
           </h3>
-          <p className="text-[#8E0E0E] font-bold text-base sm:text-lg mb-3">
+          <p className="font-bold text-base sm:text-lg mb-3" style={{ color: 'var(--primary-color, #8E0E0E)' }}>
             {formatPrice(item.price)}
             {item.variants && item.variants[0]?.options[1] && (
               <span className="text-xs text-gray-400 font-normal ml-1">/ mulai dari</span>
@@ -84,7 +84,8 @@ export default function MenuCard({ item, showDetail = true }: MenuCardProps) {
             {showDetail && (
               <Link
                 href={`/menu/${item.slug}`}
-                className="flex-1 text-center py-2 border border-[#8E0E0E] text-[#8E0E0E] rounded-xl text-xs sm:text-sm font-medium hover:bg-[#8E0E0E]/5 transition-colors"
+                className="flex-1 text-center py-2 border rounded-xl text-xs sm:text-sm font-medium transition-colors"
+                style={{ borderColor: 'var(--primary-color, #8E0E0E)', color: 'var(--primary-color, #8E0E0E)' }}
               >
                 Detail
               </Link>
@@ -97,8 +98,9 @@ export default function MenuCard({ item, showDetail = true }: MenuCardProps) {
               } ${
                 isHabis
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-gradient-to-r from-[#8E0E0E] to-[#E05009] hover:from-[#9C1B0B] hover:to-[#D94708] text-white'
+                  : 'text-white shadow-sm hover:opacity-90'
               }`}
+              style={!isHabis ? { background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' } : {}}
             >
               {isHabis ? (
                 'Habis'

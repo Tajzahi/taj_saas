@@ -153,44 +153,45 @@ export default function CartClient() {
         </div>
 
         {/* Order Summary */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
-          <h3 className="font-bold text-gray-800 mb-4">Ringkasan Pesanan</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Subtotal ({getTotalItems()} item)</span>
-              <span className="font-semibold text-gray-900">{formatPrice(subtotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Ongkir</span>
-              <span className="text-gray-400 text-xs italic">(Dihitung saat checkout)</span>
-            </div>
-            <div className="border-t pt-3 flex justify-between">
-              <span className="font-bold text-gray-900">Total Sementara</span>
-              <span className="font-black text-[#8E0E0E] text-lg">{formatPrice(subtotal)}</span>
-            </div>
+      <div className="bg-white rounded-2xl p-4 shadow-sm mb-6">
+        <h3 className="font-bold text-gray-800 mb-4">Ringkasan Pesanan</h3>
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Subtotal ({getTotalItems()} item)</span>
+            <span className="font-semibold text-gray-900">{formatPrice(subtotal)}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-600">Ongkir</span>
+            <span className="text-gray-400 text-xs italic">(Dihitung saat checkout)</span>
+          </div>
+          <div className="border-t pt-3 flex justify-between">
+            <span className="font-bold text-gray-900">Total Sementara</span>
+            <span className="font-black text-[#8E0E0E] text-lg">{formatPrice(subtotal)}</span>
           </div>
         </div>
-
-        {/* Add more items */}
-        <Link
-          href="/menu"
-          className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 hover:border-[#8E0E0E] hover:text-[#8E0E0E] transition-colors text-sm font-medium mb-6"
-        >
-          + Tambah Menu Lain
-        </Link>
-
-        {/* Checkout CTA */}
-        <button
-          onClick={() => router.push('/checkout')}
-          className="w-full flex items-center justify-between px-6 py-4 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white rounded-2xl font-bold text-base hover:from-[#9C1B0B] hover:to-[#D94708] transition-all shadow-lg hover:shadow-xl"
-        >
-          <span>Lanjut ke Checkout</span>
-          <div className="flex items-center gap-2">
-            <span className="font-black">{formatPrice(subtotal)}</span>
-            <ArrowRight className="w-5 h-5" />
-          </div>
-        </button>
       </div>
+
+      {/* Add more items */}
+      <Link
+        href="/menu"
+        className="flex items-center justify-center gap-2 w-full py-3 border-2 border-dashed border-gray-300 rounded-2xl text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors text-sm font-medium mb-6"
+      >
+        + Tambah Menu Lain
+      </Link>
+
+      {/* Checkout CTA */}
+      <button
+        onClick={() => router.push('/checkout')}
+        className="w-full flex items-center justify-between px-6 py-4 text-white rounded-2xl font-bold text-base hover:opacity-90 transition-all shadow-lg hover:shadow-xl"
+        style={{ background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}
+      >
+        <span>Lanjut ke Checkout</span>
+        <div className="flex items-center gap-2">
+          <span className="font-black">{formatPrice(subtotal)}</span>
+          <ArrowRight className="w-5 h-5" />
+        </div>
+      </button>
     </div>
+  </div>
   );
 }

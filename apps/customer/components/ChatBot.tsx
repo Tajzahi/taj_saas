@@ -221,7 +221,8 @@ export default function ChatBot() {
           onClick={() => setIsOpen(!isOpen)}
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
-          className="w-14 h-14 rounded-full bg-gradient-to-tr from-[#8E0E0E] to-[#E05009] hover:from-[#9C1B0B] hover:to-[#D94708] flex items-center justify-center text-white shadow-lg hover:shadow-xl cursor-grab active:cursor-grabbing relative z-50"
+          className="w-14 h-14 rounded-full flex items-center justify-center text-white shadow-lg hover:shadow-xl hover:opacity-90 cursor-grab active:cursor-grabbing relative z-50"
+          style={{ background: 'linear-gradient(to top right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}
         >
           {isOpen ? (
             <X className="w-6 h-6" />
@@ -248,7 +249,8 @@ export default function ChatBot() {
           >
             {/* Header */}
             <div
-              className="bg-gradient-to-r from-[#8E0E0E] to-[#E05009] p-4 text-white flex items-center justify-between select-none"
+              className="p-4 text-white flex items-center justify-between select-none"
+              style={{ background: 'linear-gradient(to right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}
             >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur flex items-center justify-center relative border border-white/30 text-white">

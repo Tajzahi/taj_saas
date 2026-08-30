@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 
-import { Star, MapPin, Clock, CheckCircle, ArrowRight, ChevronRight, Award, Truck, Zap, Search, FileText, ShoppingBag, MessageSquare, BadgePercent } from 'lucide-react';
+import { Star, MapPin, Clock, CheckCircle, ArrowRight, ChevronRight, Award, Truck, Zap, Search, FileText, ShoppingBag, MessageSquare, BadgePercent, UtensilsCrossed } from 'lucide-react';
 import { menuItems as staticMenuItems, popularMenuSlugs, MenuItem } from '@/data/menu';
 import MenuCard from '@/components/MenuCard';
 import { useEffect, useState } from 'react';
@@ -62,6 +62,19 @@ export default function HomeClient() {
     ? terlarisItems.slice(0, 6)
     : items.slice(0, 6);
 
+  const vis = (settings as any)?.sections_visibility || (settings as any)?.sectionsVisibility || {};
+  const showBadgeStrip = vis.showBadgeStrip !== false;
+  const showPopularMenu = vis.showPopularMenu !== false;
+  const showValueProps = vis.showValueProps !== false;
+  const showOrderSteps = vis.showOrderSteps !== false;
+  const showTestimonials = vis.showTestimonials !== false;
+  const showLocation = vis.showLocation !== false;
+  const showCtaFooter = vis.showCtaFooter !== false;
+
+  const primaryColor = (settings as any)?.primary_color || (settings as any)?.primaryColor || "#8E0E0E";
+  const secondaryColor = (settings as any)?.secondary_color || (settings as any)?.secondaryColor || "#E05009";
+  const heroHighlightTitle = (settings as any)?.hero_highlight_title || (settings as any)?.heroHighlightTitle || settings.store_name || "Kualitas Rasa Juara";
+
   return (
     <div className="min-h-screen">
       {/* ===== HERO SECTION ===== */}
@@ -90,186 +103,197 @@ export default function HomeClient() {
         <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
 
         {/* Hero Content */}
-        <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto pt-20">
+        <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto pt-20 pb-16">
+          {settings.hero_badge_text && (
+            <span className="inline-block bg-white/20 backdrop-blur-md text-white font-bold text-xs sm:text-sm px-4 py-1.5 rounded-full mb-4 border border-white/30 tracking-wider uppercase shadow-lg">
+              {settings.hero_badge_text}
+            </span>
+          )}
           <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-4 whitespace-pre-line">
-            {settings.hero_title || (
-              settings.store_name ? (
-                <>
-                  Selamat Datang di<br />
-                  <span className="text-[#E05009]">{settings.store_name}</span>
-                </>
-              ) : (
-                <>
-                  Pilihan Menu Terbaik<br />
-                  <span className="text-[#E05009]">Kualitas Rasa Juara</span>
-                </>
-              )
+            {settings.hero_title ? (
+              <>
+                {settings.hero_title}<br />
+                <span style={{ color: secondaryColor }}>{heroHighlightTitle}</span>
+              </>
+            ) : (
+              <>
+                Selamat Datang di<br />
+                <span style={{ color: secondaryColor }}>{heroHighlightTitle}</span>
+              </>
             )}
           </h1>
-
-          <p className="text-white/90 text-lg sm:text-xl md:text-2xl mb-8 max-w-2xl mx-auto leading-relaxed">
-            {settings.hero_subtitle || 'Cita rasa otentik berkualitas tinggi. Dibuat dengan bahan pilihan dan disajikan dengan dedikasi terbaik.'}
+          <p className="text-white/90 text-base sm:text-xl mb-8 max-w-2xl mx-auto leading-relaxed">
+            {settings.hero_subtitle || "Cita rasa otentik dan sajian berkualitas tinggi. Dibuat dengan bahan pilihan dan disajikan dengan dedikasi terbaik untuk Anda."}
           </p>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               href="/menu"
-              className="flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] hover:from-[#9C1B0B] hover:to-[#D94708] text-white font-bold text-lg rounded-2xl shadow-2xl hover:shadow-orange-500/30 transition-all duration-200 hover:scale-105"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 text-white font-bold text-base rounded-2xl hover:opacity-90 transition-all duration-200 hover:scale-105 shadow-xl"
+              style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
             >
-              Pesan Sekarang
-              <ArrowRight className="w-5 h-5" />
+              Pesan Sekarang <ArrowRight className="w-5 h-5" />
             </Link>
             <a
-              href={`https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(`Halo ${settings.store_name}, saya ingin bertanya seputar menu.`)}`}
+              href={`https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(`Halo ${settings.store_name}, saya ingin bertanya tentang menu.`)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-8 py-4 bg-white/10 hover:bg-white/20 backdrop-blur-md text-white font-bold text-lg rounded-2xl border border-white/20 transition-all duration-200 hover:scale-105 shadow-xl text-center"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 px-8 py-4 bg-white/10 backdrop-blur-md text-white font-bold text-base rounded-2xl hover:bg-white/20 transition-all duration-200 border border-white/30 shadow-xl"
             >
-              Chat WhatsApp
+              <MessageSquare className="w-5 h-5" /> Chat WhatsApp
             </a>
           </div>
         </div>
       </section>
 
-      {/* ===== BRAND BADGE STRIP ===== */}
-      <section className="bg-gradient-to-r from-[#8E0E0E] via-[#B72A0A] to-[#E05009] py-4">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex flex-wrap justify-center gap-6 sm:gap-12">
-            {[
-              { icon: 'Award', text: 'Kualitas Premium' },
-              { icon: '/Halal logo.jfif', text: 'Halal Certified', isImg: true },
-              { icon: 'Star', text: '4.9 Rating' },
-              { icon: 'Truck', text: 'Delivery & Pickup' },
-              { icon: 'MapPin', text: settings?.store_address ? settings.store_address.split(',').pop()?.trim() || 'Terpercaya' : 'Gerai Resmi' },
-            ].map((item) => (
-              <div key={item.text} className="flex items-center gap-2 text-white text-sm font-semibold">
-                {item.isImg ? (
-                  <img src={item.icon} alt={item.text} className="w-5 h-5 object-contain rounded bg-white p-0.5" />
-                ) : (
-                  <span className="flex items-center">
-                    {item.icon === 'Award' && <Award className="w-4 h-4" />}
-                    {item.icon === 'Star' && <Star className="w-4 h-4 fill-white text-white" />}
-                    {item.icon === 'Truck' && <Truck className="w-4 h-4" />}
-                    {item.icon === 'MapPin' && <MapPin className="w-4 h-4" />}
-                  </span>
-                )}
-                <span>{item.text}</span>
-              </div>
-            ))}
+      {/* ===== BADGES / FEATURES STRIP (Pure text badges for max flexibility) ===== */}
+      {showBadgeStrip && (
+        <section className="py-4 text-white" style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}>
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex flex-wrap justify-center gap-6 sm:gap-12">
+              {(settings?.badge_strip_items && Array.isArray(settings.badge_strip_items) && settings.badge_strip_items.length > 0
+                ? settings.badge_strip_items
+                : ["Kualitas Premium", "Halal Certified", "4.9 Rating", "Delivery & Pickup", "Gerai Resmi"]
+              ).map((badgeText: string, idx: number) => (
+                <div key={idx} className="flex items-center gap-2 text-white text-sm font-semibold">
+                  <span>{badgeText}</span>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== MENU HIGHLIGHT ===== */}
-      {popularMenus.length > 0 && (
+      {showPopularMenu && (
         <section className="py-16 sm:py-20 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
-            <div className="text-center mb-10">
-              <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Menu Favorit</span>
+            <div className="text-center mb-12">
+              <span className="inline-block font-semibold text-sm mb-2 tracking-wider uppercase" style={{ color: secondaryColor }}>Menu Favorit</span>
               <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
-                Menu <span className="text-[#8E0E0E]">Terlaris</span>
+                Menu <span style={{ color: primaryColor }}>Terlaris</span>
               </h2>
-              <p className="text-gray-500 max-w-xl mx-auto">
-                Pilihan favorit pelanggan setia kami. Dibuat fresh setiap hari dengan bahan berkualitas.
+              <p className="text-gray-500 max-w-xl mx-auto text-base">
+                {(settings as any)?.popular_menu_subtitle || "Pilihan favorit pelanggan setia kami. Dibuat fresh setiap hari dengan bahan berkualitas."}
               </p>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4 sm:gap-6 mb-10">
-              {popularMenus.slice(0, 6).map((item) => (
-                <MenuCard key={item.id} item={item} />
-              ))}
-            </div>
+            {popularMenus && popularMenus.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
+                {popularMenus.map((item) => (
+                  <MenuCard key={item.id} item={item} />
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white rounded-3xl p-8 sm:p-12 text-center max-w-xl mx-auto border border-gray-100 shadow-sm flex flex-col items-center">
+                <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4 bg-gray-100/80 shadow-inner">
+                  <UtensilsCrossed className="w-8 h-8" style={{ color: secondaryColor }} />
+                </div>
+                <h3 className="text-xl font-extrabold text-gray-900 mb-2">Menu sedang dipersiapkan</h3>
+                <p className="text-gray-500 text-sm leading-relaxed mb-4 max-w-md">
+                  Daftar menu lezat kami sedang diperbarui oleh tim dapur gerai. Silakan cek kembali dalam waktu dekat atau pesan langsung via WhatsApp!
+                </p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">✨ Fresh Everyday</span>
+                  <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">🍲 Bahan Pilihan</span>
+                  <span className="px-3 py-1 bg-gray-100 text-gray-600 rounded-full text-xs font-semibold">👨‍🍳 Chef Dedikasi</span>
+                </div>
+              </div>
+            )}
 
-            <div className="text-center">
+            <div className="text-center mt-10">
               <Link
                 href="/menu"
-                className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white font-bold rounded-2xl hover:from-[#9C1B0B] hover:to-[#D94708] transition-all duration-200 hover:scale-105 shadow-lg"
+                className="inline-flex items-center gap-2 px-8 py-4 text-white font-bold text-base rounded-2xl hover:opacity-90 transition-all duration-200 hover:scale-105 shadow-lg"
+                style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}
               >
-                Lihat Semua Menu
-                <ChevronRight className="w-5 h-5" />
+                Lihat Semua Menu <ChevronRight className="w-5 h-5" />
               </Link>
             </div>
           </div>
         </section>
       )}
 
-      {/* ===== WHY A6 NYUSS ===== */}
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Keunggulan Kami</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-gray-900">
-              Kenapa <span className="text-[#8E0E0E]">{settings.store_name}</span>?
-            </h2>
-          </div>
+      {/* ===== VALUE PROPOSITIONS ===== */}
+      {showValueProps && (
+        <section className="py-16 sm:py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-12">
+              <span className="inline-block font-semibold text-sm mb-2 tracking-wider uppercase" style={{ color: secondaryColor }}>Keunggulan Kami</span>
+              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-3">
+                Kenapa Memilih <span style={{ color: primaryColor }}>{settings.store_name}</span>?
+              </h2>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {(settings.value_props && settings.value_props.length > 0 ? settings.value_props : defaultValuePropositions).map((vp: any) => (
-              <div
-                key={vp.title}
-                className="text-center p-6 rounded-2xl bg-gradient-to-b from-[#8E0E0E]/5 to-transparent border border-[#8E0E0E]/10 hover:border-[#8E0E0E]/30 transition-all duration-200 hover:-translate-y-1 flex flex-col items-center"
-              >
-                <div className="flex justify-center mb-4">
-                  {vp.isImg ? (
-                    <img src={vp.icon} alt={vp.title} className="w-12 h-12 object-contain rounded-lg bg-white p-1" />
-                  ) : (
-                    <div className="text-[#E05009] p-3 bg-[#E05009]/10 rounded-2xl">
-                      {vp.icon === 'Award' && <Award className="w-8 h-8" />}
-                      {vp.icon === 'BadgePercent' && <BadgePercent className="w-8 h-8" />}
-                      {vp.icon === 'Zap' && <Zap className="w-8 h-8" />}
-                      {(!vp.icon || (vp.icon !== 'Award' && vp.icon !== 'BadgePercent' && vp.icon !== 'Zap')) && <Award className="w-8 h-8" />}
-                    </div>
-                  )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {(settings.value_props && settings.value_props.length > 0 ? settings.value_props : defaultValuePropositions).map((vp: any, index: number) => (
+                <div
+                  key={index}
+                  className="p-6 rounded-3xl border border-gray-100 hover:border-gray-200 transition-all duration-300 hover:shadow-lg flex flex-col items-center text-center group bg-white"
+                >
+                  <div className="w-14 h-14 rounded-2xl text-white flex items-center justify-center mb-4 shadow-md group-hover:scale-110 transition-transform" style={{ background: `linear-gradient(to bottom right, ${primaryColor}, ${secondaryColor})` }}>
+                    {vp.isImg || (typeof vp.icon === 'string' && vp.icon.includes('/')) ? (
+                      <img src={vp.icon} alt={vp.title} className="w-8 h-8 object-contain" onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }} />
+                    ) : vp.icon === 'BadgePercent' ? (
+                      <BadgePercent className="w-7 h-7" />
+                    ) : vp.icon === 'Zap' ? (
+                      <Zap className="w-7 h-7" />
+                    ) : (
+                      <Award className="w-7 h-7" />
+                    )}
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-lg mb-2">{vp.title}</h3>
+                  <p className="text-gray-500 text-sm leading-relaxed">{vp.desc}</p>
                 </div>
-                <h3 className="font-bold text-gray-900 text-lg mb-2">{vp.title}</h3>
-                <p className="text-gray-500 text-sm leading-relaxed">{vp.desc}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
-      {/* ===== HOW TO ORDER ===== */}
-      <section className="py-16 sm:py-20 bg-gradient-to-br from-[#8E0E0E] via-[#A9240E] to-[#E05009]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6">
-          <div className="text-center mb-12">
-            <span className="inline-block text-white/70 font-semibold text-sm mb-2 tracking-wider uppercase">Simple & Mudah</span>
-            <h2 className="text-3xl sm:text-4xl font-black text-white mb-3">
-              Cara Order di {settings.store_name}
-            </h2>
-            <p className="text-white/80 max-w-md mx-auto">
-              Hanya 3 langkah mudah untuk menikmati menu favorit pilihan Anda
-            </p>
-          </div>
+      {/* ===== CARA ORDER (Format 1 Baris Rapi) ===== */}
+      {showOrderSteps && (
+        <section className="py-16 sm:py-20 text-white" style={{ background: `linear-gradient(to bottom right, ${primaryColor}, ${secondaryColor})` }}>
+          <div className="max-w-4xl mx-auto px-4 sm:px-6">
+            <div className="text-center mb-12">
+              <span className="inline-block text-white/70 font-semibold text-sm mb-2 tracking-wider uppercase">Simple & Mudah</span>
+              <h2 className="text-3xl sm:text-4xl font-black text-white mb-3">
+                Cara Order di {settings.store_name}
+              </h2>
+              <p className="text-white/90 text-base max-w-xl mx-auto whitespace-normal sm:whitespace-nowrap">
+                Hanya 3 langkah mudah untuk menikmati menu favorit pilihan Anda
+              </p>
+            </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 relative">
-            {(settings.order_steps && settings.order_steps.length > 0 ? settings.order_steps : defaultOrderSteps).map((step: any, index: number) => (
-              <div
-                key={step.step || index}
-                className="text-center relative z-10 flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-white text-[#8E0E0E] flex items-center justify-center font-black text-xl mb-4 shadow-lg">
-                  {step.step || `0${index + 1}`}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 relative">
+              {(settings.order_steps && settings.order_steps.length > 0 ? settings.order_steps : defaultOrderSteps).map((step: any, index: number) => (
+                <div
+                  key={step.step || index}
+                  className="text-center relative z-10 flex flex-col items-center bg-white/10 backdrop-blur-sm rounded-3xl p-6 border border-white/20 hover:bg-white/20 transition-all duration-300"
+                >
+                  <div className="w-16 h-16 rounded-2xl bg-white flex items-center justify-center font-black text-xl mb-4 shadow-lg" style={{ color: primaryColor }}>
+                    {step.step || `0${index + 1}`}
+                  </div>
+                  <h3 className="font-bold text-white text-lg mb-2">{step.title}</h3>
+                  <p className="text-white/80 text-sm leading-relaxed">{step.desc}</p>
                 </div>
-                <h3 className="font-bold text-white text-lg mb-2">{step.title}</h3>
-                <p className="text-white/80 text-sm leading-relaxed">{step.desc}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
 
-          <div className="text-center mt-10">
-            <Link
-              href="/menu"
-              className="inline-flex items-center gap-2 px-10 py-4 bg-white text-[#8E0E0E] font-bold text-lg rounded-2xl hover:bg-gray-100 transition-all duration-200 hover:scale-105 shadow-xl"
-            >
-              Mulai Pesan Sekarang
-            </Link>
+            <div className="text-center mt-10">
+              <Link
+                href="/menu"
+                className="inline-flex items-center gap-2 px-10 py-4 bg-white font-bold text-lg rounded-2xl hover:bg-gray-100 transition-all duration-200 hover:scale-105 shadow-xl"
+                style={{ color: primaryColor }}
+              >
+                Mulai Pesan Sekarang
+              </Link>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== TESTIMONIALS (Dynamic) ===== */}
-      {settings.testimonials && settings.testimonials.length > 0 && (
+      {showTestimonials && settings.testimonials && settings.testimonials.length > 0 && (
         <section className="py-16 sm:py-20 bg-gray-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6">
             <div className="text-center mb-12">
@@ -308,110 +332,114 @@ export default function HomeClient() {
       )}
 
       {/* ===== LOCATION PREVIEW ===== */}
-      <section className="py-16 sm:py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
-            <div>
-              <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Temukan Kami</span>
-              <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
-                Lokasi <span className="text-[#8E0E0E]">{settings.store_name}</span>
-              </h2>
-              <div className="space-y-4 mb-6">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
-                    <MapPin className="w-5 h-5 text-[#8E0E0E]" />
+      {showLocation && (
+        <section className="py-16 sm:py-20 bg-white">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              <div>
+                <span className="inline-block text-[#E05009] font-semibold text-sm mb-2 tracking-wider uppercase">Temukan Kami</span>
+                <h2 className="text-3xl sm:text-4xl font-black text-gray-900 mb-4">
+                  Lokasi <span className="text-[#8E0E0E]">{settings.store_name}</span>
+                </h2>
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
+                      <MapPin className="w-5 h-5 text-[#8E0E0E]" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">Alamat</p>
+                      <p className="text-gray-500 text-sm whitespace-pre-line">{settings.store_address}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Alamat</p>
-                    <p className="text-gray-500 text-sm whitespace-pre-line">{settings.store_address}</p>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
+                      <Clock className="w-5 h-5 text-[#8E0E0E]" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">Jam Operasional</p>
+                      <p className="text-gray-500 text-sm">{settings.opening_hours}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">Status Hari Ini</p>
+                      {isStoreOpen() ? (
+                        <p className="text-green-600 font-semibold text-sm">BUKA SEKARANG</p>
+                      ) : (
+                        <p className="text-red-600 font-semibold text-sm">SEDANG TUTUP</p>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-[#8E0E0E]/10 flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-5 h-5 text-[#8E0E0E]" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Jam Operasional</p>
-                    <p className="text-gray-500 text-sm">{settings.opening_hours}</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
-                    <CheckCircle className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-gray-900">Status Hari Ini</p>
-                    {isStoreOpen() ? (
-                      <p className="text-green-600 font-semibold text-sm">BUKA SEKARANG</p>
-                    ) : (
-                      <p className="text-red-600 font-semibold text-sm">SEDANG TUTUP</p>
-                    )}
-                  </div>
+                <div className="flex gap-3">
+                  <Link
+                    href="/contact"
+                    className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white font-semibold rounded-xl hover:from-[#9C1B0B] hover:to-[#D94708] transition-all"
+                  >
+                    <MapPin className="w-4 h-4" /> Lihat Peta
+                  </Link>
+                  <a
+                    href={`https://wa.me/${settings.whatsapp_number}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition-all"
+                  >
+                    <MessageSquare className="w-4 h-4" /> WhatsApp
+                  </a>
                 </div>
               </div>
-              <div className="flex gap-3">
-                <Link
-                  href="/contact"
-                  className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white font-semibold rounded-xl hover:from-[#9C1B0B] hover:to-[#D94708] transition-all"
-                >
-                  <MapPin className="w-4 h-4" /> Lihat Peta
-                </Link>
-                <a
-                  href={`https://wa.me/${settings.whatsapp_number}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-5 py-3 bg-green-500 text-white font-semibold rounded-xl hover:bg-green-600 transition-all"
-                >
-                  <MessageSquare className="w-4 h-4" /> WhatsApp
-                </a>
-              </div>
-            </div>
 
-            {/* Map Placeholder */}
-            <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 bg-gray-100">
-              <iframe
-                src={settings.google_maps_url || `https://maps.google.com/maps?q=${encodeURIComponent(settings.store_address || settings.store_name)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
-                width="100%"
-                height="100%"
-                style={{ border: 0 }}
-                allowFullScreen
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
-                className="rounded-2xl"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none rounded-2xl" />
+              {/* Map Placeholder */}
+              <div className="relative rounded-2xl overflow-hidden shadow-xl h-80 bg-gray-100">
+                <iframe
+                  src={settings.google_maps_url || `https://maps.google.com/maps?q=${encodeURIComponent(settings.store_address || settings.store_name)}&t=&z=15&ie=UTF8&iwloc=&output=embed`}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  className="rounded-2xl"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none rounded-2xl" />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== CTA FOOTER ===== */}
-      <section className="py-16 sm:py-20 bg-gradient-to-br from-[#1a0a0a] to-[#2d0505]">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
-            Siap Pesan <span className="text-[#E05009]">Sekarang</span>?
-          </h2>
-          <p className="text-gray-300 mb-8 text-lg">
-            Sajian menu favorit pilihan Anda siap disajikan hangat dan diantar langsung ke tempat Anda. Pesan sekarang!
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              href="/menu"
-              className="flex items-center justify-center gap-2 px-10 py-4 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white font-bold text-lg rounded-2xl hover:from-[#9C1B0B] hover:to-[#D94708] transition-all duration-200 hover:scale-105 shadow-xl"
-            >
-              <ShoppingBag className="w-5 h-5" /> Lihat Menu
-            </Link>
-            <a
-              href={`https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(`Halo ${settings.store_name}, saya ingin memesan menu.`)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 px-10 py-4 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-2xl transition-all duration-200 hover:scale-105 shadow-xl"
-            >
-              <MessageSquare className="w-5 h-5" /> Order via WhatsApp
-            </a>
+      {showCtaFooter && (
+        <section className="py-16 sm:py-20 bg-gradient-to-br from-[#1a0a0a] to-[#2d0505]">
+          <div className="max-w-3xl mx-auto px-4 text-center">
+            <h2 className="text-3xl sm:text-4xl font-black text-white mb-4">
+              {(settings as any)?.cta_title || "Siap Pesan Sekarang?"}
+            </h2>
+            <p className="text-gray-300 mb-8 text-lg whitespace-pre-line">
+              {(settings as any)?.cta_subtitle || "Sajikan menu favorit pilihan Anda hangat dan diantar langsung ke tempat Anda.\nPesan sekarang!"}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link
+                href="/menu"
+                className="flex items-center justify-center gap-2 px-10 py-4 bg-gradient-to-r from-[#8E0E0E] to-[#E05009] text-white font-bold text-lg rounded-2xl hover:from-[#9C1B0B] hover:to-[#D94708] transition-all duration-200 hover:scale-105 shadow-xl"
+              >
+                <ShoppingBag className="w-5 h-5" /> Lihat Menu
+              </Link>
+              <a
+                href={`https://wa.me/${settings.whatsapp_number}?text=${encodeURIComponent(`Halo ${settings.store_name}, saya ingin memesan menu.`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 px-10 py-4 bg-green-500 hover:bg-green-600 text-white font-bold text-lg rounded-2xl transition-all duration-200 hover:scale-105 shadow-xl"
+              >
+                <MessageSquare className="w-5 h-5" /> Order via WhatsApp
+              </a>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

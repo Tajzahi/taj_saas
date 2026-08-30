@@ -28,7 +28,7 @@ export default function AboutClient() {
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       {/* Hero */}
-      <div className="relative bg-gradient-to-br from-[#8E0E0E] via-[#A9240E] to-[#E05009] py-20 px-4 overflow-hidden">
+      <div className="relative py-20 px-4 overflow-hidden text-white" style={{ background: 'linear-gradient(to bottom right, var(--primary-color, #8E0E0E), var(--secondary-color, #E05009))' }}>
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-10 right-10 w-64 h-64 border-4 border-white rounded-full" />
           <div className="absolute -bottom-20 -left-20 w-80 h-80 border-4 border-white rounded-full" />
@@ -40,8 +40,8 @@ export default function AboutClient() {
           <h1 className="text-4xl sm:text-5xl font-black text-white mb-4 whitespace-pre-line">
             {title}
           </h1>
-          <p className="text-white/80 text-lg leading-relaxed">
-            Perjalanan penuh dedikasi menyajikan sajian kuliner terbaik untuk Anda.
+          <p className="text-white/90 text-lg leading-relaxed">
+            {settings?.about_subtitle || "Perjalanan penuh dedikasi menyajikan sajian kuliner terbaik untuk Anda."}
           </p>
         </div>
       </div>
