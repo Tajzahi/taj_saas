@@ -9,8 +9,7 @@
     "test": "turbo test",
     "test:integration": "turbo test:integration",
     "test:e2e": "turbo test:e2e",
-    "format": "prettier --write \"**/*.{ts,tsx,md}\"",
-    "get-otp": "node scripts/get-otp.mjs"
+    "format": "prettier --write \"**/*.{ts,tsx,md}\""
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
