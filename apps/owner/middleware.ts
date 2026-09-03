@@ -11,7 +11,12 @@ export const middleware = async (request: NextRequest) => {
 
   const { pathname } = request.nextUrl;
   const isRegisterPage = pathname === '/register';
-  const isAuthRoute = pathname === '/login' || pathname === '/register' || pathname === '/unauthorized';
+  const isAuthRoute =
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/forgot-password' ||
+    pathname === '/unauthorized' ||
+    pathname.startsWith('/accept-invite');
 
   const result = await resolveTenantMiddleware(request as any, 'owner');
 
@@ -20,10 +25,10 @@ export const middleware = async (request: NextRequest) => {
   }
 
   if ('error' in result) {
-    if (result.status === 404 && !isRegisterPage) {
+    if (result.status === 404 && !isRegisterPage && !isAuthRoute) {
       return NextResponse.redirect(new URL('/register', request.url));
     }
-    if (isRegisterPage) {
+    if (isRegisterPage || isAuthRoute) {
       return NextResponse.next();
     }
     return new NextResponse(result.error, { status: result.status });
