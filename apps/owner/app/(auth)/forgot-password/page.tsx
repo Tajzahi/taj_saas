@@ -292,23 +292,23 @@ function ForgotPasswordContent() {
               </p>
             </div>
 
-            <Link
+            <a
               href="/login"
               className="w-full flex justify-center py-2.5 px-4 rounded-xl text-white bg-[#8E0E0E] hover:bg-[#9C1B0B] text-xs font-bold transition-all shadow-md cursor-pointer"
             >
               Login Sekarang dengan Kata Sandi Baru →
-            </Link>
+            </a>
           </div>
         )}
 
         <div className="border-t border-gray-100 pt-3 text-center">
-          <Link
+          <a
             href="/login"
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-600 hover:text-[#8E0E0E] transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             Kembali ke Halaman Login
-          </Link>
+          </a>
         </div>
       </div>
     </div>
