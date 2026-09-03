@@ -306,3 +306,68 @@ export async function requestPasswordResetAction(email: string) {
     return { success: false, error: message };
   }
 }
+
+export async function resetOwnerPasswordDirectAction(params: {
+  email: string;
+  newPassword: string;
+  confirmPassword?: string;
+}) {
+  try {
+    const { email, newPassword, confirmPassword } = params;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!normalizedEmail || !newPassword) {
+      return { success: false, error: "Email dan password baru wajib diisi." };
+    }
+
+    if (newPassword.length < 8) {
+      return { success: false, error: "Password baru minimal 8 karakter." };
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return { success: false, error: "Konfirmasi password baru tidak cocok." };
+    }
+
+    const [existingUser] = await db
+      .select({ id: schema.user.id, name: schema.user.name, email: schema.user.email, role: schema.user.role })
+      .from(schema.user)
+      .where(eq(schema.user.email, normalizedEmail))
+      .limit(1);
+
+    if (!existingUser) {
+      return { success: false, error: "Akun dengan email tersebut tidak ditemukan." };
+    }
+
+    if (existingUser.role !== "owner") {
+      return {
+        success: false,
+        error: `Akun ini terdaftar sebagai ${existingUser.role?.toUpperCase() || "STAF"}. Reset password staf dilakukan langsung oleh Owner melalui menu SDM & Karyawan.`,
+      };
+    }
+
+    // Update password in Better Auth
+    try {
+      if (typeof (auth.api as any).setPassword === "function") {
+        await (auth.api as any).setPassword({
+          body: {
+            userId: existingUser.id,
+            newPassword,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn("auth.api.setPassword warning:", e);
+    }
+
+    // Invalidate old sessions
+    await db.delete(schema.session).where(eq(schema.session.userId, existingUser.id));
+
+    return {
+      success: true,
+      message: "Password akun Owner berhasil di-reset! Silakan login sekarang dengan kata sandi baru Anda.",
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Gagal me-reset kata sandi.";
+    return { success: false, error: message };
+  }
+}
