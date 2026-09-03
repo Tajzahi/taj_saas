@@ -5,25 +5,28 @@ import { useState, useEffect } from 'react';
 
 import { ShoppingCart, Menu, X, ChevronDown } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
-type DbStoreSettings = any;
 
-export default function Header() {
+type LayoutSettings = {
+  store_name: string;
+  logo_url: string | null;
+  primary_color: string;
+  secondary_color: string;
+  whatsapp_number: string;
+  tagline?: string;
+};
+
+export default function Header({ settings }: { settings?: LayoutSettings }) {
   const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [eventOpen, setEventOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [settings, setSettings] = useState<DbStoreSettings | null>(null);
 
   const totalItems = useCartStore((s) => s.getTotalItems());
   const location = usePathname();
 
-  // Mark as mounted after first client render to avoid SSR/localStorage hydration mismatch
-  useEffect(() => { 
-    setMounted(true); 
-    fetch('/api/settings').then(res => res.json()).then(setSettings).catch(console.error);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -40,10 +43,10 @@ export default function Header() {
   const isHome = location === '/';
   const isWhiteHeader = !isHome || scrolled;
   const storeName = settings?.store_name || "";
-  const tagline = (settings as any)?.tagline || "";
+  const tagline = settings?.tagline || "";
 
-  const primaryColor = (settings as any)?.primary_color || (settings as any)?.primaryColor || '#8E0E0E';
-  const secondaryColor = (settings as any)?.secondary_color || (settings as any)?.secondaryColor || '#E05009';
+  const primaryColor = settings?.primary_color || '#8E0E0E';
+  const secondaryColor = settings?.secondary_color || '#E05009';
 
   return (
     <>

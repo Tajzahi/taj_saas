@@ -6,26 +6,26 @@ import { useRouter, usePathname } from 'next/navigation';
 import { ShoppingCart } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 
-export default function FloatingButtons() {
+interface FloatingButtonsProps {
+  whatsappNumber?: string;
+  storeName?: string;
+}
+
+export default function FloatingButtons({ whatsappNumber, storeName }: FloatingButtonsProps) {
   const router = useRouter();
   const pathname = usePathname();
   const totalItems = useCartStore((s) => s.getTotalItems());
   const [mounted, setMounted] = useState(false);
-  const [waLink, setWaLink] = useState("https://wa.me/?text=Halo%20Admin%2C%20saya%20ingin%20bertanya");
 
-  useEffect(() => {
-    setMounted(true);
-    fetch('/api/settings')
-      .then((res) => res.json())
-      .then((st) => {
-        if (st && st.whatsapp_number) {
-          const cleanWa = st.whatsapp_number.replace(/[^0-9]/g, '');
-          const name = st.store_name || "Admin";
-          setWaLink(`https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${name}, saya ingin bertanya seputar menu.`)}`);
-        }
-      })
-      .catch(() => {});
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
+
+  const cleanWa = (whatsappNumber || '').replace(/[^0-9]/g, '');
+  const name = storeName || 'Admin';
+  const waLink = cleanWa
+    ? `https://wa.me/${cleanWa}?text=${encodeURIComponent(`Halo ${name}, saya ingin bertanya seputar menu.`)}`
+    : `https://wa.me/?text=${encodeURIComponent('Halo Admin, saya ingin bertanya')}`;
+
+
 
   return (
     <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-3">
