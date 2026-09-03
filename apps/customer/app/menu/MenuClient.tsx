@@ -21,42 +21,34 @@ const getCategoryIcon = (id: string) => {
   }
 };
 
-export default function MenuClient() {
+interface MenuClientProps {
+  initialItems: MenuItem[];
+  initialCategories: { id: MenuCategory | string; label: string; icon: string }[];
+  menuSubtitle?: string;
+}
+
+export default function MenuClient({ initialItems, initialCategories, menuSubtitle }: MenuClientProps) {
   const [activeCategory, setActiveCategory] = useState<MenuCategory | string>('semua');
   const [search, setSearch] = useState('');
   const [sort, setSort] = useState<SortOption>('default');
-  const [menuItemsState, setMenuItemsState] = useState<MenuItem[]>([]);
-  const [categoriesState, setCategoriesState] = useState<{ id: MenuCategory | string; label: string; icon: string }[]>([]);
 
-  // Load filter state from sessionStorage on mount & fetch database data
+  // Data dari SSR — tidak perlu fetch ulang
+  const menuItemsState = initialItems;
+  const categoriesState = initialCategories;
+
+  // Restore filter state dari sessionStorage saat mount (UI state saja, bukan data)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedCategory = sessionStorage.getItem('last_menu_category');
-      if (savedCategory) {
-        setActiveCategory(savedCategory);
-      }
+      if (savedCategory) setActiveCategory(savedCategory);
       const savedSearch = sessionStorage.getItem('last_menu_search');
-      if (savedSearch) {
-        setSearch(savedSearch);
-      }
+      if (savedSearch) setSearch(savedSearch);
       const savedSort = sessionStorage.getItem('last_menu_sort');
-      if (savedSort) {
-        setSort(savedSort as SortOption);
-      }
+      if (savedSort) setSort(savedSort as SortOption);
     }
-
-    async function loadData() {
-      try {
-        const res = await fetch('/api/menu-data');
-        const data = await res.json();
-        if (data.categories && data.categories.length > 0) setCategoriesState(data.categories);
-        if (data.items && data.items.length > 0) setMenuItemsState(data.items);
-      } catch (err) {
-        console.error('Gagal mengambil data menu:', err);
-      }
-    }
-    loadData();
   }, []);
+
+
 
   const handleCategoryChange = (cat: MenuCategory | string) => {
     setActiveCategory(cat);
@@ -141,12 +133,6 @@ export default function MenuClient() {
   const cleanCategories = categoriesState.filter((c, index, self) => c.id !== 'semua' && self.findIndex(t => t.id === c.id) === index);
   const allCategories = [{ id: 'semua' as const, label: 'Semua', icon: '🍽️' }, ...cleanCategories];
 
-  const [settings, setSettings] = useState<any>(null);
-
-  useEffect(() => {
-    fetch('/api/settings').then(res => res.json()).then(setSettings).catch(() => {});
-  }, []);
-
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
       {/* Page Header */}
@@ -156,7 +142,7 @@ export default function MenuClient() {
             Menu Kami
           </h1>
           <p className="text-white/90 text-base sm:text-lg max-w-xl mx-auto">
-            {settings?.menu_subtitle || "Pilihan menu lezat dan terbaik untuk Anda. Dibuat fresh setiap hari!"}
+            {menuSubtitle || "Pilihan menu lezat dan terbaik untuk Anda. Dibuat fresh setiap hari!"}
           </p>
         </div>
       </div>

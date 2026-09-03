@@ -1,7 +1,20 @@
+import MenuClient from "./MenuClient";
+import { getStoreSettings, getMenuItems, getCategories } from "@/lib/db/menuService";
+
 export const dynamic = "force-dynamic";
 
-import MenuClient from "./MenuClient";
+export default async function MenuPage() {
+  const [settings, items, categories] = await Promise.all([
+    getStoreSettings(),
+    getMenuItems(),
+    getCategories(),
+  ]);
 
-export default function MenuPage() {
-  return <MenuClient />;
+  return (
+    <MenuClient
+      initialItems={items}
+      initialCategories={categories}
+      menuSubtitle={settings.menu_subtitle}
+    />
+  );
 }

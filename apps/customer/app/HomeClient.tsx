@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { Star, MapPin, Clock, CheckCircle, ArrowRight, ChevronRight, Award, Truck, Zap, Search, FileText, ShoppingBag, MessageSquare, BadgePercent, UtensilsCrossed } from 'lucide-react';
 import { menuItems as staticMenuItems, popularMenuSlugs, MenuItem } from '@/data/menu';
 import MenuCard from '@/components/MenuCard';
-import { useEffect, useState } from 'react';
 type DbStoreSettings = any;
 
 const defaultValuePropositions = [
@@ -20,38 +19,17 @@ const defaultOrderSteps = [
   { step: '03', icon: 'ShoppingBag', title: 'Siap Dinikmati', desc: 'Pesanan diproses dapur dan siap disajikan untuk Anda' },
 ];
 
-export default function HomeClient() {
-  const [settings, setSettings] = useState<DbStoreSettings>({
-    id: '1',
-    store_name: '',
-    is_open: true,
-    whatsapp_number: '',
-    flat_delivery_fee: 10000,
-    minimum_order_amount: 0,
-    store_address: '',
-    google_maps_url: '',
-    opening_hours: '',
-    qris_image_url: '/qris.png',
-    bank_info: '',
-    hero_banner_url: '',
-    outlet_lat: -7.2432537,
-    outlet_lng: 112.7206275,
-  });
-  const [items, setItems] = useState<MenuItem[]>([]);
+interface HomeClientProps {
+  initialSettings: DbStoreSettings;
+  initialItems: MenuItem[];
+}
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const res = await fetch('/api/menu-data');
-        const data = await res.json();
-        if (data.settings) setSettings(data.settings);
-        if (data.items && data.items.length > 0) setItems(data.items);
-      } catch (err) {
-        console.error('Gagal mengambil data dari API, menggunakan statis:', err);
-      }
-    }
-    loadData();
-  }, []);
+export default function HomeClient({ initialSettings, initialItems }: HomeClientProps) {
+  // Data sudah dikirim dari server (SSR), tidak perlu useEffect waterfall
+  const settings = initialSettings;
+  const items = initialItems;
+
+
 
   const isStoreOpen = () => {
     return settings.is_open;

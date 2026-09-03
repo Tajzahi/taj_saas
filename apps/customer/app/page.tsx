@@ -1,7 +1,15 @@
+import HomeClient from "./HomeClient";
+import { getStoreSettings, getMenuItems } from "@/lib/db/menuService";
+
+// Render setiap request (data real-time), namun dengan in-memory cache 60s di menuService.
 export const dynamic = "force-dynamic";
 
-import HomeClient from "./HomeClient";
+export default async function Home() {
+  // Fetch paralel — tidak menunggu satu per satu
+  const [settings, items] = await Promise.all([
+    getStoreSettings(),
+    getMenuItems(),
+  ]);
 
-export default function Home() {
-  return <HomeClient />;
+  return <HomeClient initialSettings={settings} initialItems={items} />;
 }

@@ -3,6 +3,23 @@ import { eq, desc, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MenuItem, MenuCategory, menuItems as staticMenuItems, categories as staticCategories, toppingOptions, extraToppingOptions } from "@/data/menu";
 
+// ─── In-Memory TTL Cache (60s) ───────────────────────────────────────────────
+// Mencegah round-trip berulang ke Neon DB dalam satu serverless instance.
+const CACHE_TTL_MS = 60_000;
+const _cache = new Map<string, { value: unknown; expiresAt: number }>();
+
+function getFromCache<T>(key: string): T | undefined {
+  const entry = _cache.get(key);
+  if (!entry) return undefined;
+  if (Date.now() > entry.expiresAt) { _cache.delete(key); return undefined; }
+  return entry.value as T;
+}
+
+function setToCache<T>(key: string, value: T): void {
+  _cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+}
+
+
 const DEFAULT_OUTLET_LAT = -7.2432537;
 const DEFAULT_OUTLET_LNG = 112.7206275;
 
@@ -93,6 +110,10 @@ function resolveMenuItemVariants(
 }
 
 async function getTenantBySlug(slug: string) {
+  const cacheKey = `tenant:${slug}`;
+  const cached = getFromCache<any>(cacheKey);
+  if (cached !== undefined) return cached;
+
   try {
     let result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
     if (result.length === 0) {
@@ -103,7 +124,9 @@ async function getTenantBySlug(slug: string) {
         .orderBy(desc(schema.tenants.createdAt))
         .limit(1);
     }
-    return result[0] || null;
+    const tenant = result[0] || null;
+    setToCache(cacheKey, tenant);
+    return tenant;
   } catch (err) {
     console.error("[menuService] Error fetching tenant by slug:", err);
     return null;
@@ -124,7 +147,10 @@ async function getTenantSlugFromHeaders(): Promise<string> {
 
 export async function getStoreSettings(): Promise<DbStoreSettings> {
   const slug = await getTenantSlugFromHeaders();
-  
+  const cacheKey = `settings:${slug}`;
+  const cached = getFromCache<DbStoreSettings>(cacheKey);
+  if (cached) return cached;
+
   const tenant = await getTenantBySlug(slug);
   if (!tenant) {
     // Return a neutral default mock if database fails or tenant is not yet seeded
@@ -148,7 +174,7 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
 
   const branding = (tenant.branding as any) || {};
 
-  return {
+  const result: DbStoreSettings = {
     id: tenant.id,
     store_name: tenant.name,
     // Honour admin "buka/tutup toko" toggle (branding.storeOpen); fall back ke status SaaS.
@@ -204,7 +230,11 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
       youtube: branding.socialYoutube || '',
     },
   };
+
+  setToCache(cacheKey, result);
+  return result;
 }
+
 
 export async function getStorePromos(): Promise<any[]> {
   try {
@@ -226,9 +256,12 @@ export async function getStorePromos(): Promise<any[]> {
 }
 
 export async function getCategories(): Promise<{ id: MenuCategory; label: string; icon: string }[]> {
+  const slug = await getTenantSlugFromHeaders();
+  const cacheKey = `categories:${slug}`;
+  const cached = getFromCache<{ id: MenuCategory; label: string; icon: string }[]>(cacheKey);
+  if (cached) return cached;
+
   try {
-    const slug = await getTenantSlugFromHeaders();
-    
     const tenant = await getTenantBySlug(slug);
     if (!tenant) return staticCategories;
 
@@ -238,16 +271,17 @@ export async function getCategories(): Promise<{ id: MenuCategory; label: string
       .orderBy(schema.categories.sortOrder);
 
     if (!dbCategories || dbCategories.length === 0) {
+      setToCache(cacheKey, []);
       return [];
     }
 
-    // Map to the frontend type structure
     const mapped = dbCategories.map(c => ({
       id: c.slug as MenuCategory,
       label: c.name,
       icon: c.slug.includes('kopi') || c.slug.includes('coffee') || c.slug.includes('espresso') ? 'Layers' : c.slug.includes('terang') ? 'Moon' : c.slug.includes('bebek') ? 'Egg' : 'Layers'
     }));
 
+    setToCache(cacheKey, mapped);
     return mapped;
   } catch (err) {
     console.error("[menuService] Error fetching categories:", err);
@@ -256,9 +290,12 @@ export async function getCategories(): Promise<{ id: MenuCategory; label: string
 }
 
 export async function getMenuItems(): Promise<MenuItem[]> {
+  const slug = await getTenantSlugFromHeaders();
+  const cacheKey = `items:${slug}`;
+  const cached = getFromCache<MenuItem[]>(cacheKey);
+  if (cached) return cached;
+
   try {
-    const slug = await getTenantSlugFromHeaders();
-    
     const tenant = await getTenantBySlug(slug);
     if (!tenant) return [];
 
@@ -352,9 +389,11 @@ export async function getMenuItems(): Promise<MenuItem[]> {
       };
     });
 
+    setToCache(cacheKey, mappedDbItems);
     return mappedDbItems;
   } catch (err) {
     console.error("[menuService] Error fetching menu items:", err);
     return [];
   }
 }
+
