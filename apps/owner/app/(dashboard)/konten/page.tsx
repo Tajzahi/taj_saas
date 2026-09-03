@@ -21,6 +21,8 @@ export default function KontenWebCMSPage() {
   const [heroSubtitle, setHeroSubtitle] = useState("Pesan menu favorit pilihan Anda secara praktis, cepat, dan higienis langsung dari gerai resmi kami.");
   const [heroBadgeText, setHeroBadgeText] = useState("Pilihan Menu Spesial & Berkualitas");
   const [heroBannerUrl, setHeroBannerUrl] = useState("");
+  const [heroTitleSize, setHeroTitleSize] = useState<string>("md");
+  const [heroSubtitleSize, setHeroSubtitleSize] = useState<string>("md");
   
   // 4 Keunggulan Toko (Value Props)
   const [valueProps, setValueProps] = useState<any[]>([
@@ -122,6 +124,8 @@ export default function KontenWebCMSPage() {
         if (branding.heroSubtitle) setHeroSubtitle(branding.heroSubtitle);
         if (branding.heroBadgeText) setHeroBadgeText(branding.heroBadgeText);
         if (branding.heroBannerUrl) setHeroBannerUrl(branding.heroBannerUrl);
+        if (branding.heroTitleSize) setHeroTitleSize(branding.heroTitleSize);
+        if (branding.heroSubtitleSize) setHeroSubtitleSize(branding.heroSubtitleSize);
         if (branding.primaryColor) setPrimaryColor(branding.primaryColor);
         if (branding.secondaryColor) setSecondaryColor(branding.secondaryColor);
 
@@ -163,6 +167,8 @@ export default function KontenWebCMSPage() {
       heroSubtitle,
       heroBadgeText,
       heroBannerUrl,
+      heroTitleSize,
+      heroSubtitleSize,
       primaryColor,
       secondaryColor,
       menuSubtitle,
@@ -421,6 +427,46 @@ export default function KontenWebCMSPage() {
               onChange={e => setHeroBadgeText(e.target.value)}
               placeholder="misal: Pilihan Menu Spesial & Berkualitas"
             />
+
+            {/* Font Size Selector for Hero Title */}
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-200 block">
+                  🔤 Ukuran Font Judul Banner (Tipografi Hero)
+                </label>
+                <span className="text-[11px] font-bold text-orange-600 bg-orange-50 dark:bg-orange-950/40 px-2 py-0.5 rounded-lg border border-orange-200">
+                  {heroTitleSize === "sm" ? "Kompak / Kecil (1-2 Baris)" : heroTitleSize === "md" ? "Sedang / Medium (Rekomendasi)" : heroTitleSize === "lg" ? "Besar / Large" : "Ekstra Besar"}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {[
+                  { id: "sm", label: "Kompak / Kecil", desc: "1-2 Baris Ramping (Pas untuk Judul Panjang)", preview: "text-base font-bold" },
+                  { id: "md", label: "Sedang (Medium)", desc: "Seimbang & Estetis (Standar)", preview: "text-lg font-bold" },
+                  { id: "lg", label: "Besar (Large)", desc: "Menonjol (Judul 2-3 Kata)", preview: "text-xl font-black" },
+                  { id: "xl", label: "Ekstra Besar", desc: "Sangat Besar & Dominan", preview: "text-2xl font-black" },
+                ].map((f) => {
+                  const isSelected = (heroTitleSize || "md") === f.id;
+                  return (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => setHeroTitleSize(f.id)}
+                      className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all ${
+                        isSelected
+                          ? "bg-orange-50 dark:bg-orange-950/40 border-orange-500 ring-2 ring-orange-500/20 text-orange-900 dark:text-orange-200 shadow-sm"
+                          : "bg-slate-50 dark:bg-slate-800/40 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100"
+                      }`}
+                    >
+                      <div>
+                        <span className="text-xs font-bold block leading-tight">{f.label}</span>
+                        <span className="text-[10px] text-slate-400 leading-tight block mt-0.5">{f.desc}</span>
+                      </div>
+                      <span className={`${f.preview} mt-2 text-slate-800 dark:text-slate-100`}>Aa</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             
             {/* Banner Background Image Uploader */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">

@@ -49,6 +49,8 @@ const TenantBrandingSchema = z.object({
   heroHighlightTitle: z.string().max(200).optional(),
   heroSubtitle: z.string().max(500).optional(),
   heroBadgeText: z.string().max(100).optional(),
+  heroTitleSize: z.string().max(50).optional(),
+  heroSubtitleSize: z.string().max(50).optional(),
   badgeStripItems: z.array(z.string().max(100)).optional(),
   popularMenuSubtitle: z.string().max(300).optional(),
   ctaTitle: z.string().max(200).optional(),

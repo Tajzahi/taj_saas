@@ -75,6 +75,23 @@ export default function HomeClient() {
   const secondaryColor = (settings as any)?.secondary_color || (settings as any)?.secondaryColor || "#E05009";
   const heroHighlightTitle = (settings as any)?.hero_highlight_title || (settings as any)?.heroHighlightTitle || settings.store_name || "Kualitas Rasa Juara";
 
+  const heroTitleSizeKey = (settings as any)?.hero_title_size || (settings as any)?.heroTitleSize || "md";
+  const heroTitleSizeClasses: Record<string, string> = {
+    sm: "text-2xl sm:text-3xl md:text-4xl lg:text-5xl",
+    md: "text-3xl sm:text-4xl md:text-5xl lg:text-6xl",
+    lg: "text-4xl sm:text-5xl md:text-6xl lg:text-7xl",
+    xl: "text-5xl sm:text-6xl md:text-7xl lg:text-8xl",
+  };
+  const heroTitleClass = heroTitleSizeClasses[heroTitleSizeKey] || heroTitleSizeClasses.md;
+
+  const heroSubtitleSizeKey = (settings as any)?.hero_subtitle_size || (settings as any)?.heroSubtitleSize || "md";
+  const heroSubtitleSizeClasses: Record<string, string> = {
+    sm: "text-sm sm:text-base",
+    md: "text-base sm:text-lg md:text-xl",
+    lg: "text-lg sm:text-xl md:text-2xl",
+  };
+  const heroSubtitleClass = heroSubtitleSizeClasses[heroSubtitleSizeKey] || heroSubtitleSizeClasses.md;
+
   return (
     <div className="min-h-screen">
       {/* ===== HERO SECTION ===== */}
@@ -109,7 +126,7 @@ export default function HomeClient() {
               {settings.hero_badge_text}
             </span>
           )}
-          <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-black text-white leading-tight mb-4 whitespace-pre-line">
+          <h1 className={`${heroTitleClass} font-black text-white leading-tight mb-4 whitespace-pre-line`}>
             {settings.hero_title ? (
               <>
                 {settings.hero_title}<br />
@@ -122,7 +139,7 @@ export default function HomeClient() {
               </>
             )}
           </h1>
-          <p className="text-white/90 text-base sm:text-xl mb-8 max-w-2xl mx-auto leading-relaxed">
+          <p className={`text-white/90 ${heroSubtitleClass} mb-8 max-w-2xl mx-auto leading-relaxed`}>
             {settings.hero_subtitle || "Cita rasa otentik dan sajian berkualitas tinggi. Dibuat dengan bahan pilihan dan disajikan dengan dedikasi terbaik untuk Anda."}
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">

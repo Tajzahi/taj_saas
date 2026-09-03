@@ -171,6 +171,8 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     hero_highlight_title: branding.heroHighlightTitle || undefined,
     hero_subtitle: branding.heroSubtitle || undefined,
     hero_badge_text: branding.heroBadgeText || undefined,
+    hero_title_size: branding.heroTitleSize || 'md',
+    hero_subtitle_size: branding.heroSubtitleSize || 'md',
     primary_color: branding.primaryColor || '#8E0E0E',
     secondary_color: branding.secondaryColor || '#E05009',
     badge_strip_items: branding.badgeStripItems || undefined,
