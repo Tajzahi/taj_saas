@@ -31,10 +31,11 @@
 
 import { db, schema } from "@taj-saas/db";
 import { auth } from "@lib/auth";
-import { eq } from "drizzle-orm";
+import { eq, and, gt } from "drizzle-orm";
 import { headers } from "next/headers";
 import { rateLimiter } from "@lib/server/rate-limiter";
 import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
+import crypto from "crypto";
 
 interface RegisterParams {
   name: string;
@@ -247,38 +248,70 @@ export async function changeOwnerPasswordAction(params: {
   }
 }
 
-export async function requestPasswordResetAction(email: string) {
+export async function requestPasswordResetOtpAction(email: string) {
   try {
     const normalizedEmail = email.trim().toLowerCase();
     if (!normalizedEmail) {
-      return { success: false, error: "Email wajib diisi." };
+      return { success: false, error: "Alamat email wajib diisi." };
     }
 
     const reqHeaders = await headers();
     const forwardedFor = reqHeaders.get("x-forwarded-for") || "";
     const clientIp = forwardedFor.split(",")[0]?.trim() || "127.0.0.1";
 
-    const rateResult = await rateLimiter.check(clientIp, "password_reset_request");
+    const rateResult = await rateLimiter.check(clientIp, "password_reset_otp_request");
     if (!rateResult.allowed) {
       return {
         success: false,
-        error: "Terlalu banyak permintaan reset password. Silakan tunggu beberapa menit.",
+        error: "Terlalu banyak permintaan OTP. Demi keamanan, silakan tunggu 2 menit sebelum mencoba kembali.",
       };
     }
 
-    const existingUser = await db
+    const [existingUser] = await db
       .select({ id: schema.user.id, name: schema.user.name, email: schema.user.email, role: schema.user.role })
       .from(schema.user)
       .where(eq(schema.user.email, normalizedEmail))
       .limit(1);
 
-    if (existingUser.length === 0) {
+    if (!existingUser) {
       return {
-        success: true,
-        message: "Jika email terdaftar, instruksi pemulihan password akan diproses.",
+        success: false,
+        error: "Akun dengan email tersebut tidak ditemukan dalam sistem.",
       };
     }
 
+    if (existingUser.role !== "owner") {
+      return {
+        success: false,
+        error: `Akun ini terdaftar sebagai ${existingUser.role?.toUpperCase() || "STAF"}. Reset password staf dilakukan langsung oleh Owner melalui menu SDM & Karyawan.`,
+      };
+    }
+
+    // 1. Generate Cryptographically Secure 6-Digit OTP
+    // Range 100000 - 999999 (CSPRNG via crypto.randomInt)
+    const otp = crypto.randomInt(100000, 1000000).toString();
+
+    // 2. Hash the OTP before saving to database (SHA-256 + Email Salt)
+    const salt = normalizedEmail;
+    const otpHash = crypto.createHash("sha256").update(`${otp}:${salt}`).digest("hex");
+    const identifier = `reset_otp:${normalizedEmail}`;
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 Minutes expiry
+
+    // 3. Clean up prior OTP tokens for this identifier and insert new token
+    await db.delete(schema.verification).where(eq(schema.verification.identifier, identifier));
+
+    await db.insert(schema.verification).values({
+      id: crypto.randomUUID(),
+      identifier,
+      value: otpHash,
+      expiresAt,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    console.log(`[AUTH SECURITY] 🛡️ Secure OTP generated for ${normalizedEmail} (Expires in 15 mins). OTP: [${otp}]`);
+
+    // 4. Try sending email via Better Auth / SMTP if configured
     try {
       if (typeof (auth.api as any).forgetPassword === "function") {
         await (auth.api as any).forgetPassword({
@@ -289,43 +322,83 @@ export async function requestPasswordResetAction(email: string) {
           headers: reqHeaders,
         });
       }
-    } catch {
-      // Ignore if SMTP is not configured in local/staging
+    } catch (mailErr) {
+      console.warn("[requestPasswordResetOtpAction] Email service notice:", mailErr);
     }
 
-    const userRole = existingUser[0].role || "karyawan";
     return {
       success: true,
-      role: userRole,
-      message: userRole === "owner"
-        ? "Permintaan reset password akun Owner berhasil diterima. Silakan periksa inbox email atau hubungi Administrator Platform."
-        : `Akun Anda terdaftar sebagai Staf (${userRole.toUpperCase()}). Silakan hubungi Pemilik Toko (Owner) untuk me-reset password secara instan dari menu SDM.`,
+      email: normalizedEmail,
+      message: "Kode OTP verifikasi (6 digit) telah diterbitkan. Masukkan kode OTP tersebut untuk mengonfirmasi kepemilikan akun.",
+      // Provide preview hint in development/staging environment for testing
+      debugOtpHint: process.env.NODE_ENV !== "production" ? otp : undefined,
     };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Terjadi kesalahan saat memproses permintaan.";
+    const message = error instanceof Error ? error.message : "Gagal memproses permintaan kode OTP.";
     return { success: false, error: message };
   }
 }
 
-export async function resetOwnerPasswordDirectAction(params: {
+export async function verifyOtpAndResetPasswordAction(params: {
   email: string;
+  otp: string;
   newPassword: string;
   confirmPassword?: string;
 }) {
   try {
-    const { email, newPassword, confirmPassword } = params;
+    const { email, otp, newPassword, confirmPassword } = params;
     const normalizedEmail = email.trim().toLowerCase();
+    const cleanOtp = otp.trim().replace(/[^0-9]/g, "");
 
-    if (!normalizedEmail || !newPassword) {
-      return { success: false, error: "Email dan password baru wajib diisi." };
+    if (!normalizedEmail || !cleanOtp) {
+      return { success: false, error: "Email dan Kode OTP 6-digit wajib diisi." };
     }
 
-    if (newPassword.length < 8) {
+    if (cleanOtp.length !== 6) {
+      return { success: false, error: "Kode OTP harus berupa 6 digit angka." };
+    }
+
+    if (!newPassword || newPassword.length < 8) {
       return { success: false, error: "Password baru minimal 8 karakter." };
     }
 
     if (confirmPassword && newPassword !== confirmPassword) {
       return { success: false, error: "Konfirmasi password baru tidak cocok." };
+    }
+
+    const reqHeaders = await headers();
+    const forwardedFor = reqHeaders.get("x-forwarded-for") || "";
+    const clientIp = forwardedFor.split(",")[0]?.trim() || "127.0.0.1";
+
+    const rateResult = await rateLimiter.check(clientIp, "password_reset_otp_verify");
+    if (!rateResult.allowed) {
+      return {
+        success: false,
+        error: "Terlalu banyak percobaan verifikasi yang salah. Silakan coba lagi setelah 5 menit.",
+      };
+    }
+
+    const identifier = `reset_otp:${normalizedEmail}`;
+    const targetHash = crypto.createHash("sha256").update(`${cleanOtp}:${normalizedEmail}`).digest("hex");
+
+    // Check valid non-expired OTP matching the cryptographically secure hash
+    const [validToken] = await db
+      .select()
+      .from(schema.verification)
+      .where(
+        and(
+          eq(schema.verification.identifier, identifier),
+          eq(schema.verification.value, targetHash),
+          gt(schema.verification.expiresAt, new Date())
+        )
+      )
+      .limit(1);
+
+    if (!validToken) {
+      return {
+        success: false,
+        error: "Kode OTP tidak valid atau sudah kedaluwarsa (masa berlaku 15 menit). Silakan periksa kembali atau minta OTP baru.",
+      };
     }
 
     const [existingUser] = await db
@@ -335,17 +408,10 @@ export async function resetOwnerPasswordDirectAction(params: {
       .limit(1);
 
     if (!existingUser) {
-      return { success: false, error: "Akun dengan email tersebut tidak ditemukan." };
+      return { success: false, error: "Akun pemilik tidak ditemukan." };
     }
 
-    if (existingUser.role !== "owner") {
-      return {
-        success: false,
-        error: `Akun ini terdaftar sebagai ${existingUser.role?.toUpperCase() || "STAF"}. Reset password staf dilakukan langsung oleh Owner melalui menu SDM & Karyawan.`,
-      };
-    }
-
-    // Update password in Better Auth
+    // 1. Update password in Better Auth credential engine
     try {
       if (typeof (auth.api as any).setPassword === "function") {
         await (auth.api as any).setPassword({
@@ -359,15 +425,36 @@ export async function resetOwnerPasswordDirectAction(params: {
       console.warn("auth.api.setPassword warning:", e);
     }
 
-    // Invalidate old sessions
+    // 2. Single-use: Immediately delete the consumed OTP token
+    await db.delete(schema.verification).where(eq(schema.verification.identifier, identifier));
+
+    // 3. Security: Invalidate all existing sessions on all devices
     await db.delete(schema.session).where(eq(schema.session.userId, existingUser.id));
+
+    // 4. Audit Log
+    const [profile] = await db
+      .select({ tenantId: schema.profiles.tenantId })
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, existingUser.id))
+      .limit(1);
+
+    if (profile?.tenantId) {
+      await writeAuditEvent({
+        tenantId: profile.tenantId,
+        actorId: existingUser.id,
+        action: "reset_password_via_otp",
+        entityType: "account",
+        entityId: existingUser.id,
+        details: { email: existingUser.email, method: "otp_verification_verified" },
+      });
+    }
 
     return {
       success: true,
-      message: "Password akun Owner berhasil di-reset! Silakan login sekarang dengan kata sandi baru Anda.",
+      message: "Kata sandi akun Owner berhasil diperbarui dengan aman! Silakan login dengan kata sandi baru Anda.",
     };
   } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Gagal me-reset kata sandi.";
+    const message = error instanceof Error ? error.message : "Gagal memverifikasi OTP dan me-reset kata sandi.";
     return { success: false, error: message };
   }
 }
