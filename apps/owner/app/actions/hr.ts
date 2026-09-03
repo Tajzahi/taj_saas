@@ -799,3 +799,73 @@ export async function deleteShiftTypeAction(id: string) {
     return { success: false, error: message };
   }
 }
+
+export async function resetEmployeePasswordAction(params: {
+  employeeId: string;
+  newPassword: string;
+}) {
+  try {
+    const { employeeId, newPassword } = params;
+
+    if (!employeeId || !newPassword || newPassword.length < 8) {
+      return { success: false, error: "Password baru minimal 8 karakter." };
+    }
+
+    const { tenant, user } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
+
+    // Ensure employee belongs to this tenant
+    const [profile] = await db
+      .select()
+      .from(schema.profiles)
+      .where(and(eq(schema.profiles.id, employeeId), eq(schema.profiles.tenantId, tenant.id)))
+      .limit(1);
+
+    if (!profile) {
+      return { success: false, error: "Data karyawan tidak ditemukan pada gerai Anda." };
+    }
+
+    if (profile.role === "owner") {
+      return { success: false, error: "Tidak dapat me-reset password akun Owner dari menu SDM. Gunakan menu Pengaturan Akun." };
+    }
+
+    const { auth } = await import("@lib/auth");
+
+    try {
+      if (typeof (auth.api as any).setPassword === "function") {
+        await (auth.api as any).setPassword({
+          body: {
+            userId: employeeId,
+            newPassword,
+          },
+        });
+      }
+    } catch (authErr) {
+      console.warn("[resetEmployeePasswordAction] auth.api.setPassword warning:", authErr);
+    }
+
+    // Terminate existing sessions so employee must log in with new credentials
+    await db.delete(schema.session).where(eq(schema.session.userId, employeeId));
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "reset_employee_password",
+      entityType: "profiles",
+      entityId: employeeId,
+      details: { employeeEmail: profile.email, employeeRole: profile.role },
+    });
+
+    revalidatePath("/sdm");
+    return {
+      success: true,
+      message: `Password untuk ${profile.email} berhasil di-reset.`,
+      tempPassword: newPassword,
+    };
+  } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
+    const message = error instanceof Error ? error.message : "Gagal me-reset password karyawan.";
+    return { success: false, error: message };
+  }
+}

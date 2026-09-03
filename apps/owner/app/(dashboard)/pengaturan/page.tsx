@@ -7,7 +7,9 @@ import { Input } from "@/components/ui/Input";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { getTenantSettingsAction, updateTenantBrandingAction, getAuditLogsAction } from "@/app/actions/settings";
 import { getProfilesAction } from "@/app/actions/hr";
+import { changeOwnerPasswordAction } from "@/app/actions/authActions";
 import { ExportDropdown } from "@/components/ui/ExportDropdown";
+import { Eye, EyeOff, Lock, ShieldCheck, UserCheck, KeyRound } from "lucide-react";
 import Link from "next/link";
 import toast from "react-hot-toast";
 
@@ -55,6 +57,14 @@ export default function Pengaturan() {
   // Live Database States
   const [dbUsers, setDbUsers] = useState<any[]>([]);
   const [dbAuditLogs, setDbAuditLogs] = useState<any[]>([]);
+
+  // Password Change States
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     getTenantSettingsAction().then(res => {
@@ -163,6 +173,44 @@ export default function Pengaturan() {
       } else {
         toast.error("Gagal menyimpan pengaturan: " + res.error);
       }
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) {
+      toast.error("Password saat ini dan password baru wajib diisi.");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast.error("Password baru minimal 8 karakter.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("Konfirmasi password baru tidak cocok.");
+      return;
+    }
+
+    setChangingPassword(true);
+    try {
+      const res = await changeOwnerPasswordAction({
+        currentPassword,
+        newPassword,
+        confirmPassword,
+      });
+
+      if (res.success) {
+        toast.success("Password akun Owner berhasil diubah!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        toast.error(res.error || "Gagal mengubah password.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Terjadi kesalahan saat mengubah password.");
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -1039,6 +1087,127 @@ export default function Pengaturan() {
                   <p className="text-[8px] text-slate-400 tracking-wider">*** POWERED BY TAJ POS ***</p>
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeTab === "users" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-fade-in">
+          {/* Change Password Form */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-5">
+            <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="w-9 h-9 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 flex items-center justify-center shrink-0">
+                <KeyRound className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Ubah Kata Sandi (Password) Akun Owner</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Perbarui kata sandi login utama pemilik bisnis Anda secara berkala.</p>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Kata Sandi Saat Ini
+                </label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    required
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Masukkan password lama..."
+                    className="w-full text-xs px-3 py-2 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showCurrentPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Kata Sandi Baru (Minimal 8 Karakter)
+                </label>
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Minimal 8 karakter unik..."
+                    className="w-full text-xs px-3 py-2 pr-10 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showNewPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block mb-1">
+                  Konfirmasi Kata Sandi Baru
+                </label>
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Ulangi password baru..."
+                  className="w-full text-xs px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-red-500"
+                />
+              </div>
+
+              <div className="pt-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={changingPassword}
+                  className="w-full bg-[#8E0E0E] hover:bg-[#9C1B0B] text-white font-bold cursor-pointer"
+                >
+                  {changingPassword ? "Menyimpan Password Baru..." : "Perbarui Kata Sandi Sekarang"}
+                </Button>
+              </div>
+            </form>
+          </div>
+
+          {/* Right Info Column: Security & Staff Reset Guidance */}
+          <div className="space-y-5">
+            <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4">
+              <div className="flex items-center gap-2 text-slate-800 dark:text-slate-200 font-bold text-sm">
+                <ShieldCheck className="w-5 h-5 text-green-600" />
+                <span>Status Keamanan Akun & Tenant</span>
+              </div>
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-xs space-y-2 text-slate-600 dark:text-slate-400">
+                <p><strong>Enkripsi:</strong> Kata sandi Anda diamankan dengan enkripsi salt & hash standar industri (Better Auth Engine).</p>
+                <p><strong>Akses Multi-Device:</strong> Mengganti kata sandi akan mempertahankan sesi login Anda di perangkat ini.</p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200 dark:border-amber-900/40 p-5 space-y-3">
+              <div className="flex items-center gap-2 text-amber-900 dark:text-amber-300 font-bold text-xs">
+                <UserCheck className="w-4 h-4 text-amber-600" />
+                <span>Reset Password Akun Karyawan / Staf</span>
+              </div>
+              <p className="text-xs text-amber-800 dark:text-amber-400 leading-relaxed">
+                Jika staf atau kasir gerai Anda lupa kata sandi mereka, Anda dapat melakukan <strong>Reset Password Instan</strong> secara langsung melalui modul <strong>SDM & Karyawan</strong> tanpa perlu email konfirmasi.
+              </p>
+              <Link
+                href="/sdm"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-900 dark:text-amber-300 hover:underline pt-1"
+              >
+                Buka Menu SDM & Karyawan →
+              </Link>
             </div>
           </div>
         </div>

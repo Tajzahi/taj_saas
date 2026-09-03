@@ -40,10 +40,12 @@ import {
   updateEmployeeShiftAction,
   getShiftTypesAction,
   createShiftTypeAction,
-  deleteShiftTypeAction
+  deleteShiftTypeAction,
+  resetEmployeePasswordAction,
 } from "@/app/actions/hr";
 import { getBranchesAction } from "@/app/actions/branches";
 import { useOwnerStore } from "@/store/ownerStore";
+import { KeyRound, Copy, Check, ShieldAlert } from "lucide-react";
 import toast from "react-hot-toast";
 
 
@@ -94,6 +96,57 @@ export default function SDM() {
   const [editBranchId, setEditBranchId] = useState("");
   const [editSalary, setEditSalary] = useState<number | string>(0);
   const [createdCredentials, setCreatedCredentials] = useState<{ name: string; email: string; tempPassword?: string; role: string } | null>(null);
+
+  // Employee Password Reset States
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetPasswordEmp, setResetPasswordEmp] = useState<{ id: string; name: string; email: string } | null>(null);
+  const [newEmployeePassword, setNewEmployeePassword] = useState("");
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetCopied, setResetCopied] = useState(false);
+  const [resetSuccessData, setResetSuccessData] = useState<{ name: string; email: string; password: string } | null>(null);
+
+  const generateRandomPassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%";
+    let pass = "";
+    for (let i = 0; i < 10; i++) pass += chars.charAt(Math.floor(Math.random() * chars.length));
+    setNewEmployeePassword(pass);
+  };
+
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordEmp || !newEmployeePassword) {
+      toast.error("Password baru wajib diisi.");
+      return;
+    }
+    if (newEmployeePassword.length < 8) {
+      toast.error("Password minimal 8 karakter.");
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const res = await resetEmployeePasswordAction({
+        employeeId: resetPasswordEmp.id,
+        newPassword: newEmployeePassword,
+      });
+
+      if (res.success) {
+        toast.success(res.message || "Password karyawan berhasil di-reset!");
+        setResetSuccessData({
+          name: resetPasswordEmp.name,
+          email: resetPasswordEmp.email,
+          password: newEmployeePassword,
+        });
+        setShowResetModal(false);
+      } else {
+        toast.error(res.error || "Gagal me-reset password karyawan.");
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Terjadi kesalahan sistem saat me-reset password.");
+    } finally {
+      setResetLoading(false);
+    }
+  };
 
   // Master Shift Types States (Synced with DB)
   const [shiftTypesList, setShiftTypesList] = useState<any[]>([]);
@@ -700,6 +753,20 @@ export default function SDM() {
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                           </svg>
                         </Button>
+                        {emp.role !== "owner" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetPasswordEmp({ id: emp.id, name: emp.name, email: emp.email });
+                              setNewEmployeePassword("");
+                              setShowResetModal(true);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40 transition-colors cursor-pointer"
+                            title="Reset Password Karyawan ini"
+                          >
+                            <KeyRound className="w-4 h-4" />
+                          </button>
+                        )}
                         <Button variant="ghost" size="icon" onClick={() => handleDeleteEmployee(emp.id, emp.name)} title="Hapus Staf">
                           <svg className="w-4 h-4 text-red-500 hover:text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1264,6 +1331,150 @@ export default function SDM() {
                 Selesai & Tutup
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 1: Reset Password Input Dialog */}
+      {showResetModal && resetPasswordEmp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center">
+                  <KeyRound className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Reset Password Karyawan</h3>
+                  <p className="text-xs text-slate-500 font-mono">{resetPasswordEmp.name} ({resetPasswordEmp.email})</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowResetModal(false);
+                  setResetPasswordEmp(null);
+                }}
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-sm"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    Password Baru (Minimal 8 Karakter)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={generateRandomPassword}
+                    className="text-xs font-bold text-orange-600 hover:text-orange-700 dark:text-orange-400 hover:underline cursor-pointer"
+                  >
+                    🎲 Buat Password Acak
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  required
+                  value={newEmployeePassword}
+                  onChange={(e) => setNewEmployeePassword(e.target.value)}
+                  placeholder="Ketik atau klik Buat Password Acak..."
+                  className="w-full text-xs font-mono px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                />
+              </div>
+
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/40 rounded-xl text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                <p className="font-semibold flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                  Konfirmasi Keamanan:
+                </p>
+                <p className="text-[11px] leading-relaxed text-amber-700 dark:text-amber-400">
+                  Password lama staf akan langsung diganti dan sesi login aktif staf akan diputus agar staf masuk menggunakan password baru ini.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 text-xs"
+                  onClick={() => {
+                    setShowResetModal(false);
+                    setResetPasswordEmp(null);
+                  }}
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="flex-1 text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold"
+                  disabled={resetLoading}
+                >
+                  {resetLoading ? "Memproses..." : "Terapkan Password"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal 2: Reset Success Credential Display */}
+      {resetSuccessData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-slate-200 dark:border-slate-800 text-center">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mx-auto text-xl">
+              🔑
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Password Karyawan Berhasil Diperbarui!</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                Salin dan serahkan kredensial baru ini kepada staf yang bersangkutan.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-950 p-4 rounded-xl border border-slate-200 dark:border-slate-800 text-left space-y-2.5 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Nama Karyawan</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{resetSuccessData.name}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Email Login</span>
+                <span className="font-mono text-slate-700 dark:text-slate-300">{resetSuccessData.email}</span>
+              </div>
+              <div>
+                <span className="text-slate-400 block text-[10px] uppercase font-bold">Password Baru</span>
+                <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 mt-0.5">
+                  <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400 text-sm">
+                    {resetSuccessData.password}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(resetSuccessData.password);
+                      setResetCopied(true);
+                      toast.success("Password baru disalin!");
+                      setTimeout(() => setResetCopied(false), 2000);
+                    }}
+                    className="text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 flex items-center gap-1 transition-colors"
+                  >
+                    {resetCopied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                    {resetCopied ? "Tersalin" : "Salin"}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="primary"
+              className="w-full text-xs"
+              onClick={() => setResetSuccessData(null)}
+            >
+              Selesai & Tutup
+            </Button>
           </div>
         </div>
       )}

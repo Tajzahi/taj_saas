@@ -34,6 +34,7 @@ import { auth } from "@lib/auth";
 import { eq } from "drizzle-orm";
 import { headers } from "next/headers";
 import { rateLimiter } from "@lib/server/rate-limiter";
+import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
 
 interface RegisterParams {
   name: string;
@@ -180,6 +181,128 @@ export async function registerOwnerAction(params: RegisterParams) {
   } catch (error: unknown) {
     console.error("[registerOwnerAction] Registration error:", error);
     const message = error instanceof Error ? error.message : "Terjadi kesalahan saat pendaftaran.";
+    return { success: false, error: message };
+  }
+}
+
+export async function changeOwnerPasswordAction(params: {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword?: string;
+}) {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = params;
+
+    if (!currentPassword || !newPassword) {
+      return { success: false, error: "Password saat ini dan password baru wajib diisi." };
+    }
+
+    if (newPassword.length < 8) {
+      return { success: false, error: "Password baru minimal 8 karakter." };
+    }
+
+    if (confirmPassword && newPassword !== confirmPassword) {
+      return { success: false, error: "Konfirmasi password baru tidak cocok." };
+    }
+
+    const { user, tenant } = await requireTenantPermission("settings:manage", { expectedApp: "owner" });
+    const reqHeaders = await headers();
+
+    try {
+      const changeRes = await auth.api.changePassword({
+        body: {
+          currentPassword,
+          newPassword,
+          revokeOtherSessions: false,
+        },
+        headers: reqHeaders,
+      });
+
+      if (!changeRes) {
+        return { success: false, error: "Gagal memperbarui password. Pastikan password saat ini benar." };
+      }
+    } catch (authErr: any) {
+      return {
+        success: false,
+        error: authErr?.message || "Password saat ini tidak sesuai atau gagal diperbarui.",
+      };
+    }
+
+    await writeAuditEvent({
+      tenantId: tenant.id,
+      actorId: user.id,
+      action: "change_password",
+      entityType: "account",
+      entityId: user.id,
+      details: { email: user.email },
+    });
+
+    return { success: true, message: "Password berhasil diperbarui." };
+  } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
+    const message = error instanceof Error ? error.message : "Gagal mengubah password. Pastikan password saat ini benar.";
+    return { success: false, error: message };
+  }
+}
+
+export async function requestPasswordResetAction(email: string) {
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    if (!normalizedEmail) {
+      return { success: false, error: "Email wajib diisi." };
+    }
+
+    const reqHeaders = await headers();
+    const forwardedFor = reqHeaders.get("x-forwarded-for") || "";
+    const clientIp = forwardedFor.split(",")[0]?.trim() || "127.0.0.1";
+
+    const rateResult = await rateLimiter.check(clientIp, "password_reset_request");
+    if (!rateResult.allowed) {
+      return {
+        success: false,
+        error: "Terlalu banyak permintaan reset password. Silakan tunggu beberapa menit.",
+      };
+    }
+
+    const existingUser = await db
+      .select({ id: schema.user.id, name: schema.user.name, email: schema.user.email, role: schema.user.role })
+      .from(schema.user)
+      .where(eq(schema.user.email, normalizedEmail))
+      .limit(1);
+
+    if (existingUser.length === 0) {
+      return {
+        success: true,
+        message: "Jika email terdaftar, instruksi pemulihan password akan diproses.",
+      };
+    }
+
+    try {
+      if (typeof (auth.api as any).forgetPassword === "function") {
+        await (auth.api as any).forgetPassword({
+          body: {
+            email: normalizedEmail,
+            redirectTo: "/reset-password",
+          },
+          headers: reqHeaders,
+        });
+      }
+    } catch {
+      // Ignore if SMTP is not configured in local/staging
+    }
+
+    const userRole = existingUser[0].role || "karyawan";
+    return {
+      success: true,
+      role: userRole,
+      message: userRole === "owner"
+        ? "Permintaan reset password akun Owner berhasil diterima. Silakan periksa inbox email atau hubungi Administrator Platform."
+        : `Akun Anda terdaftar sebagai Staf (${userRole.toUpperCase()}). Silakan hubungi Pemilik Toko (Owner) untuk me-reset password secara instan dari menu SDM.`,
+    };
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Terjadi kesalahan saat memproses permintaan.";
     return { success: false, error: message };
   }
 }

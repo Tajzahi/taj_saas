@@ -24,6 +24,7 @@ export default function LoginPage({
   const [password, setPassword] = useState('');
   const [startingCash, setStartingCash] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showForgotHelp, setShowForgotHelp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -136,9 +137,18 @@ export default function LoginPage({
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
-                  Password
-                </label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">
+                    Password
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotHelp(true)}
+                    className="text-xs font-semibold text-red-600 hover:text-red-700 hover:underline cursor-pointer"
+                  >
+                    Lupa Password?
+                  </button>
+                </div>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}
@@ -213,6 +223,38 @@ export default function LoginPage({
           © {new Date().getFullYear()} {businessName || "TajDigital SaaS"} {storeCity ? `· ${storeCity}` : ""}
         </p>
       </div>
+
+      {/* Forgot Password Help Modal */}
+      {showForgotHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-gray-100">
+            <div className="w-10 h-10 rounded-xl bg-red-100 text-red-600 flex items-center justify-center font-bold text-lg">
+              🔑
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Lupa Password Akun Kasir / Staf?</h3>
+              <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+                Demi keamanan sistem toko, password akun operasional kasir & staf dapat di-reset langsung oleh <strong>Pemilik Bisnis (Owner)</strong> melalui <strong>Dashboard SDM & Karyawan</strong>.
+              </p>
+            </div>
+            <div className="bg-gray-50 p-3.5 rounded-xl border border-gray-200 text-xs text-gray-700 space-y-1.5">
+              <p className="font-semibold text-gray-800">Langkah Pemulihan:</p>
+              <ol className="list-decimal pl-4 space-y-1 text-gray-600">
+                <li>Hubungi Owner toko Anda.</li>
+                <li>Owner akan membuka menu SDM & memilih akun Anda.</li>
+                <li>Owner klik <strong>Reset Password</strong> & memberikan password baru kepada Anda.</li>
+              </ol>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowForgotHelp(false)}
+              className="w-full py-2.5 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition-all cursor-pointer"
+            >
+              Mengerti & Tutup
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
