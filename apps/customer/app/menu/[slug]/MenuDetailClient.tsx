@@ -1,79 +1,33 @@
 "use client";
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useParams } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
-import { ArrowLeft, Minus, Plus, ShoppingCart, Star, Utensils, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, ShoppingCart, Utensils, AlertCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getMenuBySlug, getRelatedMenus, formatPrice, MenuItem } from '@/data/menu';
+import { formatPrice, MenuItem } from '@/data/menu';
 import { useCartStore, CartItemVariant } from '@/store/cartStore';
 import MenuCard from '@/components/MenuCard';
 
-export default function MenuDetailClient({ slug: propSlug }: { slug?: string }) {
-  const slug = propSlug || "";
+interface MenuDetailClientProps {
+  slug?: string;
+  initialItem: MenuItem | null;
+  initialRelated: MenuItem[];
+}
+
+export default function MenuDetailClient({ initialItem, initialRelated }: MenuDetailClientProps) {
   const router = useRouter();
   const addItem = useCartStore((s) => s.addItem);
 
-  const [item, setItem] = useState<MenuItem | null>(null);
-  const [relatedMenus, setRelatedMenus] = useState<MenuItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Data sudah dari SSR — tidak perlu fetch atau loading state
+  const item = initialItem;
+  const relatedMenus = initialRelated;
+
   const [selectedVariants, setSelectedVariants] = useState<Record<string, CartItemVariant>>({});
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
 
-  useEffect(() => {
-    if (!slug) return;
-    async function loadItem() {
-      try {
-        const res = await fetch('/api/menu-data');
-        const data = await res.json();
-        const allItems: MenuItem[] = data.items && data.items.length > 0 ? data.items : [];
-        const found = allItems.find(i => i.slug === slug);
-        if (found) {
-          setItem(found);
-        } else {
-          const staticFound = getMenuBySlug(slug);
-          if (staticFound) setItem(staticFound);
-        }
-      } catch (err) {
-        console.error('Gagal mengambil item menu dari database:', err);
-        const staticFound = getMenuBySlug(slug);
-        if (staticFound) setItem(staticFound);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadItem();
-  }, [slug]);
-
-  useEffect(() => {
-    if (!item) return;
-    const slugs = item.relatedSlugs || [];
-    async function loadRelated() {
-      try {
-        const res = await fetch('/api/menu-data');
-        const data = await res.json();
-        const allItems: MenuItem[] = data.items && data.items.length > 0 ? data.items : [];
-        const foundRelated = allItems.filter(i => slugs.includes(i.slug));
-        setRelatedMenus(foundRelated.length > 0 ? foundRelated : getRelatedMenus(slugs));
-      } catch (err) {
-        setRelatedMenus(getRelatedMenus(slugs));
-      }
-    }
-    loadRelated();
-  }, [item]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center pt-16 bg-gray-50">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-[#8E0E0E] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-gray-500 font-medium">Memuat detail menu...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (!item) {
     return (
@@ -171,10 +125,11 @@ export default function MenuDetailClient({ slug: propSlug }: { slug?: string }) 
                 </span>
                 <h1 className="text-2xl sm:text-3xl font-black text-gray-900">{item.name}</h1>
               </div>
-              <div className="flex items-center gap-1 bg-yellow-50 px-3 py-1.5 rounded-xl">
-                <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
-                <span className="font-bold text-gray-800 text-sm">4.9</span>
-              </div>
+              {item.badge && (
+                <span className={`text-sm font-bold px-3 py-1.5 rounded-full ${badgeConfig[item.badge].cls}`}>
+                  {badgeConfig[item.badge].label}
+                </span>
+              )}
             </div>
 
             <p className="text-2xl sm:text-3xl font-black text-[#8E0E0E] mb-4">
