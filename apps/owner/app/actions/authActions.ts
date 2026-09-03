@@ -411,18 +411,31 @@ export async function verifyOtpAndResetPasswordAction(params: {
       return { success: false, error: "Akun pemilik tidak ditemukan." };
     }
 
-    // 1. Update password in Better Auth credential engine
-    try {
-      if (typeof (auth.api as any).setPassword === "function") {
-        await (auth.api as any).setPassword({
-          body: {
-            userId: existingUser.id,
-            newPassword,
-          },
-        });
-      }
-    } catch (e) {
-      console.warn("auth.api.setPassword warning:", e);
+    // 1. Hash password with Better Auth's standard scrypt crypto engine
+    const { hashPassword } = await import("better-auth/crypto");
+    const hashedPassword = await hashPassword(newPassword);
+
+    const [existingAccount] = await db
+      .select()
+      .from(schema.account)
+      .where(and(eq(schema.account.userId, existingUser.id), eq(schema.account.providerId, "credential")))
+      .limit(1);
+
+    if (existingAccount) {
+      await db
+        .update(schema.account)
+        .set({ password: hashedPassword, updatedAt: new Date() })
+        .where(eq(schema.account.id, existingAccount.id));
+    } else {
+      await db.insert(schema.account).values({
+        id: crypto.randomUUID(),
+        accountId: existingUser.id,
+        providerId: "credential",
+        userId: existingUser.id,
+        password: hashedPassword,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
 
     // 2. Single-use: Immediately delete the consumed OTP token

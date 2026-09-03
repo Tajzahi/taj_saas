@@ -828,19 +828,32 @@ export async function resetEmployeePasswordAction(params: {
       return { success: false, error: "Tidak dapat me-reset password akun Owner dari menu SDM. Gunakan menu Pengaturan Akun." };
     }
 
-    const { auth } = await import("@lib/auth");
+    // Hash password with Better Auth crypto engine and update account
+    const { hashPassword } = await import("better-auth/crypto");
+    const hashedPassword = await hashPassword(newPassword);
 
-    try {
-      if (typeof (auth.api as any).setPassword === "function") {
-        await (auth.api as any).setPassword({
-          body: {
-            userId: employeeId,
-            newPassword,
-          },
-        });
-      }
-    } catch (authErr) {
-      console.warn("[resetEmployeePasswordAction] auth.api.setPassword warning:", authErr);
+    const [existingAccount] = await db
+      .select()
+      .from(schema.account)
+      .where(and(eq(schema.account.userId, employeeId), eq(schema.account.providerId, "credential")))
+      .limit(1);
+
+    if (existingAccount) {
+      await db
+        .update(schema.account)
+        .set({ password: hashedPassword, updatedAt: new Date() })
+        .where(eq(schema.account.id, existingAccount.id));
+    } else {
+      const cryptoModule = await import("crypto");
+      await db.insert(schema.account).values({
+        id: cryptoModule.randomUUID(),
+        accountId: employeeId,
+        providerId: "credential",
+        userId: employeeId,
+        password: hashedPassword,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
     }
 
     // Terminate existing sessions so employee must log in with new credentials
