@@ -214,7 +214,7 @@ export async function changeOwnerPasswordAction(params: {
         body: {
           currentPassword,
           newPassword,
-          revokeOtherSessions: false,
+          revokeOtherSessions: true,
         },
         headers: reqHeaders,
       });
@@ -309,7 +309,7 @@ export async function requestPasswordResetOtpAction(email: string) {
       updatedAt: new Date(),
     });
 
-    console.log(`[AUTH SECURITY] 🛡️ Secure OTP generated for ${normalizedEmail} (Expires in 15 mins). OTP: [${otp}]`);
+    console.log(`[AUTH SECURITY] 🛡️ Secure OTP generated for ${normalizedEmail} (Expires in 15 mins).`);
 
     // 4. Try sending email via Better Auth / SMTP if configured
     try {
@@ -330,8 +330,6 @@ export async function requestPasswordResetOtpAction(email: string) {
       success: true,
       email: normalizedEmail,
       message: "Kode OTP verifikasi (6 digit) telah diterbitkan. Masukkan kode OTP tersebut untuk mengonfirmasi kepemilikan akun.",
-      // Provide preview hint in development/staging environment for testing
-      debugOtpHint: process.env.NODE_ENV !== "production" ? otp : undefined,
     };
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Gagal memproses permintaan kode OTP.";

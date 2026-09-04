@@ -97,7 +97,7 @@ export async function resolveTenantMiddleware(
   const { slug, appType, isLocalhost } = parseTenantFromHostname(hostname);
 
   // Development redirects between ports (localhost only)
-  if (isLocalhost && !hostname.includes('.run.app') && !hostname.includes('.netlify.app') && !hostname.includes('.vercel.app')) {
+  if (isLocalhost && !hostname.includes('.run.app')) {
     if (appType !== currentApp) {
       const url = request.nextUrl.clone();
       if (appType === 'customer') url.port = '3000';
@@ -140,30 +140,11 @@ export async function resolveTenantMiddleware(
 
     let tenant = tenantResult[0];
 
-    // Fallback untuk domain staging/Cloud Run jika slug default 'taj-saas' tidak ditemukan.
-    // BUG FIX: Kondisi NODE_ENV !== 'production' dihapus.
-    // Cloud Run selalu set NODE_ENV=production, sehingga kondisi tersebut memblokir fallback di staging.
     if (!tenant) {
-      const isKnownStagingHost =
-        hostname.includes('.a.run.app') ||
-        hostname.includes('.run.app') ||
-        hostname.includes('localhost');
-
-      if (isKnownStagingHost) {
-        const [latestTenant] = await db
-          .select()
-          .from(schema.tenants)
-          .where(eq(schema.tenants.isActive, true))
-          .orderBy(desc(schema.tenants.createdAt))
-          .limit(1);
-        if (latestTenant) {
-          tenant = latestTenant;
-        }
-      }
-    }
-
-    if (!tenant) {
-      return { error: 'Tenant not found', status: 404 };
+      return {
+        error: 'Tolong cek tenant Anda kembali atau hubungi developer pada nomor WhatsApp 087811123482.',
+        status: 404,
+      };
     }
 
     if (!tenant.isActive) {

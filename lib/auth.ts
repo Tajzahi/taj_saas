@@ -59,8 +59,6 @@ const isPublicSuffix = Boolean(
   cookieDomain && (
     cookieDomain.endsWith('.a.run.app') ||
     cookieDomain.endsWith('.run.app') ||
-    cookieDomain.endsWith('.vercel.app') ||
-    cookieDomain.endsWith('.netlify.app') ||
     cookieDomain.includes('localhost')
   )
 );
@@ -83,8 +81,7 @@ export const auth = betterAuth({
     "http://localhost:3002",
     "https://*.a.run.app",
     "https://*.run.app",
-    "https://*.netlify.app",
-    "https://*.vercel.app",
+    ...(process.env.TRUSTED_ORIGINS ? process.env.TRUSTED_ORIGINS.split(',').map(s => s.trim()) : []),
   ],
   
   // [BARIS 64-73]: Atribut tambahan pada tabel user (Menyimpan Role: owner/manager/kasir)

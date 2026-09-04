@@ -265,7 +265,7 @@ export async function updateEmployeeShiftAction(id: string, shift: string) {
 
 export async function deleteEmployeeAction(id: string) {
   try {
-    const { tenant, user } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
+    const { tenant, user, profile: callerProfile } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
 
     // Prevent self-deletion
     if (user.id === id) {
@@ -281,6 +281,14 @@ export async function deleteEmployeeAction(id: string) {
     const targetProfile = targetProfiles[0];
     if (!targetProfile) {
       return { success: false, error: "Karyawan tidak ditemukan pada outlet/tenant ini." };
+    }
+
+    // Only an active Owner can delete an Owner account
+    if (targetProfile.role === "owner" && callerProfile.role !== "owner") {
+      return {
+        success: false,
+        error: "Hanya akun dengan peran Pemilik (Owner) yang berhak menghapus akun Owner.",
+      };
     }
 
     // If deleting an owner, ensure at least one other owner remains
@@ -321,7 +329,7 @@ export async function deleteEmployeeAction(id: string) {
 
 export async function updateStaffRoleAction(profileId: string, role: string) {
   try {
-    const { tenant, user } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
+    const { tenant, user, profile: callerProfile } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
 
     const allowedRoles = ["owner", "manager", "kasir"];
     if (!allowedRoles.includes(role)) {
@@ -337,6 +345,14 @@ export async function updateStaffRoleAction(profileId: string, role: string) {
     const targetProfile = targetProfiles[0];
     if (!targetProfile) {
       return { success: false, error: "Profile tidak ditemukan pada tenant ini." };
+    }
+
+    // Enforce role hierarchy: only an active Owner can assign or revoke the 'owner' role
+    if ((role === "owner" || targetProfile.role === "owner") && callerProfile.role !== "owner") {
+      return {
+        success: false,
+        error: "Hanya akun dengan peran Pemilik (Owner) yang berhak menetapkan atau mengubah peran Owner.",
+      };
     }
 
     // Check last owner constraint
@@ -387,7 +403,7 @@ export async function createEmployeeInvitationAction(data: {
   salary?: number;
 }) {
   try {
-    const { tenant, user } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
+    const { tenant, user, profile: callerProfile } = await requireTenantPermission("hr:manage", { expectedApp: "owner" });
 
     const normalizedEmail = data.email.trim().toLowerCase();
     if (!normalizedEmail || !normalizedEmail.includes("@")) {
@@ -396,6 +412,14 @@ export async function createEmployeeInvitationAction(data: {
 
     const allowedRoles = ["manager", "kasir", "owner"];
     const role = allowedRoles.includes(data.role) ? data.role : "kasir";
+
+    // Enforce role hierarchy: only an active Owner can invite another Owner
+    if (role === "owner" && callerProfile.role !== "owner") {
+      return {
+        success: false,
+        error: "Hanya akun dengan peran Pemilik (Owner) yang berhak mengundang pengguna dengan peran Owner.",
+      };
+    }
 
     // Generate secure 32-byte token
     const cryptoModule = await import("crypto");

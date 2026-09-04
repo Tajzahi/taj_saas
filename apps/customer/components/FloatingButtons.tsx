@@ -27,6 +27,8 @@ export default function FloatingButtons({ whatsappNumber, storeName }: FloatingB
 
 
 
+  const isCartOrCheckout = pathname === '/cart' || pathname === '/checkout';
+
   return (
     <div className="fixed bottom-6 right-4 z-40 flex flex-col gap-3">
       {/* WhatsApp Button */}
@@ -42,8 +44,8 @@ export default function FloatingButtons({ whatsappNumber, storeName }: FloatingB
         </svg>
       </a>
 
-      {/* Cart Float Button — only shown after mount to avoid hydration mismatch */}
-      {mounted && totalItems > 0 && (
+      {/* Cart Float Button — only shown after mount and not on cart/checkout to avoid redundancy */}
+      {mounted && totalItems > 0 && !isCartOrCheckout && (
         <button
           onClick={(e) => {
             e.preventDefault();

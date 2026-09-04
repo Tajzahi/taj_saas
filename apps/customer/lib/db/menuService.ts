@@ -115,15 +115,7 @@ async function getTenantBySlug(slug: string) {
   if (cached !== undefined) return cached;
 
   try {
-    let result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
-    if (result.length === 0) {
-      result = await db
-        .select()
-        .from(schema.tenants)
-        .where(eq(schema.tenants.isActive, true))
-        .orderBy(desc(schema.tenants.createdAt))
-        .limit(1);
-    }
+    const result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
     const tenant = result[0] || null;
     setToCache(cacheKey, tenant);
     return tenant;

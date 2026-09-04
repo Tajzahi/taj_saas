@@ -226,32 +226,14 @@ export async function resolveTenantFromRequestHost(
     )
     .limit(1);
 
-  // Fallback for staging/Cloud Run environments if slug 'taj-saas' is not found
-  // BUG FIX: Removed NODE_ENV !== 'production' — Cloud Run always sets NODE_ENV=production,
-  // which blocked this fallback entirely in staging.
-  if (tenantResult.length === 0) {
-    const isKnownStagingHost =
-      norm.hostname.includes('.a.run.app') ||
-      norm.hostname.includes('.run.app') ||
-      norm.hostname.includes('localhost');
-
-    if (isKnownStagingHost) {
-      const [latestTenant] = await db
-        .select()
-        .from(schema.tenants)
-        .where(eq(schema.tenants.isActive, true))
-        .orderBy(desc(schema.tenants.createdAt))
-        .limit(1);
-      if (latestTenant) {
-        tenantResult = [latestTenant];
-      }
-    }
-  }
-
   const tenant = tenantResult[0];
 
   if (!tenant || !tenant.isActive) {
-    throw new AuthorizationError('TENANT_NOT_FOUND', 404, 'Tenant tidak ditemukan atau tidak aktif');
+    throw new AuthorizationError(
+      'TENANT_NOT_FOUND',
+      404,
+      'Tolong cek tenant Anda kembali atau hubungi developer pada nomor WhatsApp 087811123482.'
+    );
   }
 
   return tenant;

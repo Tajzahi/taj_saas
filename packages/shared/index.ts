@@ -15,9 +15,8 @@ export function parseTenantFromHostname(hostname: string): ParsedTenant {
   const parts = hostname.split(':');
   const host = parts[0].toLowerCase().replace(/\.$/, '');
   const port = parts[1] || '';
-  
   const isLocalhost = host.endsWith('.localhost') || host === 'localhost' || host === '127.0.0.1';
-  const isCloudPlatform = host.endsWith('.a.run.app') || host.endsWith('.run.app') || host.endsWith('.netlify.app') || host.endsWith('.vercel.app');
+  const isCloudPlatform = host.endsWith('.a.run.app') || host.endsWith('.run.app');
 
   let slug: string | null = null;
   let appType: 'customer' | 'admin' | 'owner' = 'customer';

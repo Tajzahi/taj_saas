@@ -261,14 +261,15 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
             </button>
           )}
 
-          {/* POS Offline Button (Non-Mobile Mode: Only Cart Icon in Header) */}
+          {/* POS Offline Button */}
           {activeShift && (
             <button
               onClick={() => setIsPOSOfflineOpen(true)}
-              className="hidden sm:flex items-center justify-center p-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-all shadow-md shrink-0 border border-white/20 cursor-pointer"
+              className="flex items-center justify-center p-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-black bg-orange-500 hover:bg-orange-600 active:scale-95 text-white transition-all shadow-md shrink-0 border border-white/20 cursor-pointer"
               title="Buka Mode Kasir POS Offline"
             >
-              <ShoppingCart className="w-4 h-4 text-white" />
+              <ShoppingCart className="w-3.5 h-3.5 text-white" />
+              <span className="hidden sm:inline ml-1.5">POS Kasir</span>
             </button>
           )}
           <button
@@ -462,15 +463,6 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
           <span>Pesanan Hari Ini: <strong className="text-gray-700">{todayOrders.length}</strong></span>
           <span>Menunggu Verifikasi: <strong className="text-amber-600">{todayOrders.filter(o => o.paymentStatus === 'waiting_verification').length}</strong></span>
           <span>© {new Date().getFullYear()} {storeName || 'Portal Operasional'}</span>
-          {activeShift && (
-            <button
-              onClick={() => setIsPOSOfflineOpen(true)}
-              className="p-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 active:scale-95 text-white transition-all shadow-sm shrink-0 border border-white/20 cursor-pointer ml-1"
-              title="Buka Mode Kasir POS Offline (Direct Order)"
-            >
-              <ShoppingCart className="w-3.5 h-3.5 text-white" />
-            </button>
-          )}
         </div>
       </div>
 

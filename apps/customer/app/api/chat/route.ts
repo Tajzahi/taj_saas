@@ -184,7 +184,6 @@ export async function POST(request: Request) {
                   status: schema.orders.status,
                   paymentStatus: schema.orders.paymentStatus,
                   createdAt: schema.orders.createdAt,
-                  totalPrice: schema.orders.totalPrice,
                 })
                 .from(schema.orders)
                 .where(and(eq(schema.orders.orderCode, cleanCode), eq(schema.orders.tenantId, tenant.id)))
@@ -197,7 +196,6 @@ export async function POST(request: Request) {
                   status: order.status,
                   paymentStatus: order.paymentStatus,
                   orderDate: order.createdAt.toISOString(),
-                  totalPrice: order.totalPrice,
                   note: "Pesanan ditemukan di sistem.",
                 };
               } else {

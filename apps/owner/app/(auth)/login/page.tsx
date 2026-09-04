@@ -85,9 +85,12 @@ export default function LoginPage() {
         <form className="mt-8 space-y-6" onSubmit={handleLogin}>
           <div className="rounded-md shadow-sm space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700">Email address</label>
+              <label htmlFor="owner-email" className="block text-sm font-medium text-gray-700">Email address</label>
               <input
+                id="owner-email"
+                name="email"
                 type="email"
+                autoComplete="email"
                 required
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#8E0E0E] focus:border-[#8E0E0E] focus:z-10 sm:text-sm"
                 placeholder="owner@example.com"
@@ -97,7 +100,7 @@ export default function LoginPage() {
             </div>
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-medium text-gray-700">Password</label>
+                <label htmlFor="owner-password" className="block text-sm font-medium text-gray-700">Password</label>
                 <a
                   href={`/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`}
                   className="text-xs font-semibold text-[#8E0E0E] hover:underline cursor-pointer"
@@ -107,7 +110,10 @@ export default function LoginPage() {
               </div>
               <div className="relative">
                 <input
+                  id="owner-password"
+                  name="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   required
                   className="appearance-none relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-[#8E0E0E] focus:border-[#8E0E0E] focus:z-10 sm:text-sm"
                   placeholder="••••••••"
