@@ -1,5 +1,6 @@
 "use client";
 import Link from 'next/link';
+import Image from 'next/image';
 
 import { Star, MapPin, Clock, CheckCircle, ArrowRight, ChevronRight, Award, Truck, Zap, Search, FileText, ShoppingBag, MessageSquare, BadgePercent, UtensilsCrossed } from 'lucide-react';
 import { menuItems as staticMenuItems, popularMenuSlugs, MenuItem } from '@/data/menu';
@@ -73,29 +74,45 @@ export default function HomeClient({ initialSettings, initialItems }: HomeClient
   return (
     <div className="min-h-screen">
       {/* ===== HERO SECTION ===== */}
-      <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
-        {/* Background - desktop & mobile with dynamic fallback */}
+      <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#1a0303] via-[#4d0909] to-[#8E0E0E]">
+        {/* Background - desktop & mobile with high priority Image and smooth transition */}
         {settings.hero_banner_url ? (
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat transition-all duration-700"
-            style={{ backgroundImage: `url('${settings.hero_banner_url}')` }}
-          />
+          <div className="absolute inset-0">
+            <img
+              src={settings.hero_banner_url}
+              alt={settings.store_name || "Hero Banner"}
+              className="w-full h-full object-cover object-center transition-opacity duration-700"
+              fetchPriority="high"
+            />
+          </div>
         ) : (
           <>
             {/* Background - desktop default */}
-            <div
-              className="absolute inset-0 hidden md:block bg-cover bg-center bg-no-repeat"
-              style={{ backgroundImage: `url('/assets/banner_red.png')` }}
-            />
+            <div className="absolute inset-0 hidden md:block">
+              <Image
+                src="/assets/banner_red.png"
+                alt={settings.store_name || "Hero Banner"}
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover object-center transition-opacity duration-700"
+              />
+            </div>
             {/* Background - mobile default */}
-            <div
-              className="absolute inset-0 md:hidden bg-cover bg-center bg-no-repeat"
-              style={{ backgroundImage: `url('/assets/banner_redm.png')` }}
-            />
+            <div className="absolute inset-0 md:hidden">
+              <Image
+                src="/assets/banner_redm.png"
+                alt={settings.store_name || "Hero Banner"}
+                fill
+                priority
+                sizes="100vw"
+                className="object-cover object-center transition-opacity duration-700"
+              />
+            </div>
           </>
         )}
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-black/80" />
+        {/* Overlay gradient - warm dark tone that blends perfectly with brand palette */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/35 to-[#1a0303]/90 pointer-events-none" />
 
         {/* Hero Content */}
         <div className="relative z-10 text-center px-4 sm:px-6 max-w-4xl mx-auto pt-20 pb-16">

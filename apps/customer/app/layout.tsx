@@ -53,6 +53,8 @@ export default async function RootLayout({
       className="h-full antialiased"
     >
       <head>
+        <link rel="preload" as="image" href="/assets/banner_red.png" media="(min-width: 768px)" fetchPriority="high" />
+        <link rel="preload" as="image" href="/assets/banner_redm.png" media="(max-width: 767px)" fetchPriority="high" />
         <style>{`
           :root {
             --primary-color: ${primaryColor};
