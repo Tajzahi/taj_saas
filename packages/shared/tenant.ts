@@ -53,9 +53,9 @@ export interface TenantContextType {
 
 // ─── In-memory cache untuk tenant lookup ────────────────────────────────────
 // Menghindari query DB ke Neon di setiap request/navigasi halaman.
-// Cache berlaku 60 detik. Setelah itu otomatis refresh dari DB.
+// Cache berlaku 300 detik (5 menit). Setelah itu otomatis refresh dari DB.
 const tenantCache = new Map<string, { tenant: any; expiry: number }>();
-const CACHE_TTL_MS = 60_000; // 60 detik
+const CACHE_TTL_MS = 300_000; // 300 detik (5 menit)
 
 function getCachedTenant(slug: string) {
   const entry = tenantCache.get(slug);

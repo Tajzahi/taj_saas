@@ -81,6 +81,61 @@ export default function TrackingClient() {
   const [foundOrders, setFoundOrders] = useState<any[]>([]);
   const [phoneSearched, setPhoneSearched] = useState(false);
 
+  // Kompresi gambar client-side (Canvas API) agar ukuran file turun dari ~3-5MB menjadi ~100-250KB
+  const compressImageFile = async (file: File, maxWidth = 1200, quality = 0.75): Promise<{ base64Data: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      if (!file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ base64Data: reader.result as string, mimeType: file.type });
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        let { width, height } = img;
+
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          const reader = new FileReader();
+          reader.onload = () => resolve({ base64Data: reader.result as string, mimeType: file.type });
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const outputMime = 'image/jpeg';
+        const compressedDataUrl = canvas.toDataURL(outputMime, quality);
+        resolve({ base64Data: compressedDataUrl, mimeType: outputMime });
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('Gagal memuat gambar untuk kompresi'));
+      };
+
+      img.src = objectUrl;
+    });
+  };
+
   const handleUploadProof = async () => {
     if (!order || !uploadFile) {
       toast.error('Silakan pilih gambar bukti transfer terlebih dahulu');
@@ -94,12 +149,8 @@ export default function TrackingClient() {
 
     setUploading(true);
     try {
-      const base64Data = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(uploadFile);
-      });
+      // Kompres otomatis gambar sebelum kirim ke server
+      const { base64Data, mimeType } = await compressImageFile(uploadFile);
 
       const token = typeof window !== 'undefined' ? localStorage.getItem(`cust_tok_${order.orderCode}`) || '' : '';
 
@@ -108,8 +159,8 @@ export default function TrackingClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           fileBase64: base64Data,
-          fileName: uploadFile.name,
-          fileType: uploadFile.type,
+          fileName: uploadFile.name.replace(/\.[^/.]+$/, "") + ".jpg",
+          fileType: mimeType,
           orderCode: order.orderCode,
           customerToken: token,
         }),
@@ -340,18 +391,24 @@ export default function TrackingClient() {
       }
     };
 
-    const interval = setInterval(checkExpiry, 15000); // Check every 15 seconds
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.hidden) return;
+      checkExpiry();
+    }, 15000); // Check every 15 seconds
     return () => clearInterval(interval);
   }, [currentOrder, order]);
 
-  // Poll order status periodically (replaces unsafe Realtime subscription that required USING(true) RLS)
+  // Poll order status periodically (hanya saat tab browser sedang aktif/visible)
   useEffect(() => {
     if (!order) return;
 
     // Do not poll if the order is already in a final state (completed or cancelled)
     if (order.status === 'completed' || order.status === 'cancelled') return;
 
-    const intervalId = setInterval(async () => {
+    const pollStatus = async () => {
+      // Lewati polling jika tab browser sedang di-minimize/background untuk hemat data & server
+      if (typeof document !== 'undefined' && document.hidden) return;
+
       const dbOrder = await fetchOrderFromDb(order.orderCode);
       if (dbOrder) {
         // Check for updates
@@ -407,9 +464,22 @@ export default function TrackingClient() {
         setNotFound(true);
         toast.error("Pesanan ini telah dihapus dari sistem", { id: 'status-delete' });
       }
-    }, 15000); // Poll every 15 seconds
+    };
 
-    return () => clearInterval(intervalId);
+    const intervalId = setInterval(pollStatus, 15000); // Poll every 15 seconds
+
+    // Segera refresh ketika user kembali membuka tab ini
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        pollStatus();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [order?.orderCode, order?.status, order?.paymentStatus, order?.paymentProofUrl]);
 
   const handleSearch = async () => {

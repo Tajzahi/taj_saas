@@ -310,7 +310,11 @@ export default function ExecutiveCockpit() {
     };
 
     loadDashboardData();
-    const interval = setInterval(loadDashboardData, 30000);
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        loadDashboardData();
+      }
+    }, 30000);
     window.addEventListener("focus", loadDashboardData);
     return () => {
       clearInterval(interval);

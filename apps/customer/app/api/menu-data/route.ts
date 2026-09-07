@@ -11,9 +11,19 @@ export async function GET() {
       getMenuItems(),
       getStorePromos(),
     ]);
-    return NextResponse.json({ settings, categories, items, promos });
+    return NextResponse.json(
+      { settings, categories, items, promos },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        },
+      }
+    );
   } catch (err) {
     console.error("[api/menu-data] Error fetching menu data:", err);
-    return NextResponse.json({ settings: null, categories: [], items: [], promos: [] });
+    return NextResponse.json(
+      { settings: null, categories: [], items: [], promos: [] },
+      { status: 500 }
+    );
   }
 }

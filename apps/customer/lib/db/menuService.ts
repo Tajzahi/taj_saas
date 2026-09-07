@@ -3,9 +3,9 @@ import { eq, desc, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MenuItem, MenuCategory, menuItems as staticMenuItems, categories as staticCategories, toppingOptions, extraToppingOptions } from "@/data/menu";
 
-// ─── In-Memory TTL Cache (60s) ───────────────────────────────────────────────
-// Mencegah round-trip berulang ke Neon DB dalam satu serverless instance.
-const CACHE_TTL_MS = 60_000;
+// ─── In-Memory TTL Cache (300s / 5 Menit) ──────────────────────────────────
+// Mencegah round-trip berulang ke Neon DB dan menghemat kuota transfer jaringan.
+const CACHE_TTL_MS = 300_000;
 const _cache = new Map<string, { value: unknown; expiresAt: number }>();
 
 function getFromCache<T>(key: string): T | undefined {
@@ -229,8 +229,12 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
 
 
 export async function getStorePromos(): Promise<any[]> {
+  const slug = await getTenantSlugFromHeaders();
+  const cacheKey = `promos:${slug}`;
+  const cached = getFromCache<any[]>(cacheKey);
+  if (cached) return cached;
+
   try {
-    const slug = await getTenantSlugFromHeaders();
     const tenant = await getTenantBySlug(slug);
     if (!tenant) return [];
 
@@ -240,7 +244,9 @@ export async function getStorePromos(): Promise<any[]> {
       .where(and(eq(schema.promos.tenantId, tenant.id), eq(schema.promos.isActive, true)))
       .orderBy(desc(schema.promos.createdAt));
 
-    return activePromos;
+    const result = activePromos || [];
+    setToCache(cacheKey, result);
+    return result;
   } catch (err) {
     console.error("Error fetching store promos:", err);
     return [];
@@ -291,19 +297,18 @@ export async function getMenuItems(): Promise<MenuItem[]> {
     const tenant = await getTenantBySlug(slug);
     if (!tenant) return [];
 
-    const dbItems = await db.select()
-      .from(schema.menuItems)
-      .where(eq(schema.menuItems.tenantId, tenant.id));
+    // Parallel fetch: menuItems, menuVariants, and categories in 1 round-trip
+    const [dbItems, dbVariants, dbCategories] = await Promise.all([
+      db.select().from(schema.menuItems).where(eq(schema.menuItems.tenantId, tenant.id)),
+      db.select().from(schema.menuVariants).where(eq(schema.menuVariants.tenantId, tenant.id)),
+      db.select().from(schema.categories).where(eq(schema.categories.tenantId, tenant.id)).orderBy(schema.categories.sortOrder),
+    ]);
 
     if (!dbItems || dbItems.length === 0) {
+      setToCache(cacheKey, []);
       return [];
     }
 
-    // Fetch dbVariants for this tenant if populated
-    const dbVariants = await db.select()
-      .from(schema.menuVariants)
-      .where(eq(schema.menuVariants.tenantId, tenant.id));
-    
     const variantsMap = new Map<string, { label: string; required: boolean; options: any[] }[]>();
     for (const v of dbVariants) {
       const existing = variantsMap.get(v.menuItemId) || [];
@@ -314,11 +319,6 @@ export async function getMenuItems(): Promise<MenuItem[]> {
       });
       variantsMap.set(v.menuItemId, existing);
     }
-
-    // Get categories to map category ID to slug
-    const dbCategories = await db.select()
-      .from(schema.categories)
-      .where(eq(schema.categories.tenantId, tenant.id));
 
     const categoryMap = new Map(dbCategories.map(c => [c.id, c.slug]));
     const categoryLabelMap = new Map(dbCategories.map(c => [c.id, c.name]));

@@ -126,7 +126,11 @@ export default function Penjualan() {
     };
 
     loadSalesData();
-    const interval = setInterval(loadSalesData, 30000);
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        loadSalesData();
+      }
+    }, 30000);
     window.addEventListener("focus", loadSalesData);
     return () => {
       clearInterval(interval);

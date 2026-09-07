@@ -74,9 +74,9 @@ export async function POST(request: Request) {
     const base64Data = fileBase64.includes(",") ? fileBase64.split(",")[1] : fileBase64;
     const fileBuffer = Buffer.from(base64Data, "base64");
 
-    // Size limit: 5MB
-    if (fileBuffer.length > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: "Ukuran file maksimal 5MB." }, { status: 400 });
+    // Size limit: 2MB (gambar bukti sudah dikompresi di sisi klien menjadi ~100-250KB)
+    if (fileBuffer.length > 2 * 1024 * 1024) {
+      return NextResponse.json({ error: "Ukuran file maksimal 2MB." }, { status: 400 });
     }
 
     // Validate magic bytes & detect MIME type strictly (SEC-006 Anti Stored-XSS)
