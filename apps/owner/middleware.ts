@@ -10,13 +10,27 @@ export const middleware = async (request: NextRequest) => {
 
 
   const { pathname } = request.nextUrl;
-  const isRegisterPage = pathname === '/register';
   const isAuthRoute =
     pathname === '/login' ||
     pathname === '/register' ||
     pathname === '/forgot-password' ||
     pathname === '/unauthorized' ||
     pathname.startsWith('/accept-invite');
+
+  const hasSessionCookie = Boolean(
+    request.cookies.get('better-auth.session_token')?.value ||
+    request.cookies.get('__Secure-better-auth.session_token')?.value
+  );
+
+  // Jika user belum login dan mengakses halaman dashboard terproteksi, redirect ke /login
+  if (!isAuthRoute && !hasSessionCookie) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // Jika user sudah login dan mengakses halaman auth (/login atau /register), langsung lempar ke dashboard /
+  if (isAuthRoute && hasSessionCookie && (pathname === '/login' || pathname === '/register')) {
+    return NextResponse.redirect(new URL('/', request.url));
+  }
 
   const result = await resolveTenantMiddleware(request as any, 'owner');
 
@@ -25,22 +39,18 @@ export const middleware = async (request: NextRequest) => {
   }
 
   if ('error' in result) {
-    if (result.status === 404 && !isRegisterPage && !isAuthRoute) {
-      return NextResponse.redirect(new URL('/register', request.url));
-    }
-    if (isRegisterPage || isAuthRoute) {
+    // Pada Cloud Run / Staging / shared URL (*.a.run.app / *.run.app / localhost),
+    // tenant dapat di-resolve langsung dari user profile session di DashboardLayout.
+    const isCloudPlatform =
+      request.nextUrl.hostname.includes('.a.run.app') ||
+      request.nextUrl.hostname.includes('.run.app') ||
+      request.nextUrl.hostname.includes('localhost') ||
+      request.nextUrl.hostname.includes('127.0.0.1');
+
+    if (isAuthRoute || (isCloudPlatform && hasSessionCookie)) {
       return NextResponse.next();
     }
     return new NextResponse(result.error, { status: result.status });
-  }
-
-  const hasSessionCookie = Boolean(
-    request.cookies.get('better-auth.session_token')?.value ||
-    request.cookies.get('__Secure-better-auth.session_token')?.value
-  );
-
-  if (!isAuthRoute && !hasSessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   return result.next;

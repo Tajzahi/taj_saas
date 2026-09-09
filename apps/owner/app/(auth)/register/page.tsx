@@ -98,9 +98,13 @@ export default function RegisterPage() {
       }
 
       // TAHAP 3: Pengalihan Sukses Langsung ke Dashboard /
-      toast.success(`Selamat datang! Toko ${res.tenant?.name || ""} berhasil terdaftar.`);
-      router.push("/");
-      router.refresh();
+      toast.success(`Selamat datang! Toko ${res.tenant?.name || ""} berhasil terdaftar. Mengalihkan ke dashboard...`);
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      } else {
+        router.push("/");
+        router.refresh();
+      }
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat pendaftaran.");
     } finally {

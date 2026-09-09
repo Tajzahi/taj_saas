@@ -60,10 +60,14 @@ export default function LoginPage() {
         return;
       }
 
-      toast.success("Login berhasil!");
+      toast.success("Login berhasil! Mengalihkan ke dashboard...");
       // Me-refresh sesi dan me-redirect ke Dashboard /
-      router.push("/");
-      router.refresh();
+      if (typeof window !== "undefined") {
+        window.location.href = "/";
+      } else {
+        router.push("/");
+        router.refresh();
+      }
     } catch (err: any) {
       toast.error(err.message || "Terjadi kesalahan saat login.");
       setLoading(false);
