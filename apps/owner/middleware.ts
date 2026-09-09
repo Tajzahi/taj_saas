@@ -32,6 +32,34 @@ export const middleware = async (request: NextRequest) => {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // Jika di halaman auth dan belum login, persilakan lanjut
+  if (isAuthRoute) {
+    return NextResponse.next();
+  }
+
+  // Periksa apakah request berada di shared SaaS platform (Cloud Run, localhost, staging)
+  const host = (
+    request.headers.get('x-forwarded-host') ||
+    request.headers.get('host') ||
+    request.nextUrl.hostname ||
+    ''
+  ).toLowerCase();
+
+  const isSharedPlatform =
+    host.includes('.a.run.app') ||
+    host.includes('.run.app') ||
+    host.includes('localhost') ||
+    host.includes('127.0.0.1') ||
+    host.startsWith('taj-owner');
+
+  // Pada Cloud Run / shared portal mall, URL ini dipakai bersama oleh semua owner.
+  // Tenant di-resolve langsung dari sesi profil user yang login di DashboardLayout / Server Action.
+  // Jangan jalankan resolveTenantMiddleware karena URL bersama tidak memiliki slug khusus di database.
+  if (isSharedPlatform) {
+    return NextResponse.next();
+  }
+
+  // Jika menggunakan custom domain pribadi (misal: owner.namatoko.com), resolve tenant dari database
   const result = await resolveTenantMiddleware(request as any, 'owner');
 
   if ('redirect' in result) {
@@ -39,17 +67,6 @@ export const middleware = async (request: NextRequest) => {
   }
 
   if ('error' in result) {
-    // Pada Cloud Run / Staging / shared URL (*.a.run.app / *.run.app / localhost),
-    // tenant dapat di-resolve langsung dari user profile session di DashboardLayout.
-    const isCloudPlatform =
-      request.nextUrl.hostname.includes('.a.run.app') ||
-      request.nextUrl.hostname.includes('.run.app') ||
-      request.nextUrl.hostname.includes('localhost') ||
-      request.nextUrl.hostname.includes('127.0.0.1');
-
-    if (isAuthRoute || (isCloudPlatform && hasSessionCookie)) {
-      return NextResponse.next();
-    }
     return new NextResponse(result.error, { status: result.status });
   }
 

@@ -258,47 +258,44 @@ export async function requireTenantSession(options?: {
     throw new AuthorizationError('UNAUTHORIZED', 401, 'Sesi autentikasi diperlukan');
   }
 
-  // 2. Resolve tenant independently from DB
-  let tenant: typeof schema.tenants.$inferSelect | null = null;
-  try {
-    tenant = await resolveTenantFromRequestHost(host, options?.expectedApp);
-  } catch (err) {
-    // Pada Cloud Run / Staging / Shared Host (*.a.run.app, *.run.app, localhost),
-    // nama hostname adalah domain platform, bukan domain pribadi tenant.
-    // Izinkan tenant di-resolve langsung dari profil user yang sedang login!
-    const isSharedHost =
-      (host || '').includes('.a.run.app') ||
-      (host || '').includes('.run.app') ||
-      (host || '').includes('localhost') ||
-      (host || '').includes('127.0.0.1');
+  // 2. Pada Cloud Run / Staging / Shared Host (*.a.run.app, *.run.app, localhost),
+  // nama hostname adalah domain platform bersama (mall), bukan domain pribadi tenant.
+  // Resolve tenant langsung dari profil user yang sedang login!
+  const isSharedHost =
+    (host || '').includes('.a.run.app') ||
+    (host || '').includes('.run.app') ||
+    (host || '').includes('localhost') ||
+    (host || '').includes('127.0.0.1') ||
+    (host || '').startsWith('taj-owner') ||
+    (host || '').startsWith('taj-admin');
 
-    if (isSharedHost && session.user.id) {
-      const userProfileResult = await db
+  if (isSharedHost && session.user.id) {
+    const userProfileResult = await db
+      .select()
+      .from(schema.profiles)
+      .where(eq(schema.profiles.id, session.user.id))
+      .limit(1);
+
+    if (userProfileResult.length > 0 && userProfileResult[0].tenantId) {
+      const [actualTenant] = await db
         .select()
-        .from(schema.profiles)
-        .where(eq(schema.profiles.id, session.user.id))
+        .from(schema.tenants)
+        .where(eq(schema.tenants.id, userProfileResult[0].tenantId))
         .limit(1);
 
-      if (userProfileResult.length > 0 && userProfileResult[0].tenantId) {
-        const [actualTenant] = await db
-          .select()
-          .from(schema.tenants)
-          .where(eq(schema.tenants.id, userProfileResult[0].tenantId))
-          .limit(1);
-
-        if (actualTenant && actualTenant.isActive) {
-          return {
-            tenant: actualTenant,
-            user: session.user,
-            profile: userProfileResult[0],
-          };
-        }
+      if (actualTenant && actualTenant.isActive) {
+        return {
+          tenant: actualTenant,
+          user: session.user,
+          profile: userProfileResult[0],
+        };
       }
     }
-
-    // Jika bukan shared host atau profil tidak ditemukan, teruskan error
-    throw err;
   }
+
+  // 3. Jika bukan shared host (yaitu tenant menggunakan custom domain pribadi seperti store.tokosaya.com),
+  // resolve tenant dari request host / domain di DB
+  const tenant = await resolveTenantFromRequestHost(host, options?.expectedApp);
 
   // 3. Query User Profile to Verify Tenant Membership
   const profileResult = await db
