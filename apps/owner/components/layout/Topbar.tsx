@@ -27,6 +27,7 @@ import { authClient } from "@/lib/authClient";
 import { useOwnerStore } from "@/store/ownerStore";
 import { getBranchesAction } from "@/app/actions/branches";
 import { getApprovalsAction } from "@/app/actions/approvals";
+import { getTenantSettingsAction } from "@/app/actions/settings";
 import { Button } from "@/components/ui/Button";
 import toast from "react-hot-toast";
 
@@ -134,9 +135,20 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
   const [dbBranches, setDbBranches] = useState<any[]>([]);
   const [dbNotifications, setDbNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [tenantSlug, setTenantSlug] = useState<string>("");
+  const [tenantDomain, setTenantDomain] = useState<string | null>(null);
   
   const profileRef = useRef<HTMLDivElement>(null);
   const datePickerRef = useRef<HTMLDivElement>(null);
+
+  const fetchTenantSettings = () => {
+    getTenantSettingsAction().then(res => {
+      if (res.success && res.data) {
+        if (res.data.slug) setTenantSlug(res.data.slug);
+        if (res.data.domain) setTenantDomain(res.data.domain);
+      }
+    });
+  };
 
   const fetchBranchesList = () => {
     getBranchesAction().then(res => {
@@ -158,6 +170,7 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
 
   useEffect(() => {
     setMounted(true);
+    fetchTenantSettings();
     fetchBranchesList();
     fetchNotificationsList();
 
@@ -225,6 +238,22 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
   }
 
   const pageInfo = pageTitles[activePage] || { title: "Dashboard", subtitle: "Overview" };
+
+  const handleOpenStorePreview = () => {
+    if (tenantDomain) {
+      window.open(`https://${tenantDomain}`, "_blank");
+      return;
+    }
+    const currentHost = window.location.hostname;
+    if (currentHost === "localhost" || currentHost === "127.0.0.1") {
+      const targetUrl = `http://localhost:3000${tenantSlug ? `?preview=${tenantSlug}` : ""}`;
+      window.open(targetUrl, "_blank");
+      return;
+    }
+    const targetHost = currentHost.replace("taj-owner", "taj-customer");
+    const targetUrl = `https://${targetHost}${tenantSlug ? `?preview=${tenantSlug}` : ""}`;
+    window.open(targetUrl, "_blank");
+  };
 
   const handleLogout = async () => {
     await authClient.signOut();
@@ -313,7 +342,24 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
           </svg>
           AI Chat
         </button>
-        */}
+        {/* Tombol Preview Toko Online (Customer App) */}
+        <button
+          type="button"
+          onClick={handleOpenStorePreview}
+          className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl border border-orange-200 dark:border-orange-800/60 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/30 dark:to-amber-950/20 text-xs font-semibold text-orange-600 dark:text-orange-400 hover:from-orange-100 hover:to-amber-100 dark:hover:from-orange-900/40 dark:hover:to-amber-900/30 transition-all shadow-xs shrink-0 cursor-pointer"
+          title="Buka Preview Toko Online Pelanggan"
+        >
+          <svg className="w-3.5 h-3.5 shrink-0 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          <span className="hidden sm:inline">Lihat Toko</span>
+          <span className="sm:hidden text-[11px]">Toko</span>
+          <svg className="w-3 h-3 text-orange-400 opacity-70 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          </svg>
+        </button>
 
         {/* Mobile Filter Toggle */}
         <button

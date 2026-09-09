@@ -94,10 +94,18 @@ export async function resolveTenantMiddleware(
   currentApp: 'customer' | 'admin' | 'owner'
 ) {
   const hostname = request.headers.get('host') || '';
-  const { slug, appType, isLocalhost } = parseTenantFromHostname(hostname);
+  const { slug: parsedSlug, appType, isLocalhost } = parseTenantFromHostname(hostname);
+
+  // 1. Dukungan Live Store Preview via Query Parameter (?preview=slug atau ?t=slug)
+  const previewSlug =
+    request.nextUrl?.searchParams?.get('preview') ||
+    request.nextUrl?.searchParams?.get('t') ||
+    null;
+
+  let slug = previewSlug || parsedSlug;
 
   // Development redirects between ports (localhost only)
-  if (isLocalhost && !hostname.includes('.run.app')) {
+  if (isLocalhost && !hostname.includes('.run.app') && !previewSlug) {
     if (appType !== currentApp) {
       const url = request.nextUrl.clone();
       if (appType === 'customer') url.port = '3000';
@@ -132,13 +140,27 @@ export async function resolveTenantMiddleware(
       .select()
       .from(schema.tenants)
       .where(
-        isLocalhost
+        isLocalhost || Boolean(previewSlug)
           ? eq(schema.tenants.slug, slug)
           : or(eq(schema.tenants.domain, slug), eq(schema.tenants.slug, slug))
       )
       .limit(1);
 
     let tenant = tenantResult[0];
+
+    // Fallback Cerdas: Jika di URL Cloud Run / Localhost tenant slug target tidak ditemukan,
+    // muat tenant pertama yang aktif dari database (misal toko pertama yang terdaftar)
+    if (!tenant && (isLocalhost || hostname.includes('.a.run.app') || hostname.includes('.run.app'))) {
+      const fallbackResult = await db
+        .select()
+        .from(schema.tenants)
+        .where(eq(schema.tenants.isActive, true))
+        .limit(1);
+
+      if (fallbackResult.length > 0) {
+        tenant = fallbackResult[0];
+      }
+    }
 
     if (!tenant) {
       return {

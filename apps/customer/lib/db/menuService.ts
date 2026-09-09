@@ -43,6 +43,8 @@ export interface DbStoreSettings {
   hero_highlight_title?: string;
   hero_subtitle?: string;
   hero_badge_text?: string;
+  hero_title_size?: string;
+  hero_subtitle_size?: string;
   primary_color?: string;
   secondary_color?: string;
   badge_strip_items?: string[];
@@ -116,7 +118,16 @@ async function getTenantBySlug(slug: string) {
 
   try {
     const result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
-    const tenant = result[0] || null;
+    let tenant = result[0] || null;
+
+    // Fallback cerdas: jika slug target tidak ditemukan, ambil tenant pertama yang aktif dari DB
+    if (!tenant) {
+      const fallbackResult = await db.select().from(schema.tenants).where(eq(schema.tenants.isActive, true)).limit(1);
+      if (fallbackResult.length > 0) {
+        tenant = fallbackResult[0];
+      }
+    }
+
     setToCache(cacheKey, tenant);
     return tenant;
   } catch (err) {
