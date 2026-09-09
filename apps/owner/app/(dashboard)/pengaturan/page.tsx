@@ -51,6 +51,10 @@ export default function Pengaturan() {
     { name: "Zona 2 (Sedang)", maxKm: 6, fee: 8000 },
     { name: "Zona 3 (Jauh)", maxKm: 10, fee: 12000 },
   ]);
+  const [socialInstagram, setSocialInstagram] = useState("");
+  const [socialFacebook, setSocialFacebook] = useState("");
+  const [socialTiktok, setSocialTiktok] = useState("");
+  const [socialYoutube, setSocialYoutube] = useState("");
   const [settingsVersion, setSettingsVersion] = useState<number>(1);
   const [loading, setLoading] = useState(true);
 
@@ -87,6 +91,10 @@ export default function Pengaturan() {
           if (branding.qrisImageUrl) setQrisImageUrl(branding.qrisImageUrl);
           if (branding.bankInfo) setBankInfo(branding.bankInfo);
           if (branding.heroBannerUrl) setHeroBannerUrl(branding.heroBannerUrl);
+          if (branding.socialInstagram) setSocialInstagram(branding.socialInstagram);
+          if (branding.socialFacebook) setSocialFacebook(branding.socialFacebook);
+          if (branding.socialTiktok) setSocialTiktok(branding.socialTiktok);
+          if (branding.socialYoutube) setSocialYoutube(branding.socialYoutube);
           if (typeof branding.taxRate === "number") setTaxRate(branding.taxRate);
           else if (typeof branding.taxRateBps === "number") setTaxRate(branding.taxRateBps / 100);
           if (typeof branding.serviceChargeRate === "number") setServiceChargeRate(branding.serviceChargeRate);
@@ -149,6 +157,10 @@ export default function Pengaturan() {
       qrisImageUrl,
       bankInfo,
       heroBannerUrl,
+      socialInstagram,
+      socialFacebook,
+      socialTiktok,
+      socialYoutube,
       taxRate: Number(taxRate),
       taxRateBps: Math.round(Number(taxRate) * 100),
       serviceChargeRate: Number(serviceChargeRate),
@@ -534,6 +546,87 @@ export default function Pengaturan() {
                     Lihat Rincian Menu
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Media Sosial Toko (Web Pelanggan) */}
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm p-5 space-y-4 lg:col-span-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <span>📱</span> Tautan Media Sosial (Footer & Kontak Web Pelanggan)
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Tautan ini akan otomatis muncul sebagai ikon interaktif di bagian Footer dan Halaman Kontak website pelanggan Anda.
+                </p>
+              </div>
+              <Badge variant="info" size="sm">Toko Online</Badge>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+              {/* Instagram */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-pink-500 inline-block"></span>
+                  <span>Instagram</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://instagram.com/namatoko atau @namatoko"
+                  value={socialInstagram}
+                  onChange={(e) => setSocialInstagram(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                />
+                <p className="text-[10px] text-slate-400">Contoh: <code>@martabaka6nyusss</code> atau link URL lengkap</p>
+              </div>
+
+              {/* TikTok */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-slate-900 dark:bg-slate-100 inline-block"></span>
+                  <span>TikTok</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://tiktok.com/@namatoko atau @namatoko"
+                  value={socialTiktok}
+                  onChange={(e) => setSocialTiktok(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                />
+                <p className="text-[10px] text-slate-400">Contoh: <code>@martabaka6</code> atau link URL lengkap</p>
+              </div>
+
+              {/* Facebook */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"></span>
+                  <span>Facebook</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://facebook.com/halaman.toko"
+                  value={socialFacebook}
+                  onChange={(e) => setSocialFacebook(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                />
+                <p className="text-[10px] text-slate-400">Contoh: <code>https://facebook.com/martabaka6</code></p>
+              </div>
+
+              {/* YouTube */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-red-600 inline-block"></span>
+                  <span>YouTube</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="https://youtube.com/@channel"
+                  value={socialYoutube}
+                  onChange={(e) => setSocialYoutube(e.target.value)}
+                  className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-colors"
+                />
+                <p className="text-[10px] text-slate-400">Contoh: <code>https://youtube.com/@martabaka6official</code></p>
               </div>
             </div>
           </div>
