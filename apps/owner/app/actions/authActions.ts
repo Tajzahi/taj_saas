@@ -113,7 +113,7 @@ export async function registerOwnerAction(params: RegisterParams) {
       .values({
         name: businessName.trim(),
         slug: slug,
-        domain: `${slug}.com`,
+        domain: null, // Domain pribadi kosong secara default sampai diset oleh owner/developer
         adminSubdomain: "admin",
         ownerSubdomain: "owner",
         branding: {

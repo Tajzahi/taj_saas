@@ -248,17 +248,56 @@ export async function requireTenantSession(options?: {
 }) {
   const reqHeaders = await headers();
   const host = reqHeaders.get('x-forwarded-host') || reqHeaders.get('host') || '';
-  
-  // 1. Resolve tenant independently from DB
-  const tenant = await resolveTenantFromRequestHost(host, options?.expectedApp);
 
-  // 2. Validate Session with Better Auth
+  // 1. Validate Session with Better Auth first
   const session = await auth.api.getSession({
     headers: reqHeaders,
   });
 
   if (!session || !session.user) {
     throw new AuthorizationError('UNAUTHORIZED', 401, 'Sesi autentikasi diperlukan');
+  }
+
+  // 2. Resolve tenant independently from DB
+  let tenant: typeof schema.tenants.$inferSelect | null = null;
+  try {
+    tenant = await resolveTenantFromRequestHost(host, options?.expectedApp);
+  } catch (err) {
+    // Pada Cloud Run / Staging / Shared Host (*.a.run.app, *.run.app, localhost),
+    // nama hostname adalah domain platform, bukan domain pribadi tenant.
+    // Izinkan tenant di-resolve langsung dari profil user yang sedang login!
+    const isSharedHost =
+      (host || '').includes('.a.run.app') ||
+      (host || '').includes('.run.app') ||
+      (host || '').includes('localhost') ||
+      (host || '').includes('127.0.0.1');
+
+    if (isSharedHost && session.user.id) {
+      const userProfileResult = await db
+        .select()
+        .from(schema.profiles)
+        .where(eq(schema.profiles.id, session.user.id))
+        .limit(1);
+
+      if (userProfileResult.length > 0 && userProfileResult[0].tenantId) {
+        const [actualTenant] = await db
+          .select()
+          .from(schema.tenants)
+          .where(eq(schema.tenants.id, userProfileResult[0].tenantId))
+          .limit(1);
+
+        if (actualTenant && actualTenant.isActive) {
+          return {
+            tenant: actualTenant,
+            user: session.user,
+            profile: userProfileResult[0],
+          };
+        }
+      }
+    }
+
+    // Jika bukan shared host atau profil tidak ditemukan, teruskan error
+    throw err;
   }
 
   // 3. Query User Profile to Verify Tenant Membership
@@ -277,9 +316,10 @@ export async function requireTenantSession(options?: {
 
   if (!profile) {
     // Check if user has a profile on any tenant in single-domain staging (Cloud Run shared URL)
-    // BUG FIX: Removed NODE_ENV !== 'production' — same issue as above.
     const isKnownStagingHost =
-      (host || '').includes('.a.run.app');
+      (host || '').includes('.a.run.app') ||
+      (host || '').includes('.run.app') ||
+      (host || '').includes('localhost');
 
     if (isKnownStagingHost) {
       const userProfileResult = await db

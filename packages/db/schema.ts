@@ -60,7 +60,7 @@ export const tenants = pgTable('tenants', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   slug: text('slug').notNull().unique(),
-  domain: text('domain').notNull().unique(),
+  domain: text('domain').unique(),
   adminSubdomain: text('admin_subdomain').notNull(),
   ownerSubdomain: text('owner_subdomain').notNull(),
   branding: jsonb('branding').$type<{
