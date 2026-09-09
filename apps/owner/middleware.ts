@@ -22,19 +22,16 @@ export const middleware = async (request: NextRequest) => {
     request.cookies.get('__Secure-better-auth.session_token')?.value
   );
 
-  // Jika user belum login dan mengakses halaman dashboard terproteksi, redirect ke /login
-  if (!isAuthRoute && !hasSessionCookie) {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
-
-  // Jika user sudah login dan mengakses halaman auth (/login atau /register), langsung lempar ke dashboard /
-  if (isAuthRoute && hasSessionCookie && (pathname === '/login' || pathname === '/register')) {
-    return NextResponse.redirect(new URL('/', request.url));
-  }
-
-  // Jika di halaman auth dan belum login, persilakan lanjut
+  // Jika di halaman auth (login/register/dll), persilakan lanjut agar form selalu bisa diakses
+  // JANGAN lakukan blind redirect ke '/' dari '/login' berbasis cookie semata karena jika sesi di DB
+  // expired atau sudah terhapus, akan tercipta infinite redirect loop (ERR_TOO_MANY_REDIRECTS).
   if (isAuthRoute) {
     return NextResponse.next();
+  }
+
+  // Jika user belum login dan mengakses halaman dashboard terproteksi, redirect ke /login
+  if (!hasSessionCookie) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
   // Periksa apakah request berada di shared SaaS platform (Cloud Run, localhost, staging)
