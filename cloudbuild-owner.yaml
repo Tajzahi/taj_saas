@@ -1,6 +1,6 @@
 # cloudbuild-owner.yaml
 # CI/CD pipeline untuk Owner app
-# Trigger: push ke branch main
+# Trigger: push ke branch main (Auto Trigger Test)
 # Owner tidak pakai: Ably, Gemini AI, NEXT_PUBLIC_TENANT_SLUG
 
 substitutions:
