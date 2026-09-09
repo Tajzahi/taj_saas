@@ -819,10 +819,10 @@ export default function MenuResep() {
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowEdit(false)}>
           <form
             onSubmit={handleSaveEdit}
-            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-md p-6 animate-slide-up"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto p-6 animate-slide-up flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-5">
+            <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Ubah Menu</h3>
               <button type="button" onClick={() => setShowEdit(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -830,7 +830,7 @@ export default function MenuResep() {
                 </svg>
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1">
               <Input
                 label="Nama Menu"
                 value={editName}
@@ -923,15 +923,28 @@ export default function MenuResep() {
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    <input
-                      type="text"
-                      value={editImageUrl}
-                      onChange={e => setEditImageUrl(e.target.value)}
-                      placeholder="https://... / link foto makanan"
-                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
-                    />
+                    {editImageUrl && editImageUrl.startsWith("data:image") ? (
+                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                        <span className="flex items-center gap-1">✓ Foto Terunggah (HD Base64)</span>
+                        <button
+                          type="button"
+                          onClick={() => setEditImageUrl("")}
+                          className="text-red-500 font-bold hover:underline ml-2"
+                        >
+                          Hapus / Ganti
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={editImageUrl}
+                        onChange={e => setEditImageUrl(e.target.value)}
+                        placeholder="https://... / link foto makanan"
+                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                      />
+                    )}
                     <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
-                      📁 Pilih Gambar (PNG, JPG, WebP)
+                      📁 Pilih Gambar Baru (PNG, JPG, WebP)
                       <input
                         type="file"
                         accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
@@ -960,7 +973,7 @@ export default function MenuResep() {
               {/* Topping & Variant Builder */}
               <VariantBuilder variants={editVariants} onChange={setEditVariants} />
             </div>
-            <div className="flex gap-3 mt-6">
+            <div className="sticky bottom-0 bg-white dark:bg-slate-900 pt-3 border-t border-slate-100 dark:border-slate-800 flex gap-3 mt-6">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setShowEdit(false)}>Batal</Button>
               <Button type="submit" variant="primary" className="flex-1">Simpan</Button>
             </div>
@@ -973,10 +986,10 @@ export default function MenuResep() {
         <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 animate-fade-in" onClick={() => setShowAddMenu(false)}>
           <form
             onSubmit={handleAddMenuSubmit}
-            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 animate-slide-up"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto p-6 animate-slide-up flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between mb-5">
+            <div className="sticky top-0 bg-white dark:bg-slate-900 z-10 flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800 mb-4">
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Tambah Menu</h3>
               <button type="button" onClick={() => setShowAddMenu(false)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                 <svg className="w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -984,7 +997,7 @@ export default function MenuResep() {
                 </svg>
               </button>
             </div>
-            <div className="space-y-4">
+            <div className="space-y-4 flex-1">
               <Input
                 label="Nama Menu"
                 value={addName}
@@ -1050,15 +1063,28 @@ export default function MenuResep() {
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    <input
-                      type="text"
-                      value={addImageUrl}
-                      onChange={e => setAddImageUrl(e.target.value)}
-                      placeholder="https://... / link foto makanan"
-                      className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
-                    />
+                    {addImageUrl && addImageUrl.startsWith("data:image") ? (
+                      <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
+                        <span className="flex items-center gap-1">✓ Foto Terunggah (HD Base64)</span>
+                        <button
+                          type="button"
+                          onClick={() => setAddImageUrl("")}
+                          className="text-red-500 font-bold hover:underline ml-2"
+                        >
+                          Hapus / Ganti
+                        </button>
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        value={addImageUrl}
+                        onChange={e => setAddImageUrl(e.target.value)}
+                        placeholder="https://... / link foto makanan"
+                        className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+                      />
+                    )}
                     <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
-                      📁 Pilih Gambar (PNG, JPG, WebP)
+                      📁 Pilih Gambar Baru (PNG, JPG, WebP)
                       <input
                         type="file"
                         accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
@@ -1087,7 +1113,7 @@ export default function MenuResep() {
               {/* Topping & Variant Builder */}
               <VariantBuilder variants={addVariants} onChange={setAddVariants} />
             </div>
-            <div className="flex gap-3 mt-6">
+            <div className="sticky bottom-0 bg-white dark:bg-slate-900 pt-3 border-t border-slate-100 dark:border-slate-800 flex gap-3 mt-6">
               <Button type="button" variant="outline" className="flex-1" onClick={() => setShowAddMenu(false)}>Batal</Button>
               <Button type="submit" variant="primary" className="flex-1">Tambah</Button>
             </div>
