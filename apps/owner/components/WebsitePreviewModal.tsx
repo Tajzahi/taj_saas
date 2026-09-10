@@ -53,6 +53,8 @@ interface WebsitePreviewModalProps {
     heroHighlightTitle?: string;
     heroSubtitle: string;
     heroBadgeText?: string;
+    heroTitleSize?: string;
+    heroSubtitleSize?: string;
     heroBannerUrl: string;
     primaryColor?: string;
     secondaryColor?: string;
@@ -567,12 +569,33 @@ export default function WebsitePreviewModal({
                     {cmsData.heroBadgeText && (
                       <span className="inline-block bg-white/20 backdrop-blur-md text-white font-semibold text-xs px-3 py-1 rounded-full mb-3 border border-white/30">{cmsData.heroBadgeText}</span>
                     )}
-                    <h1 className={`${device === "mobile" ? "text-xl" : "text-3xl sm:text-4xl"} font-black mb-3 leading-tight whitespace-pre-line`}>
-                      {cmsData.heroTitle ? <>{cmsData.heroTitle}<br /><span style={{ color: secondaryColor }}>{cmsData.heroHighlightTitle || storeName}</span></> : <>{storeName}</>}
-                    </h1>
-                    <p className="text-white/90 text-xs sm:text-base mb-6 leading-relaxed">
-                      {cmsData.heroSubtitle || "Cita rasa otentik berkualitas tinggi."}
-                    </p>
+                    {(() => {
+                      const titleSize = cmsData.heroTitleSize || "md";
+                      const titleClasses = {
+                        sm: device === "mobile" ? "text-lg" : "text-2xl sm:text-3xl",
+                        md: device === "mobile" ? "text-xl" : "text-3xl sm:text-4xl",
+                        lg: device === "mobile" ? "text-2xl" : "text-4xl sm:text-5xl",
+                        xl: device === "mobile" ? "text-3xl" : "text-5xl sm:text-6xl",
+                      }[titleSize] || (device === "mobile" ? "text-xl" : "text-3xl sm:text-4xl");
+
+                      const subSize = cmsData.heroSubtitleSize || "md";
+                      const subtitleClasses = {
+                        sm: device === "mobile" ? "text-[11px]" : "text-xs sm:text-sm",
+                        md: device === "mobile" ? "text-xs" : "text-xs sm:text-base",
+                        lg: device === "mobile" ? "text-sm" : "text-sm sm:text-lg",
+                      }[subSize] || (device === "mobile" ? "text-xs" : "text-xs sm:text-base");
+
+                      return (
+                        <>
+                          <h1 className={`${titleClasses} font-black mb-3 leading-tight whitespace-pre-line`}>
+                            {cmsData.heroTitle ? <>{cmsData.heroTitle}<br /><span style={{ color: secondaryColor }}>{cmsData.heroHighlightTitle || storeName}</span></> : <>{storeName}</>}
+                          </h1>
+                          <p className={`text-white/90 ${subtitleClasses} mb-6 leading-relaxed`}>
+                            {cmsData.heroSubtitle || "Cita rasa otentik berkualitas tinggi."}
+                          </p>
+                        </>
+                      );
+                    })()}
                     <div className="flex flex-wrap justify-center gap-3">
                       <span onClick={() => setActiveTab("menu")} className="px-6 py-3 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer" style={{ background: `linear-gradient(to right, ${primaryColor}, ${secondaryColor})` }}>
                         Pesan Sekarang <ArrowRight className="w-3.5 h-3.5" />

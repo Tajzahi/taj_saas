@@ -1020,6 +1020,8 @@ export default function KontenWebCMSPage() {
           heroHighlightTitle,
           heroSubtitle,
           heroBadgeText,
+          heroTitleSize,
+          heroSubtitleSize,
           heroBannerUrl,
           primaryColor,
           secondaryColor,

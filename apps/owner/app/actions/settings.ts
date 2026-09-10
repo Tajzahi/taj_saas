@@ -199,6 +199,7 @@ export async function updateTenantBrandingAction(
     });
 
     revalidatePath("/pengaturan");
+    revalidatePath("/konten");
     return { success: true, data: updated };
   } catch (error: unknown) {
     if (error instanceof z.ZodError) {

@@ -3,10 +3,23 @@ import { eq, desc, and } from "drizzle-orm";
 import { headers } from "next/headers";
 import { MenuItem, MenuCategory, menuItems as staticMenuItems, categories as staticCategories, toppingOptions, extraToppingOptions } from "@/data/menu";
 
-// ─── In-Memory TTL Cache (300s / 5 Menit) ──────────────────────────────────
-// Mencegah round-trip berulang ke Neon DB dan menghemat kuota transfer jaringan.
-const CACHE_TTL_MS = 300_000;
+// ─── In-Memory TTL Cache ──────────────────────────────────
+// Default 300s untuk data katalog menu; 10s untuk store settings agar pembaruan branding/konten langsung terlihat dalam hitungan detik.
+const DEFAULT_CACHE_TTL_MS = 300_000;
+export const SETTINGS_CACHE_TTL_MS = 10_000;
 const _cache = new Map<string, { value: unknown; expiresAt: number }>();
+
+export function clearStoreCache(keyPrefix?: string): void {
+  if (!keyPrefix) {
+    _cache.clear();
+    return;
+  }
+  for (const key of _cache.keys()) {
+    if (key.startsWith(keyPrefix)) {
+      _cache.delete(key);
+    }
+  }
+}
 
 function getFromCache<T>(key: string): T | undefined {
   const entry = _cache.get(key);
@@ -15,8 +28,8 @@ function getFromCache<T>(key: string): T | undefined {
   return entry.value as T;
 }
 
-function setToCache<T>(key: string, value: T): void {
-  _cache.set(key, { value, expiresAt: Date.now() + CACHE_TTL_MS });
+function setToCache<T>(key: string, value: T, ttlMs: number = DEFAULT_CACHE_TTL_MS): void {
+  _cache.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 
 
@@ -234,7 +247,7 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
     },
   };
 
-  setToCache(cacheKey, result);
+  setToCache(cacheKey, result, SETTINGS_CACHE_TTL_MS);
   return result;
 }
 

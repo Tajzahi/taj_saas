@@ -15,7 +15,7 @@ export async function GET() {
       { settings, categories, items, promos },
       {
         headers: {
-          "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+          "Cache-Control": "public, s-maxage=10, stale-while-revalidate=30",
         },
       }
     );
