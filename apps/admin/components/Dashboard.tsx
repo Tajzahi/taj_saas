@@ -12,9 +12,10 @@ import { createAdminApprovalAction } from '../app/actions';
 interface DashboardProps {
   onLogout: () => void;
   username: string;
+  tenantSlug?: string | null;
 }
 
-export default function Dashboard({ onLogout, username }: DashboardProps) {
+export default function Dashboard({ onLogout, username, tenantSlug }: DashboardProps) {
   const {
     orders,
     selectedOrderId,
@@ -76,13 +77,13 @@ export default function Dashboard({ onLogout, username }: DashboardProps) {
   useEffect(() => {
     fetchStoreSettings();
     fetchOrders();
-    subscribeToOrders();
+    subscribeToOrders(tenantSlug || undefined);
     fetchActiveShift();
 
     return () => {
       unsubscribeFromOrders();
     };
-  }, [fetchOrders, fetchStoreSettings, subscribeToOrders, unsubscribeFromOrders, fetchActiveShift]);
+  }, [fetchOrders, fetchStoreSettings, subscribeToOrders, unsubscribeFromOrders, fetchActiveShift, tenantSlug]);
 
   const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [isMuted, setIsMuted] = useState(false);

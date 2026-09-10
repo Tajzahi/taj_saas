@@ -12,6 +12,18 @@ import {
 } from "@lib/tenant-authorization";
 import { calculateOrderPricing, PricingItemBreakdown } from "@lib/server/pricing-service";
 
+/**
+ * Helper to ensure error messages retain informative details (DB error, validation, etc.)
+ * so the Admin UI toast can inform cashiers/admins exactly what happened.
+ */
+function formatErrorMessage(err: unknown, defaultMessage: string): string {
+  if (err instanceof AuthorizationError) {
+    return err.message;
+  }
+  const detail = err instanceof Error ? err.message : (typeof err === "string" ? err : "");
+  return detail ? `${defaultMessage}: ${detail}` : defaultMessage;
+}
+
 // ─── STATE MACHINE DEFINITIONS ──────────────────────────────────────────────
 
 const ORDER_TRANSITIONS: Record<string, string[]> = {
@@ -96,11 +108,8 @@ export async function getOrdersAction() {
 
     return { success: true, orders: ordersWithItems };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message, orders: [] };
-    }
     console.error("Error in getOrdersAction:", err);
-    return { success: false, error: "Gagal memuat daftar pesanan", orders: [] };
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat daftar pesanan"), orders: [] };
   }
 }
 
@@ -261,11 +270,8 @@ export async function updateOrderStatusAction(
     revalidatePath("/");
     return { success: true };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in updateOrderStatusAction:", err);
-    return { success: false, error: "Gagal memperbarui status pesanan" };
+    return { success: false, error: formatErrorMessage(err, "Gagal memperbarui status pesanan") };
   }
 }
 
@@ -342,11 +348,8 @@ export async function verifyPaymentStatusAction(orderId: string, isPaid: boolean
     revalidatePath("/");
     return { success: true };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in verifyPaymentStatusAction:", err);
-    return { success: false, error: "Gagal memverifikasi pembayaran" };
+    return { success: false, error: formatErrorMessage(err, "Gagal memverifikasi pembayaran") };
   }
 }
 
@@ -402,11 +405,8 @@ export async function getActiveShiftAction() {
       },
     };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message, activeShift: null };
-    }
     console.error("Error in getActiveShiftAction:", err);
-    return { success: false, error: "Gagal memuat status shift aktif", activeShift: null };
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat status shift aktif"), activeShift: null };
   }
 }
 
@@ -476,11 +476,8 @@ export async function openShiftAction(startingCash: number, operatorName: string
       },
     };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in openShiftAction:", err);
-    return { success: false, error: "Gagal membuka shift baru" };
+    return { success: false, error: formatErrorMessage(err, "Gagal membuka shift baru") };
   }
 }
 
@@ -555,11 +552,8 @@ export async function closeShiftAction(shiftId: string, actualCash: number) {
     revalidatePath("/");
     return { success: true };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in closeShiftAction:", err);
-    return { success: false, error: "Gagal menutup shift" };
+    return { success: false, error: formatErrorMessage(err, "Gagal menutup shift") };
   }
 }
 
@@ -594,11 +588,8 @@ export async function getMenuItemsAction() {
 
     return { success: true, menuItems: formatted };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message, menuItems: [] };
-    }
     console.error("Error in getMenuItemsAction:", err);
-    return { success: false, error: "Gagal memuat menu", menuItems: [] };
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat menu"), menuItems: [] };
   }
 }
 
@@ -624,11 +615,8 @@ export async function toggleMenuItemAvailabilityAction(itemId: string, isAvailab
     revalidatePath("/");
     return { success: true };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in toggleMenuItemAvailabilityAction:", err);
-    return { success: false, error: "Gagal memperbarui ketersediaan menu" };
+    return { success: false, error: formatErrorMessage(err, "Gagal memperbarui ketersediaan menu") };
   }
 }
 
@@ -650,11 +638,8 @@ export async function getToppingsAction() {
 
     return { success: true, toppings: formatted };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message, toppings: [] };
-    }
     console.error("Error in getToppingsAction:", err);
-    return { success: false, error: "Gagal memuat toppings", toppings: [] };
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat toppings"), toppings: [] };
   }
 }
 
@@ -680,11 +665,8 @@ export async function toggleToppingAvailabilityAction(toppingId: string, isAvail
     revalidatePath("/");
     return { success: true };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in toggleToppingAvailabilityAction:", err);
-    return { success: false, error: "Gagal memperbarui ketersediaan topping" };
+    return { success: false, error: formatErrorMessage(err, "Gagal memperbarui ketersediaan topping") };
   }
 }
 
@@ -726,11 +708,8 @@ export async function getStoreLogsAction() {
 
     return { success: true, storeLogs: logs };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message, storeLogs: [] };
-    }
     console.error("Error in getStoreLogsAction:", err);
-    return { success: false, error: "Gagal memuat log operasional", storeLogs: [] };
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat log operasional"), storeLogs: [] };
   }
 }
 
@@ -764,11 +743,8 @@ export async function toggleStoreAction(isOpen: boolean) {
     revalidatePath("/");
     return { success: true };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in toggleStoreAction:", err);
-    return { success: false, error: "Gagal memperbarui status operasional toko" };
+    return { success: false, error: formatErrorMessage(err, "Gagal memperbarui status operasional toko") };
   }
 }
 
@@ -785,13 +761,11 @@ export async function getStoreSettingsAction() {
       isOpen: branding.storeOpen ?? true,
       name: tenant.name,
       branding: tenant.branding,
+      slug: tenant.slug,
     };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in getStoreSettingsAction:", err);
-    return { success: false, error: "Gagal memuat pengaturan toko" };
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat pengaturan toko") };
   }
 }
 
@@ -958,11 +932,8 @@ export async function createOfflineOrderAction(data: {
     revalidatePath("/");
     return { success: true, orderCode, order: createdOrder };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in createOfflineOrderAction:", err);
-    return { success: false, error: "Gagal membuat pesanan POS" };
+    return { success: false, error: formatErrorMessage(err, "Gagal membuat pesanan POS") };
   }
 }
 
@@ -1005,11 +976,8 @@ export async function getCancellationRequestsAction() {
 
     return { success: true, data: requests };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message, data: [] };
-    }
     console.error("Error in getCancellationRequestsAction:", err);
-    return { success: false, error: "Gagal memuat daftar pembatalan", data: [] };
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat daftar pembatalan"), data: [] };
   }
 }
 
@@ -1112,11 +1080,8 @@ export async function reviewCancellationRequestAction(
       message: decision === "approved" ? "Pembatalan & refund disetujui." : "Permintaan pembatalan ditolak.",
     };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in reviewCancellationRequestAction:", err);
-    return { success: false, error: "Gagal memproses review pembatalan" };
+    return { success: false, error: formatErrorMessage(err, "Gagal memproses review pembatalan") };
   }
 }
 
@@ -1162,10 +1127,7 @@ export async function createAdminApprovalAction(data: {
     revalidatePath("/");
     return { success: true, data: newApproval };
   } catch (err: unknown) {
-    if (err instanceof AuthorizationError) {
-      return { success: false, error: err.message };
-    }
     console.error("Error in createAdminApprovalAction:", err);
-    return { success: false, error: "Gagal membuat pengajuan persetujuan" };
+    return { success: false, error: formatErrorMessage(err, "Gagal membuat pengajuan persetujuan") };
   }
 }

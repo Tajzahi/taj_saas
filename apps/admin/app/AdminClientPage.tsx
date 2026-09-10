@@ -67,6 +67,7 @@ export default function AdminClientPage({
     <Dashboard
       onLogout={handleLogout}
       username={session.user.name || session.user.email}
+      tenantSlug={tenantSlug}
     />
   );
 }

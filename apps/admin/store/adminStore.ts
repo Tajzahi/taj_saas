@@ -124,7 +124,9 @@ interface AdminState {
   fetchToppings: () => Promise<void>;
   toggleToppingAvailability: (id: string, isAvailable: boolean) => Promise<boolean>;
   writeAuditLog: (action: string, details: string, orderId?: string) => Promise<void>;
-  subscribeToOrders: () => void;
+  tenantSlug: string | null;
+  setTenantSlug: (slug: string) => void;
+  subscribeToOrders: (explicitSlug?: string) => void;
   unsubscribeFromOrders: () => void;
   fetchActiveShift: () => Promise<void>;
   openShift: (startingCash: number, operatorName: string) => Promise<boolean>;
@@ -142,10 +144,13 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   isStoreOpen: true,
   storeName: 'Portal Operasional',
   branding: null,
+  tenantSlug: null,
   newOrderIds: [],
   isLoading: false,
   subscription: null,
-  connectionStatus: 'connected',
+  connectionStatus: 'disconnected',
+
+  setTenantSlug: (slug: string) => set({ tenantSlug: slug }),
 
   selectOrder: (id) => set({ selectedOrderId: id }),
 
@@ -242,11 +247,17 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   fetchStoreSettings: async () => {
     const res = await getStoreSettingsAction();
     if (res.success) {
+      const slug = (res as any).slug || null;
       set({
         isStoreOpen: res.isOpen ?? true,
         storeName: res.name || 'Portal Operasional',
         branding: res.branding || null,
+        ...(slug ? { tenantSlug: slug } : {}),
       });
+      // If we now have an authenticated slug that differs from current state, re-subscribe
+      if (slug && get().tenantSlug !== slug) {
+        get().subscribeToOrders(slug);
+      }
     }
   },
 
@@ -308,18 +319,41 @@ export const useAdminStore = create<AdminState>((set, get) => ({
     set({ isLoading: false });
   },
 
-  subscribeToOrders: () => {
-    console.log('[Ably Realtime] Subscribed to orders via token auth');
-    
-    // Resolve tenantSlug dynamically from hostname on client side (using shared helper)
-    let tenantSlug = "taj-saas";
-    if (typeof window !== 'undefined') {
+  subscribeToOrders: (explicitSlug?: string) => {
+    // Unsubscribe previous connection if active to prevent duplicated listeners or channel mismatch
+    const previousSub = get().subscription;
+    if (previousSub) {
+      try {
+        previousSub.channel.unsubscribe();
+        previousSub.ably.close();
+      } catch (err) {
+        console.warn('[Ably Realtime] Error closing previous connection:', err);
+      }
+      set({ subscription: null });
+    }
+
+    // 1. Prioritize explicit tenantSlug passed from authenticated server profile/session
+    // 2. Check tenantSlug stored in state
+    // 3. Fallback to parsing hostname (for dedicated subdomains e.g. brand.domain.com)
+    // 4. Default fallback
+    let tenantSlug = explicitSlug || get().tenantSlug;
+    if (!tenantSlug && typeof window !== 'undefined') {
       const hostname = window.location.host;
       const { slug } = parseTenantFromHostname(hostname);
       if (slug) {
         tenantSlug = slug;
       }
     }
+
+    if (explicitSlug && get().tenantSlug !== explicitSlug) {
+      set({ tenantSlug: explicitSlug });
+    }
+
+    if (!tenantSlug) {
+      tenantSlug = "taj-saas";
+    }
+
+    console.log(`[Ably Realtime] Subscribing to orders channel orders:${tenantSlug} via token auth`);
 
     // Lazy load Ably client side using secure token authUrl endpoint
     import('ably').then(({ Realtime }) => {

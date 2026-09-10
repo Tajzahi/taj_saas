@@ -193,6 +193,31 @@ export function normalizeRequestHost(hostHeader: string): NormalizedRequestHost 
   };
 }
 
+/* ============================================================================
+ * [CATATAN ARSITEKTUR MULTI-TENANT & PANDUAN PENGATURAN KEDEPANNYA (LANGKAH 5)]
+ * ============================================================================
+ * KENAPA FALLBACK INI ADA:
+ * Saat aplikasi dideploy di platform container bersama (seperti Google Cloud Run
+ * '*.a.run.app' atau preview deployment), domain yang diakses adalah domain umum
+ * (misal: taj-admin-xxx.a.run.app), BUKAN subdomain spesifik tenant seperti
+ * 'martabak.tajsaas.id' atau custom domain 'martabak-a6.com'.
+ * 
+ * Karena itu, parser hostname tidak menemukan slug spesifik di URL Cloud Run,
+ * lalu menghasilkan slug default ('taj-saas'). Jika slug tersebut tidak ada di DB,
+ * resolver akan gagal menemukan tenant tanpa fallback ini.
+ * 
+ * CARA MENGUBAH DI MASA DEPAN JIKA SUDAH MENGGUNAKAN SUBDOMAIN RESMI:
+ * 1. Jika sudah punya custom domain wildcard (misal: '*.tajsaas.id'):
+ *    - Setiap outlet/tenant akan mengakses URL mereka sendiri, misal:
+ *      'martabak-a6.tajsaas.id'. Host parser akan langsung mengekstrak 'martabak-a6'.
+ * 2. Untuk mematikan fallback shared host ini (mode strict production):
+ *    - Pasang Environment Variable `STRICT_TENANT_ISOLATION=true` di Cloud Run/server, ATAU
+ *    - Ubah konstanta `ENABLE_SHARED_HOST_FALLBACK = false` di bawah ini.
+ *    Dengan begitu, URL tanpa subdomain/custom domain terdaftar akan langsung mengembalikan 404
+ *    demi keamanan isolasi multi-tenant yang ketat.
+ * ============================================================================ */
+const ENABLE_SHARED_HOST_FALLBACK = process.env.STRICT_TENANT_ISOLATION !== 'true';
+
 /**
  * Server-side independent tenant resolver directly from database.
  * Never falls back to arbitrary headers or insecure defaults.
@@ -226,7 +251,33 @@ export async function resolveTenantFromRequestHost(
     )
     .limit(1);
 
-  const tenant = tenantResult[0];
+  let tenant = tenantResult[0];
+
+  // Fallback untuk Shared Hosting / Staging (Cloud Run *.a.run.app, localhost, dsb.)
+  // jika lookupValue default ("taj-saas") tidak ada di DB
+  if ((!tenant || !tenant.isActive) && ENABLE_SHARED_HOST_FALLBACK) {
+    const isSharedHost =
+      (rawHost || '').includes('.a.run.app') ||
+      (rawHost || '').includes('.run.app') ||
+      (rawHost || '').includes('localhost') ||
+      (rawHost || '').includes('127.0.0.1') ||
+      (rawHost || '').startsWith('taj-owner') ||
+      (rawHost || '').startsWith('taj-admin');
+
+    if (isSharedHost) {
+      // Ambil tenant aktif pertama di database sebagai default dev/staging portal
+      const fallbackResult = await db
+        .select()
+        .from(schema.tenants)
+        .where(eq(schema.tenants.isActive, true))
+        .orderBy(desc(schema.tenants.createdAt))
+        .limit(1);
+
+      if (fallbackResult[0]) {
+        tenant = fallbackResult[0];
+      }
+    }
+  }
 
   if (!tenant || !tenant.isActive) {
     throw new AuthorizationError(
