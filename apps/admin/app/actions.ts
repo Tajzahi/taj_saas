@@ -39,12 +39,17 @@ const ORDER_TRANSITIONS: Record<string, string[]> = {
 // Fetch all orders for current tenant (Optimized single batch query)
 export async function getOrdersAction() {
   try {
-    const { tenant } = await requireTenantPermission("orders:read", { expectedApp: "admin" });
+    const { tenant, profile } = await requireTenantPermission("orders:read", { expectedApp: "admin" });
+
+    const orderConditions = [eq(schema.orders.tenantId, tenant.id)];
+    if (profile?.branchId) {
+      orderConditions.push(eq(schema.orders.branchId, profile.branchId));
+    }
 
     const dbOrders = await db
       .select()
       .from(schema.orders)
-      .where(eq(schema.orders.tenantId, tenant.id))
+      .where(and(...orderConditions))
       .orderBy(desc(schema.orders.createdAt));
 
     if (dbOrders.length === 0) {
@@ -196,10 +201,18 @@ export async function updateOrderStatusAction(
           });
         }
 
+        const shiftConditions = [
+          eq(schema.shifts.tenantId, tenant.id),
+          eq(schema.shifts.status, "open"),
+        ];
+        if (order.branchId) {
+          shiftConditions.push(eq(schema.shifts.branchId, order.branchId));
+        }
+
         const activeShifts = await tx
           .select()
           .from(schema.shifts)
-          .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
+          .where(and(...shiftConditions))
           .limit(1);
 
         const activeShift = activeShifts[0];
@@ -358,14 +371,22 @@ export async function verifyPaymentStatusAction(orderId: string, isPaid: boolean
 // Get active shift for current tenant
 export async function getActiveShiftAction() {
   try {
-    const { tenant } = await requireTenantPermission("shifts:manage-own", {
+    const { tenant, profile } = await requireTenantPermission("shifts:manage-own", {
       expectedApp: "admin",
     });
+
+    const shiftConditions = [
+      eq(schema.shifts.tenantId, tenant.id),
+      eq(schema.shifts.status, "open"),
+    ];
+    if (profile?.branchId) {
+      shiftConditions.push(eq(schema.shifts.branchId, profile.branchId));
+    }
 
     const activeShifts = await db
       .select()
       .from(schema.shifts)
-      .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
+      .where(and(...shiftConditions))
       .limit(1);
 
     const activeShift = activeShifts[0];
@@ -413,27 +434,36 @@ export async function getActiveShiftAction() {
 // Start/Open a new shift
 export async function openShiftAction(startingCash: number, operatorName: string) {
   try {
-    const { tenant, user } = await requireTenantPermission("shifts:manage-own", {
+    const { tenant, user, profile } = await requireTenantPermission("shifts:manage-own", {
       expectedApp: "admin",
     });
 
     const parsedStartingCash = Math.max(0, Number(startingCash) || 0);
 
-    // Check if there is already an open shift for this tenant
+    // Check if there is already an open shift for this branch
+    const shiftConditions = [
+      eq(schema.shifts.tenantId, tenant.id),
+      eq(schema.shifts.status, "open"),
+    ];
+    if (profile?.branchId) {
+      shiftConditions.push(eq(schema.shifts.branchId, profile.branchId));
+    }
+
     const existing = await db
       .select()
       .from(schema.shifts)
-      .where(and(eq(schema.shifts.tenantId, tenant.id), eq(schema.shifts.status, "open")))
+      .where(and(...shiftConditions))
       .limit(1);
 
     if (existing.length > 0) {
-      return { success: false, error: "Masih ada shift yang aktif/belum ditutup." };
+      return { success: false, error: "Masih ada shift yang aktif/belum ditutup di cabang ini." };
     }
 
     const [newShift] = await db
       .insert(schema.shifts)
       .values({
         tenantId: tenant.id,
+        branchId: profile?.branchId || null,
         operatorId: user.id, // Enforce operator ownership (R2-008)
         operatorName: operatorName || user.name || user.email || "Kasir",
         startingCash: String(parsedStartingCash),
@@ -673,12 +703,17 @@ export async function toggleToppingAvailabilityAction(toppingId: string, isAvail
 // Fetch store logs
 export async function getStoreLogsAction() {
   try {
-    const { tenant } = await requireTenantPermission("shifts:manage-own", { expectedApp: "admin" });
+    const { tenant, profile } = await requireTenantPermission("shifts:manage-own", { expectedApp: "admin" });
+
+    const shiftConditions = [eq(schema.shifts.tenantId, tenant.id)];
+    if (profile?.branchId) {
+      shiftConditions.push(eq(schema.shifts.branchId, profile.branchId));
+    }
 
     const dbShifts = await db
       .select()
       .from(schema.shifts)
-      .where(eq(schema.shifts.tenantId, tenant.id))
+      .where(and(...shiftConditions))
       .orderBy(desc(schema.shifts.openedAt));
 
     const logs: any[] = [];
@@ -809,6 +844,7 @@ export async function createOfflineOrderAction(data: {
     // Server-Side Canonical Pricing Calculation (Point 8)
     const pricingResult = await calculateOrderPricing({
       tenantId: tenant.id,
+      branchId: profile?.branchId || undefined,
       items: data.items.map((i) => ({
         menuItemId: i.id.length === 36 ? i.id : undefined,
         menuItemName: i.name,
@@ -842,6 +878,7 @@ export async function createOfflineOrderAction(data: {
         .insert(schema.orders)
         .values({
           tenantId: tenant.id,
+          branchId: profile?.branchId || null,
           orderCode,
           customerName: data.customerName || "Pelanggan POS",
           customerPhone: data.customerPhone?.trim() || "-",
@@ -941,9 +978,14 @@ export async function createOfflineOrderAction(data: {
 
 export async function getCancellationRequestsAction() {
   try {
-    const { tenant } = await requireTenantPermission("cancellations:review", {
+    const { tenant, profile } = await requireTenantPermission("cancellations:review", {
       expectedApp: "admin",
     });
+
+    const conditions = [eq(schema.orderCancellationRequests.tenantId, tenant.id)];
+    if (profile?.branchId) {
+      conditions.push(eq(schema.orders.branchId, profile.branchId));
+    }
 
     const requests = await db
       .select({
@@ -971,7 +1013,7 @@ export async function getCancellationRequestsAction() {
           eq(schema.orders.tenantId, tenant.id)
         )
       )
-      .where(eq(schema.orderCancellationRequests.tenantId, tenant.id))
+      .where(and(...conditions))
       .orderBy(desc(schema.orderCancellationRequests.createdAt));
 
     return { success: true, data: requests };
@@ -1094,7 +1136,7 @@ export async function createAdminApprovalAction(data: {
   notes?: string;
 }) {
   try {
-    const { tenant, user } = await requireTenantPermission("orders:create-pos", { expectedApp: "admin" });
+    const { tenant, user, profile } = await requireTenantPermission("orders:create-pos", { expectedApp: "admin" });
 
     const trimmedTitle = (data.title || "").trim();
     if (!trimmedTitle) {
@@ -1105,6 +1147,7 @@ export async function createAdminApprovalAction(data: {
       .insert(schema.approvals)
       .values({
         tenantId: tenant.id,
+        branchId: profile?.branchId || null,
         type: data.type,
         title: trimmedTitle,
         requestedBy: (data.requestedBy || user.name || "Operator Kasir").trim(),
