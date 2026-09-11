@@ -1,7 +1,7 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, or, isNull } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import {
@@ -748,32 +748,51 @@ export async function getStoreLogsAction() {
   }
 }
 
-// Toggle store operational open/close
+// Toggle store operational open/close (branch-scoped if assigned to branch)
 export async function toggleStoreAction(isOpen: boolean) {
   try {
-    const { tenant, user } = await requireTenantPermission("store:manage-operation", {
+    const { tenant, user, profile } = await requireTenantPermission("store:manage-operation", {
       expectedApp: "admin",
     });
 
-    const currentBranding = tenant.branding || {};
-    await db
-      .update(schema.tenants)
-      .set({
-        branding: {
-          ...currentBranding,
-          storeOpen: isOpen,
-        },
-      })
-      .where(eq(schema.tenants.id, tenant.id));
+    if (profile?.branchId) {
+      await db
+        .update(schema.branches)
+        .set({
+          status: isOpen ? "active" : "maintenance",
+          updatedAt: new Date(),
+        })
+        .where(and(eq(schema.branches.id, profile.branchId), eq(schema.branches.tenantId, tenant.id)));
 
-    await writeAuditEvent({
-      tenantId: tenant.id,
-      actorId: user.id,
-      action: "toggle_store_operation",
-      entityType: "tenants",
-      entityId: tenant.id,
-      details: { storeOpen: isOpen },
-    });
+      await writeAuditEvent({
+        tenantId: tenant.id,
+        actorId: user.id,
+        action: "toggle_branch_operation",
+        entityType: "branches",
+        entityId: profile.branchId,
+        details: { status: isOpen ? "active" : "maintenance" },
+      });
+    } else {
+      const currentBranding = tenant.branding || {};
+      await db
+        .update(schema.tenants)
+        .set({
+          branding: {
+            ...currentBranding,
+            storeOpen: isOpen,
+          },
+        })
+        .where(eq(schema.tenants.id, tenant.id));
+
+      await writeAuditEvent({
+        tenantId: tenant.id,
+        actorId: user.id,
+        action: "toggle_store_operation",
+        entityType: "tenants",
+        entityId: tenant.id,
+        details: { storeOpen: isOpen },
+      });
+    }
 
     revalidatePath("/");
     return { success: true };
@@ -783,18 +802,33 @@ export async function toggleStoreAction(isOpen: boolean) {
   }
 }
 
-// Get operational store settings
+// Get operational store settings (branch-scoped if assigned to branch)
 export async function getStoreSettingsAction() {
   try {
-    const { tenant } = await requireTenantPermission("store:read-operation", {
+    const { tenant, profile } = await requireTenantPermission("store:read-operation", {
       expectedApp: "admin",
     });
 
-    const branding = tenant.branding || {};
+    let isOpen = tenant.branding?.storeOpen ?? true;
+    let storeName = tenant.name;
+
+    if (profile?.branchId) {
+      const [branch] = await db
+        .select()
+        .from(schema.branches)
+        .where(and(eq(schema.branches.id, profile.branchId), eq(schema.branches.tenantId, tenant.id)))
+        .limit(1);
+
+      if (branch) {
+        isOpen = branch.status === "active";
+        storeName = `${tenant.name} (${branch.name})`;
+      }
+    }
+
     return {
       success: true,
-      isOpen: branding.storeOpen ?? true,
-      name: tenant.name,
+      isOpen,
+      name: storeName,
       branding: tenant.branding,
       slug: tenant.slug,
     };
@@ -1174,3 +1208,28 @@ export async function createAdminApprovalAction(data: {
     return { success: false, error: formatErrorMessage(err, "Gagal membuat pengajuan persetujuan") };
   }
 }
+
+// Fetch approval requests for current admin branch
+export async function getAdminApprovalsAction() {
+  try {
+    const { tenant, profile } = await requireTenantPermission("orders:read", { expectedApp: "admin" });
+
+    const conditions = [eq(schema.approvals.tenantId, tenant.id)];
+    if (profile?.branchId) {
+      conditions.push(or(eq(schema.approvals.branchId, profile.branchId), isNull(schema.approvals.branchId))!);
+    }
+
+    const list = await db
+      .select()
+      .from(schema.approvals)
+      .where(and(...conditions))
+      .orderBy(desc(schema.approvals.requestedAt))
+      .limit(30);
+
+    return { success: true, approvals: list };
+  } catch (err: unknown) {
+    console.error("Error in getAdminApprovalsAction:", err);
+    return { success: false, error: formatErrorMessage(err, "Gagal memuat riwayat pengajuan"), approvals: [] };
+  }
+}
+

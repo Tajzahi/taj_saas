@@ -412,6 +412,30 @@ export const useAdminStore = create<AdminState>((set, get) => ({
         channel.subscribe('order.refunded', handleCancellation);
         channel.subscribe('order-cancelled', handleCancellation);
 
+        // Listen for owner approval / rejection events (Poin C)
+        const handleApprovalResolved = (message: any) => {
+          console.log('[Ably] Realtime approval resolution received:', message.name, message.data);
+          const data = message.data;
+          if (!data) return;
+
+          const title = data.title || 'Pengajuan';
+          const reviewer = data.reviewerName || 'Owner';
+          if (data.status === 'approved') {
+            toast.success(`✅ Pengajuan "${title}" telah DISETUJUI oleh ${reviewer}!`, {
+              duration: 7000,
+              icon: '🎉',
+              style: { background: '#064e3b', color: '#ecfdf5', fontWeight: 'bold' },
+            });
+          } else if (data.status === 'rejected') {
+            toast.error(`❌ Pengajuan "${title}" DITOLAK oleh ${reviewer}.`, {
+              duration: 7000,
+              style: { background: '#7f1d1d', color: '#fef2f2', fontWeight: 'bold' },
+            });
+          }
+        };
+
+        channel.subscribe('approval.resolved', handleApprovalResolved);
+
         set({ subscription: { ably, channel } });
       } catch (err) {
         console.error('[Ably Realtime] Initialization failed:', err);

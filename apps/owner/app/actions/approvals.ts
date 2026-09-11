@@ -21,14 +21,54 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
+
+async function publishApprovalEvent(tenantSlug: string, eventName: string, data: any) {
+  const apiKey = process.env.ABLY_API_KEY;
+  if (!apiKey) return;
+  try {
+    const authHeader = "Basic " + Buffer.from(apiKey).toString("base64");
+    await fetch(`https://rest.ably.io/channels/${encodeURIComponent(`orders:${tenantSlug}`)}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: authHeader,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: eventName,
+        data,
+      }),
+    });
+  } catch (err) {
+    console.warn("[Ably Publish] Failed to publish approval event:", err);
+  }
+}
 
 export async function getApprovalsAction() {
   try {
     const { tenant } = await requireTenantPermission("approvals:read", { expectedApp: "owner" });
-    const list = await db.select().from(schema.approvals).where(eq(schema.approvals.tenantId, tenant.id));
+    const list = await db
+      .select({
+        id: schema.approvals.id,
+        tenantId: schema.approvals.tenantId,
+        type: schema.approvals.type,
+        title: schema.approvals.title,
+        amount: schema.approvals.amount,
+        priority: schema.approvals.priority,
+        status: schema.approvals.status,
+        notes: schema.approvals.notes,
+        requestedBy: schema.approvals.requestedBy,
+        requestedAt: schema.approvals.requestedAt,
+        branchId: schema.approvals.branchId,
+        branchName: schema.branches.name,
+      })
+      .from(schema.approvals)
+      .leftJoin(schema.branches, eq(schema.approvals.branchId, schema.branches.id))
+      .where(eq(schema.approvals.tenantId, tenant.id))
+      .orderBy(desc(schema.approvals.requestedAt));
+
     return { success: true, data: list };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
@@ -59,6 +99,18 @@ export async function approveRequestAction(id: string) {
       action: "approve_request",
       entityType: "approvals",
       entityId: id,
+    });
+
+    // Realtime broadcast to Admin POS tabs
+    await publishApprovalEvent(tenant.slug, "approval.resolved", {
+      id: updated.id,
+      title: updated.title,
+      type: updated.type,
+      amount: updated.amount,
+      status: "approved",
+      branchId: updated.branchId,
+      requesterName: updated.requestedBy,
+      reviewerName: user.name || "Owner",
     });
 
     revalidatePath("/persetujuan");
@@ -92,6 +144,18 @@ export async function rejectRequestAction(id: string) {
       action: "reject_request",
       entityType: "approvals",
       entityId: id,
+    });
+
+    // Realtime broadcast to Admin POS tabs
+    await publishApprovalEvent(tenant.slug, "approval.resolved", {
+      id: updated.id,
+      title: updated.title,
+      type: updated.type,
+      amount: updated.amount,
+      status: "rejected",
+      branchId: updated.branchId,
+      requesterName: updated.requestedBy,
+      reviewerName: user.name || "Owner",
     });
 
     revalidatePath("/persetujuan");

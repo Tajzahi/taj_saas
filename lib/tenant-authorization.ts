@@ -132,6 +132,7 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'orders:verify-payment',
     'shifts:manage-own',
     'store:read-operation',
+    'store:manage-operation',
     'reports:export',
   ],
   kitchen: [

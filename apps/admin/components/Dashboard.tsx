@@ -7,7 +7,7 @@ import POSOfflineModal from './POSOfflineModal';
 import { LogOut, Store, StoreIcon, Volume2, VolumeX, Bell, ChevronLeft, ChefHat, X, RefreshCw, Clock, AlertTriangle, User, ClipboardList, Utensils, ShoppingCart, FileCheck } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { formatRupiah } from '../utils/format';
-import { createAdminApprovalAction } from '../app/actions';
+import { createAdminApprovalAction, getAdminApprovalsAction } from '../app/actions';
 
 interface DashboardProps {
   onLogout: () => void;
@@ -61,6 +61,18 @@ export default function Dashboard({ onLogout, username, tenantSlug }: DashboardP
   const [approvalPriority, setApprovalPriority] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
   const [approvalNotes, setApprovalNotes] = useState('');
   const [isSubmittingApproval, setIsSubmittingApproval] = useState(false);
+  const [approvalTab, setApprovalTab] = useState<'create' | 'history'>('create');
+  const [adminApprovalsList, setAdminApprovalsList] = useState<any[]>([]);
+  const [isLoadingApprovals, setIsLoadingApprovals] = useState(false);
+
+  const loadAdminApprovals = async () => {
+    setIsLoadingApprovals(true);
+    const res = await getAdminApprovalsAction();
+    if (res.success && res.approvals) {
+      setAdminApprovalsList(res.approvals);
+    }
+    setIsLoadingApprovals(false);
+  };
 
   // Real-time clock
   useEffect(() => {
@@ -306,6 +318,8 @@ export default function Dashboard({ onLogout, username, tenantSlug }: DashboardP
               setApprovalTitle('');
               setApprovalAmount('');
               setApprovalNotes('');
+              setApprovalTab('create');
+              loadAdminApprovals();
               setIsApprovalModalOpen(true);
             }}
             className="flex items-center justify-center p-1.5 sm:px-3 sm:py-1.5 rounded-lg text-xs font-black transition-all border bg-amber-500/20 border-amber-400/40 text-amber-100 hover:bg-amber-500/30 shrink-0 shadow-sm cursor-pointer"
@@ -963,124 +977,252 @@ export default function Dashboard({ onLogout, username, tenantSlug }: DashboardP
             </div>
             <button onClick={() => setIsApprovalModalOpen(false)} className="text-gray-400 hover:text-gray-600 text-lg font-bold">✕</button>
           </div>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              if (!approvalTitle.trim()) {
-                toast.error("Harap isi judul pengajuan!");
-                return;
-              }
-              const parsedAmt = approvalAmount ? Number(approvalAmount.replace(/\./g, '').replace(/,/g, '.')) : 0;
-              setIsSubmittingApproval(true);
-              const res = await createAdminApprovalAction({
-                type: approvalType,
-                title: approvalTitle.trim(),
-                requestedBy: username || "Operator Kasir",
-                amount: isNaN(parsedAmt) ? 0 : parsedAmt,
-                priority: approvalPriority,
-                notes: approvalNotes.trim(),
-              });
-              setIsSubmittingApproval(false);
 
-              if (res.success) {
-                toast.success("Pengajuan persetujuan berhasil terkirim ke Owner!");
-                setIsApprovalModalOpen(false);
-              } else {
-                toast.error("Gagal mengirim pengajuan: " + (res.error || "Kesalahan sistem"));
-              }
-            }}
-            className="space-y-3 text-xs"
-          >
-            <div>
-              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Tipe Permohonan</label>
-              <select
-                value={approvalType}
-                onChange={(e) => setApprovalType(e.target.value as any)}
-                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
-              >
-                <option value="discount">🏷️ Diskon Khusus Kasir</option>
-                <option value="refund">↩️ Refund / Void Nota Transaksi</option>
-                <option value="purchase_order">📦 Purchase Order (PO Restock Bahan)</option>
-                <option value="transfer">🔄 Transfer / Kas Keluar Operasional</option>
-              </select>
-            </div>
+          {/* Tab Navigation */}
+          <div className="flex border-b border-gray-100 dark:border-slate-800 gap-4 pt-1">
+            <button
+              type="button"
+              onClick={() => setApprovalTab('create')}
+              className={`pb-2 text-xs font-bold border-b-2 transition-all cursor-pointer ${
+                approvalTab === 'create'
+                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              + Buat Pengajuan
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setApprovalTab('history');
+                loadAdminApprovals();
+              }}
+              className={`pb-2 text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 cursor-pointer ${
+                approvalTab === 'history'
+                  ? 'border-orange-500 text-orange-600 dark:text-orange-400'
+                  : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              📋 Riwayat Pengajuan
+              {adminApprovalsList.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-slate-800 text-[10px] text-gray-600 dark:text-slate-300 font-semibold">
+                  {adminApprovalsList.length}
+                </span>
+              )}
+            </button>
+          </div>
 
-            <div>
-              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Judul Pengajuan</label>
-              <input
-                type="text"
-                placeholder="Contoh: Diskon 20% Rombongan / PO Daging 10kg"
-                value={approvalTitle}
-                onChange={(e) => setApprovalTitle(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
-                required
-              />
-            </div>
+          {approvalTab === 'create' ? (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!approvalTitle.trim()) {
+                  toast.error("Harap isi judul pengajuan!");
+                  return;
+                }
+                const parsedAmt = approvalAmount ? Number(approvalAmount.replace(/\./g, '').replace(/,/g, '.')) : 0;
+                setIsSubmittingApproval(true);
+                const res = await createAdminApprovalAction({
+                  type: approvalType,
+                  title: approvalTitle.trim(),
+                  requestedBy: username || "Operator Kasir",
+                  amount: isNaN(parsedAmt) ? 0 : parsedAmt,
+                  priority: approvalPriority,
+                  notes: approvalNotes.trim(),
+                });
+                setIsSubmittingApproval(false);
 
-            <div className="grid grid-cols-2 gap-3">
+                if (res.success) {
+                  toast.success("Pengajuan persetujuan berhasil terkirim ke Owner!");
+                  setApprovalTitle('');
+                  setApprovalAmount('');
+                  setApprovalNotes('');
+                  loadAdminApprovals();
+                  setApprovalTab('history');
+                } else {
+                  toast.error("Gagal mengirim pengajuan: " + (res.error || "Kesalahan sistem"));
+                }
+              }}
+              className="space-y-3 text-xs"
+            >
               <div>
-                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Operator Pengaju</label>
+                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Tipe Permohonan</label>
+                <select
+                  value={approvalType}
+                  onChange={(e) => setApprovalType(e.target.value as any)}
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+                >
+                  <option value="discount">🏷️ Diskon Khusus Kasir</option>
+                  <option value="refund">↩️ Refund / Void Nota Transaksi</option>
+                  <option value="purchase_order">📦 Purchase Order (PO Restock Bahan)</option>
+                  <option value="transfer">🔄 Transfer / Kas Keluar Operasional</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Judul Pengajuan</label>
                 <input
                   type="text"
-                  value={username}
-                  disabled
-                  className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-100 dark:bg-slate-800 p-2.5 font-bold text-gray-600 dark:text-slate-400"
+                  placeholder="Contoh: Diskon 20% Rombongan / PO Daging 10kg"
+                  value={approvalTitle}
+                  onChange={(e) => setApprovalTitle(e.target.value)}
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+                  required
                 />
               </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Operator Pengaju</label>
+                  <input
+                    type="text"
+                    value={username}
+                    disabled
+                    className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-100 dark:bg-slate-800 p-2.5 font-bold text-gray-600 dark:text-slate-400"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Nominal (Rp)</label>
+                  <input
+                    type="number"
+                    placeholder="0"
+                    value={approvalAmount}
+                    onChange={(e) => setApprovalAmount(e.target.value)}
+                    className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Nominal (Rp)</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  value={approvalAmount}
-                  onChange={(e) => setApprovalAmount(e.target.value)}
+                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Tingkat Urgensi</label>
+                <select
+                  value={approvalPriority}
+                  onChange={(e) => setApprovalPriority(e.target.value as any)}
+                  className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
+                >
+                  <option value="critical">🔴 Kritis (Darurat - Butuh Respon Segera)</option>
+                  <option value="high">🟠 Tinggi</option>
+                  <option value="medium">🔵 Sedang (Normal)</option>
+                  <option value="low">⚪ Rendah</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Catatan / Alasan</label>
+                <textarea
+                  rows={3}
+                  placeholder="Jelaskan alasan pengajuan ini untuk pertimbangan Owner..."
+                  value={approvalNotes}
+                  onChange={(e) => setApprovalNotes(e.target.value)}
                   className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
                 />
               </div>
-            </div>
 
-            <div>
-              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Tingkat Urgensi</label>
-              <select
-                value={approvalPriority}
-                onChange={(e) => setApprovalPriority(e.target.value as any)}
-                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
-              >
-                <option value="critical">🔴 Kritis (Darurat - Butuh Respon Segera)</option>
-                <option value="high">🟠 Tinggi</option>
-                <option value="medium">🔵 Sedang (Normal)</option>
-                <option value="low">⚪ Rendah</option>
-              </select>
-            </div>
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsApprovalModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 font-bold hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-300"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingApproval}
+                  className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 font-bold text-white shadow-md disabled:opacity-50 cursor-pointer"
+                >
+                  {isSubmittingApproval ? "Mengirim..." : "Kirim Pengajuan"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-xs text-gray-500">
+                <span>Daftar pengajuan cabang Anda</span>
+                <button
+                  type="button"
+                  onClick={loadAdminApprovals}
+                  disabled={isLoadingApprovals}
+                  className="text-orange-600 hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isLoadingApprovals ? 'animate-spin' : ''}`} />
+                  Segarkan
+                </button>
+              </div>
 
-            <div>
-              <label className="block font-bold text-gray-700 dark:text-slate-300 mb-1">Catatan / Alasan</label>
-              <textarea
-                rows={3}
-                placeholder="Jelaskan alasan pengajuan ini untuk pertimbangan Owner..."
-                value={approvalNotes}
-                onChange={(e) => setApprovalNotes(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 dark:border-slate-800 bg-gray-50 dark:bg-slate-950 p-2.5 font-medium"
-              />
-            </div>
+              <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
+                {isLoadingApprovals ? (
+                  <div className="text-center py-8 text-gray-400 text-xs">Memuat data riwayat pengajuan...</div>
+                ) : adminApprovalsList.length === 0 ? (
+                  <div className="text-center py-8 text-gray-400 text-xs">Belum ada pengajuan dari cabang ini.</div>
+                ) : (
+                  adminApprovalsList.map((item) => {
+                    const statusBadge =
+                      item.status === 'approved' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700 border border-green-200">
+                          ✅ Disetujui
+                        </span>
+                      ) : item.status === 'rejected' ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                          ❌ Ditolak
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">
+                          ⏳ Menunggu
+                        </span>
+                      );
 
-            <div className="flex gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setIsApprovalModalOpen(false)}
-                className="flex-1 py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 font-bold hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-300"
-              >
-                Batal
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmittingApproval}
-                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 font-bold text-white shadow-md disabled:opacity-50"
-              >
-                {isSubmittingApproval ? "Sending..." : "Kirim Pengajuan"}
-              </button>
+                    const icon =
+                      item.type === 'discount'
+                        ? '🏷️'
+                        : item.type === 'refund'
+                        ? '↩️'
+                        : item.type === 'purchase_order'
+                        ? '📦'
+                        : '🔄';
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="p-3 rounded-xl border border-gray-100 dark:border-slate-800 bg-gray-50/70 dark:bg-slate-950/60 text-xs space-y-1.5"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{icon}</span>
+                            <div>
+                              <p className="font-bold text-gray-800 dark:text-slate-200">{item.title}</p>
+                              <p className="text-[10px] text-gray-400">
+                                Diajukan {new Date(item.requestedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="font-black text-gray-800 dark:text-slate-200">{formatRupiah(Number(item.amount || 0))}</p>
+                            <div className="mt-0.5">{statusBadge}</div>
+                          </div>
+                        </div>
+                        {item.notes && (
+                          <p className="text-[11px] text-gray-500 dark:text-slate-400 bg-white dark:bg-slate-900 p-2 rounded-lg border border-gray-100 dark:border-slate-800 italic">
+                            "{item.notes}"
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsApprovalModalOpen(false)}
+                  className="w-full py-2.5 rounded-xl border border-gray-200 dark:border-slate-700 font-bold hover:bg-gray-100 dark:hover:bg-slate-800 text-gray-600 dark:text-slate-300 text-xs cursor-pointer"
+                >
+                  Tutup
+                </button>
+              </div>
             </div>
-          </form>
+          )}
         </div>
       </div>
     )}

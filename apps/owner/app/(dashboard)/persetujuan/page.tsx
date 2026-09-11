@@ -81,7 +81,7 @@ export default function Persetujuan() {
             requestedAt: new Date(dbApp.requestedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
             notes: dbApp.notes || "",
             branchId: dbApp.branchId || "",
-            cabang: dbApp.branchId || "Semua Cabang",
+            cabang: (dbApp as any).branchName ? `Cabang ${(dbApp as any).branchName}` : (dbApp.branchId || "Semua Cabang"),
           };
         });
         setApprovals(mapped);
