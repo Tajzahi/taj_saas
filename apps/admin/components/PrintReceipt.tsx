@@ -91,6 +91,18 @@ export default function PrintReceipt({ order }: PrintReceiptProps) {
             <span className="float-right">-{formatRupiah(order.discount)}</span>
           </p>
         )}
+        {Boolean(order.serviceChargeAmount && order.serviceChargeAmount > 0) && (
+          <p>
+            Service Charge:{' '}
+            <span className="float-right">{formatRupiah(order.serviceChargeAmount!)}</span>
+          </p>
+        )}
+        {Boolean(order.taxAmount && order.taxAmount > 0) && (
+          <p>
+            Pajak (PPN):{' '}
+            <span className="float-right">{formatRupiah(order.taxAmount!)}</span>
+          </p>
+        )}
         <p className="grand-total">
           TOTAL: <span className="float-right">{formatRupiah(order.totalPrice)}</span>
         </p>

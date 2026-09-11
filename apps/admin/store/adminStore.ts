@@ -40,6 +40,8 @@ export interface AdminOrder {
   subtotal: number;
   discount: number;
   couponCode: string | null;
+  taxAmount?: number;
+  serviceChargeAmount?: number;
   totalPrice: number;
   status: 'received' | 'processing' | 'ready' | 'completed' | 'cancelled';
   paymentMethod: 'cod' | 'transfer';

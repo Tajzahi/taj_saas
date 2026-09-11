@@ -12,7 +12,7 @@ interface POSOfflineModalProps {
 }
 
 export default function POSOfflineModal({ onClose, username }: POSOfflineModalProps) {
-  const { menuItems, fetchMenuItems, fetchOrders, activeShift } = useAdminStore();
+  const { menuItems, fetchMenuItems, fetchOrders, activeShift, branding, fetchStoreSettings } = useAdminStore();
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [customerName, setCustomerName] = useState<string>('');
@@ -52,9 +52,10 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
     onCloseRef.current = onClose;
   }, [onClose]);
 
-  // Fetch menu items ONCE on mount to prevent infinite re-rendering loop
+  // Fetch menu items and store settings ONCE on mount to prevent infinite re-rendering loop
   useEffect(() => {
     fetchMenuItems();
+    fetchStoreSettings();
   }, []);
 
   // Keyboard shortcut handler
@@ -102,9 +103,17 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
     });
   };
 
+  const taxRate = typeof branding?.taxRate === 'number'
+    ? branding.taxRate
+    : (typeof branding?.taxRateBps === 'number' ? branding.taxRateBps / 100 : 0);
+  const serviceChargeRate = typeof branding?.serviceChargeRate === 'number'
+    ? branding.serviceChargeRate
+    : (typeof branding?.serviceChargeRateBps === 'number' ? branding.serviceChargeRateBps / 100 : 0);
+
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
-  const tax = Math.round(subtotal * 0.10); // 10% PB1
-  const grandTotal = subtotal + tax;
+  const tax = taxRate > 0 ? Math.round(subtotal * (taxRate / 100)) : 0;
+  const serviceCharge = serviceChargeRate > 0 ? Math.round(subtotal * (serviceChargeRate / 100)) : 0;
+  const grandTotal = subtotal + tax + serviceCharge;
 
   const parsedCash = cashPaid ? Number(cashPaid.replace(/\./g, '').replace(/,/g, '.')) : 0;
   const change = paymentMethod === 'cod' ? parsedCash - grandTotal : 0;
@@ -143,9 +152,14 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
           id: res.order?.id || `off-${Date.now()}`,
           orderCode: res.orderCode || 'ORD-OFFLINE',
           customerName: customerName.trim(),
-          items: cart.map(c => ({ menuItemName: c.name, quantity: c.qty, totalPrice: c.price * c.qty })),
+          items: cart.map(c => ({ id: c.id, name: c.name, quantity: c.qty, price: c.price })),
+          subtotal,
+          taxAmount: tax,
+          serviceChargeAmount: serviceCharge,
           totalPrice: grandTotal,
+          deliveryType: orderType,
           paymentMethod,
+          paymentStatus: 'paid',
           createdAt: new Date().toISOString(),
         });
       } else {
@@ -595,10 +609,23 @@ export default function POSOfflineModal({ onClose, username }: POSOfflineModalPr
                     <span>Subtotal:</span>
                     <span>Rp {subtotal.toLocaleString('id-ID')}</span>
                   </div>
-                  <div className="flex justify-between text-slate-500">
-                    <span>Pajak (PPN 10%):</span>
-                    <span>Rp {tax.toLocaleString('id-ID')}</span>
-                  </div>
+                  {serviceCharge > 0 && (
+                    <div className="flex justify-between text-slate-500">
+                      <span>Service Charge ({serviceChargeRate}%):</span>
+                      <span>Rp {serviceCharge.toLocaleString('id-ID')}</span>
+                    </div>
+                  )}
+                  {taxRate > 0 ? (
+                    <div className="flex justify-between text-slate-500">
+                      <span>Pajak (PPN {taxRate}%):</span>
+                      <span>Rp {tax.toLocaleString('id-ID')}</span>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between text-slate-400">
+                      <span>Pajak (PPN 0%):</span>
+                      <span>Rp 0</span>
+                    </div>
+                  )}
                   <div className="flex justify-between font-extrabold text-sm text-slate-900 dark:text-slate-100 pt-1.5 border-t border-slate-200 dark:border-slate-800">
                     <span>TOTAL BAYAR:</span>
                     <span className="text-orange-600 dark:text-orange-400 font-black">Rp {grandTotal.toLocaleString('id-ID')}</span>
