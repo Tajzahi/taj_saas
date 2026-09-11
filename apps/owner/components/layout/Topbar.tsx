@@ -580,7 +580,7 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
                           </span>
                         </div>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
-                          Pemohon: {n.requestedBy || "Kasir Admin"} · Prioritas: {n.priority || "Medium"}
+                          Pemohon: {n.requestedBy || "Kasir Admin"} · {n.branchName ? (n.branchName.startsWith("Cabang") ? n.branchName : `Cabang ${n.branchName}`) : "Semua Cabang"}
                         </p>
                       </div>
                     </div>

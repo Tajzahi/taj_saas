@@ -241,8 +241,17 @@ export async function createApprovalAction(data: {
       details: { title: data.title, amount: data.amount },
     });
 
+    let branchName: string | null = null;
+    if (newApproval.branchId) {
+      const [br] = await db
+        .select({ name: schema.branches.name })
+        .from(schema.branches)
+        .where(eq(schema.branches.id, newApproval.branchId));
+      branchName = br?.name || null;
+    }
+
     revalidatePath("/persetujuan");
-    return { success: true, data: newApproval };
+    return { success: true, data: { ...newApproval, branchName } };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
       return { success: false, error: error.message };

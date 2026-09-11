@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/Button";
 import { formatRupiah } from "@/utils/format";
 import { useOwnerStore } from "@/store/ownerStore";
 import { getApprovalsAction, approveRequestAction, rejectRequestAction, approveAllPOAction, createApprovalAction } from "@/app/actions/approvals";
+import { getBranchesAction } from "@/app/actions/branches";
 import toast from "react-hot-toast";
 
 const typeConfig: Record<string, { label: string; icon: string; color: "info" | "warning" | "danger" | "neutral" }> = {
@@ -54,6 +55,7 @@ export default function Persetujuan() {
   const [filter, setFilter] = useState("all");
   const [selectedApproval, setSelectedApproval] = useState<string | null>(null);
   const [approvals, setApprovals] = useState<any[]>([]);
+  const [branches, setBranches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { selectedBranchId } = useOwnerStore();
 
@@ -64,12 +66,25 @@ export default function Persetujuan() {
   const [newRequestedBy, setNewRequestedBy] = useState("");
   const [newAmount, setNewAmount] = useState("");
   const [newPriority, setNewPriority] = useState<"critical" | "high" | "medium" | "low">("medium");
+  const [newBranchId, setNewBranchId] = useState<string>("all");
   const [newNotes, setNewNotes] = useState("");
 
   useEffect(() => {
-    getApprovalsAction().then(res => {
-      if (res.success && res.data) {
-        const mapped = res.data.map(dbApp => {
+    Promise.all([getApprovalsAction(), getBranchesAction()]).then(([appRes, branchRes]) => {
+      let branchMap: Record<string, string> = {};
+      if (branchRes.success && branchRes.data) {
+        setBranches(branchRes.data);
+        branchRes.data.forEach((b: any) => {
+          branchMap[b.id] = b.name.startsWith("Cabang") ? b.name : `Cabang ${b.name}`;
+        });
+      }
+      if (appRes.success && appRes.data) {
+        const mapped = appRes.data.map(dbApp => {
+          const rawBranchName = (dbApp as any).branchName || (dbApp.branchId ? branchMap[dbApp.branchId] : null);
+          const displayCabang = rawBranchName
+            ? (rawBranchName.startsWith("Cabang") ? rawBranchName : `Cabang ${rawBranchName}`)
+            : (dbApp.branchId ? (branchMap[dbApp.branchId] || `Cabang #${dbApp.branchId.slice(0, 8)}`) : "Semua Cabang");
+
           return {
             id: dbApp.id,
             type: dbApp.type,
@@ -81,7 +96,7 @@ export default function Persetujuan() {
             requestedAt: new Date(dbApp.requestedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
             notes: dbApp.notes || "",
             branchId: dbApp.branchId || "",
-            cabang: (dbApp as any).branchName ? `Cabang ${(dbApp as any).branchName}` : (dbApp.branchId || "Semua Cabang"),
+            cabang: displayCabang,
           };
         });
         setApprovals(mapped);
@@ -159,6 +174,7 @@ export default function Persetujuan() {
     }
 
     setLoading(true);
+    const targetBranchId = newBranchId && newBranchId !== "all" ? newBranchId : (selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined);
     const res = await createApprovalAction({
       type: newType,
       title: newTitle.trim(),
@@ -166,12 +182,18 @@ export default function Persetujuan() {
       amount: Number(newAmount) || 0,
       priority: newPriority,
       notes: newNotes.trim(),
-      branchId: selectedBranchId && selectedBranchId !== "all" ? selectedBranchId : undefined,
+      branchId: targetBranchId,
     });
     setLoading(false);
 
     if (res.success && res.data) {
       const created = res.data;
+      const targetBranch = branches.find(b => b.id === (created.branchId || targetBranchId));
+      const rawName = (created as any).branchName || targetBranch?.name;
+      const displayCabang = rawName
+        ? (rawName.startsWith("Cabang") ? rawName : `Cabang ${rawName}`)
+        : "Semua Cabang";
+
       setApprovals(prev => [
         {
           id: created.id,
@@ -184,7 +206,7 @@ export default function Persetujuan() {
           requestedAt: new Date(created.requestedAt).toLocaleDateString("id-ID", { day: "numeric", month: "short" }),
           notes: created.notes || "",
           branchId: created.branchId || "",
-          cabang: created.branchId || "Semua Cabang",
+          cabang: displayCabang,
         },
         ...prev,
       ]);
@@ -193,6 +215,7 @@ export default function Persetujuan() {
       setNewRequestedBy("");
       setNewAmount("");
       setNewNotes("");
+      setNewBranchId("all");
       toast.success("Pengajuan persetujuan baru berhasil dibuat!");
     } else {
       toast.error("Gagal membuat pengajuan: " + res.error);
@@ -420,6 +443,21 @@ export default function Persetujuan() {
                   <option value="discount">🏷️ Diskon Khusus</option>
                   <option value="refund">↩️ Refund / Void Nota</option>
                   <option value="transfer">🔄 Transfer Kas Operasional</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Target Cabang</label>
+                <select
+                  value={newBranchId}
+                  onChange={(e) => setNewBranchId(e.target.value)}
+                  className="w-full text-xs rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5"
+                >
+                  <option value="all">Semua Cabang (Global)</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name.startsWith("Cabang") ? b.name : `Cabang ${b.name}`}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>

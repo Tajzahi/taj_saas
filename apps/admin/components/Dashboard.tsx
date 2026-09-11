@@ -767,9 +767,8 @@ export default function Dashboard({ onLogout, username, tenantSlug }: DashboardP
               </div>
             </div>
 
-            {/* Modal Footer — Single Action Button */}
+            {/* Modal Footer */}
             <div className="px-4 py-4 bg-gray-50 border-t shrink-0 space-y-2">
-              {/* Single button: semua aksi sekaligus */}
               <button
                 onClick={async () => {
                   if (!cashInput) {
@@ -793,33 +792,42 @@ export default function Dashboard({ onLogout, username, tenantSlug }: DashboardP
                   // 2. Ekspor CSV (non-blocking)
                   exportToCSV();
 
-                  // 3. Cetak thermal Z-Report
+                  // 3. Cetak thermal Z-Report (tanpa memicu popup WhatsApp otomatis)
                   setTimeout(() => {
                     document.body.classList.add('printing-report');
                     window.print();
                     setTimeout(() => document.body.classList.remove('printing-report'), 500);
                   }, 300);
 
-                  // 4. Laporkan ke Owner via WhatsApp
-                  const dateLabel = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
-                  const waText = `*LAPORAN SHIFT MASUK (Z-REPORT) - A6 NYUSS*\nTanggal: ${dateLabel}\nOperator: ${activeShift?.operatorName || username}\n\n*RINCIAN KEUANGAN:*\n- Total Omset Bersih: ${formatRupiah(revenueToday)}\n- Transfer/QRIS: ${formatRupiah(qrisExpected)}\n- Modal Awal Laci: ${formatRupiah(startingCash)}\n- Omset Tunai/COD: ${formatRupiah(codExpected)}\n- Kas Diharapkan di Laci: ${formatRupiah(expectedCashInDrawer)}\n- Kas Aktual (Uang Fisik): ${formatRupiah(actualCashAmt)}\n- Selisih Kas Laci: ${formatRupiah(cashDiff)}\n\n*RINGKASAN PESANAN:*\n- Total Pesanan Hari Ini: ${todayOrders.length}\n- Pesanan Sukses: ${completedToday.length}\n- Pesanan Batal: ${cancelledToday.length}\n\n-- Laporan Tutup Shift Sukses --`;
-                  const cleanPhone = '6287811123482'; // Nomor WhatsApp Owner
-                  const linkUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waText)}`;
-                  window.open(linkUrl, '_blank');
-
                   setIsReportOpen(false);
-                  toast.success('Shift kasir berhasil ditutup, Z-Report dicetak, dan laporan WhatsApp dikirim!');
+                  toast.success('Shift kasir berhasil ditutup dan Z-Report dicetak!');
                 }}
                 className="w-full py-3.5 rounded-2xl text-white text-xs font-black uppercase tracking-wider shadow-lg transition-all hover:brightness-110 active:scale-[0.98]"
                 style={{ background: 'linear-gradient(135deg, #8E0E0E 0%, #B72A0A 50%, #D94708 100%)' }}
               >
-                Cetak Laporan Harian
+                🖨️ Tutup Shift & Cetak Z-Report
               </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const actualCashAmt = Number(cashInput ? cashInput.replace(/\./g, '').replace(/,/g, '.') : 0) || 0;
+                  const dateLabel = new Date().toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+                  const waText = `*LAPORAN SHIFT MASUK (Z-REPORT) - ${storeName || 'A6 NYUSS'}*\nTanggal: ${dateLabel}\nOperator: ${activeShift?.operatorName || username}\n\n*RINCIAN KEUANGAN:*\n- Total Omset Bersih: ${formatRupiah(revenueToday)}\n- Transfer/QRIS: ${formatRupiah(qrisExpected)}\n- Modal Awal Laci: ${formatRupiah(startingCash)}\n- Omset Tunai/COD: ${formatRupiah(codExpected)}\n- Kas Diharapkan di Laci: ${formatRupiah(expectedCashInDrawer)}\n- Kas Aktual (Uang Fisik): ${formatRupiah(actualCashAmt)}\n- Selisih Kas Laci: ${formatRupiah(cashDiff)}\n\n*RINGKASAN PESANAN:*\n- Total Pesanan Hari Ini: ${todayOrders.length}\n- Pesanan Sukses: ${completedToday.length}\n- Pesanan Batal: ${cancelledToday.length}\n\n-- Laporan Tutup Shift --`;
+                  const cleanPhone = '6287811123482'; // Nomor WhatsApp Owner
+                  const linkUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(waText)}`;
+                  window.open(linkUrl, '_blank');
+                }}
+                className="w-full py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span>📲</span> Kirim Laporan ke WhatsApp Owner
+              </button>
+
               <button
                 onClick={() => setIsReportOpen(false)}
-                className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-2xl text-xs font-bold transition-colors"
+                className="w-full py-2 bg-gray-200 hover:bg-gray-300 text-gray-600 rounded-2xl text-xs font-bold transition-colors"
               >
-                Tutup
+                Batal / Tutup
               </button>
             </div>
           </div>
