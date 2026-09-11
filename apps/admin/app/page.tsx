@@ -16,17 +16,18 @@ export default async function Page() {
     headers: headersList,
   });
 
-  // Jika user sudah login dan tenantId belum ada di header (misal diakses via Cloud Run portal bersama),
-  // ambil tenantId dari profile user
-  if (session?.user?.id && (!tenantId || !tenantSlug)) {
+  let branchName: string | null = null;
+
+  // Jika user sudah login, ambil tenant dan branch dari profile user
+  if (session?.user?.id) {
     try {
       const [profile] = await db
-        .select({ tenantId: schema.profiles.tenantId })
+        .select({ tenantId: schema.profiles.tenantId, branchId: schema.profiles.branchId })
         .from(schema.profiles)
         .where(eq(schema.profiles.id, session.user.id))
         .limit(1);
 
-      if (profile?.tenantId) {
+      if (profile?.tenantId && (!tenantId || !tenantSlug)) {
         tenantId = profile.tenantId;
         const [tenantRecord] = await db
           .select({ slug: schema.tenants.slug })
@@ -35,8 +36,19 @@ export default async function Page() {
           .limit(1);
         if (tenantRecord) tenantSlug = tenantRecord.slug;
       }
+
+      if (profile?.branchId) {
+        const [branch] = await db
+          .select({ name: schema.branches.name })
+          .from(schema.branches)
+          .where(eq(schema.branches.id, profile.branchId))
+          .limit(1);
+        if (branch) branchName = branch.name;
+      } else {
+        branchName = "Kantor Pusat";
+      }
     } catch (err) {
-      console.warn("Could not load profile tenant in Admin Page:", err);
+      console.warn("Could not load profile in Admin Page:", err);
     }
   }
 
@@ -61,6 +73,7 @@ export default async function Page() {
       initialSession={session}
       tenantName={tenantInfo?.name || null}
       tenantBranding={tenantInfo?.branding || null}
+      initialBranchName={branchName}
     />
   );
 }

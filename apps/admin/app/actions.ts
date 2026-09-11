@@ -811,6 +811,7 @@ export async function getStoreSettingsAction() {
 
     let isOpen = tenant.branding?.storeOpen ?? true;
     let storeName = tenant.name;
+    let branchName: string | null = null;
 
     if (profile?.branchId) {
       const [branch] = await db
@@ -821,14 +822,18 @@ export async function getStoreSettingsAction() {
 
       if (branch) {
         isOpen = branch.status === "active";
-        storeName = `${tenant.name} (${branch.name})`;
+        storeName = tenant.name;
+        branchName = branch.name;
       }
+    } else {
+      branchName = "Kantor Pusat";
     }
 
     return {
       success: true,
       isOpen,
       name: storeName,
+      branchName,
       branding: tenant.branding,
       slug: tenant.slug,
     };

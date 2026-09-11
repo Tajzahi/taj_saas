@@ -10,6 +10,7 @@ interface AdminClientPageProps {
   initialSession: any;
   tenantName?: string | null;
   tenantBranding?: any;
+  initialBranchName?: string | null;
 }
 
 const ALLOWED_ADMIN_ROLES = ['owner', 'manager', 'kasir', 'kitchen', 'staf'];
@@ -20,6 +21,7 @@ export default function AdminClientPage({
   initialSession,
   tenantName,
   tenantBranding,
+  initialBranchName,
 }: AdminClientPageProps) {
   // Use React hook to query the session reactively on the client
   const { data: session, isPending } = authClient.useSession();
@@ -68,6 +70,7 @@ export default function AdminClientPage({
       onLogout={handleLogout}
       username={session.user.name || session.user.email}
       tenantSlug={tenantSlug}
+      initialBranchName={initialBranchName}
     />
   );
 }

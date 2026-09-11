@@ -13,9 +13,10 @@ interface DashboardProps {
   onLogout: () => void;
   username: string;
   tenantSlug?: string | null;
+  initialBranchName?: string | null;
 }
 
-export default function Dashboard({ onLogout, username, tenantSlug }: DashboardProps) {
+export default function Dashboard({ onLogout, username, tenantSlug, initialBranchName }: DashboardProps) {
   const {
     orders,
     selectedOrderId,
@@ -41,7 +42,10 @@ export default function Dashboard({ onLogout, username, tenantSlug }: DashboardP
     openShift,
     closeShift,
     storeName,
+    branchName,
   } = useAdminStore();
+
+  const displayBranchName = branchName || initialBranchName || 'Kantor Pusat';
 
   const [isMenuModalOpen, setIsMenuModalOpen] = useState(false);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -233,7 +237,10 @@ export default function Dashboard({ onLogout, username, tenantSlug }: DashboardP
         <div className="flex items-center gap-2">
           <div>
             <h1 className="font-black text-sm leading-none tracking-tight">{storeName || 'Portal Operasional'}</h1>
-            <p className="text-white/70 text-[10px] leading-none font-medium">Portal Operasional</p>
+            <p className="text-white/80 text-[10px] leading-none font-semibold mt-0.5 flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              {displayBranchName}
+            </p>
           </div>
         </div>
 

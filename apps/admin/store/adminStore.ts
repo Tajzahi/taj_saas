@@ -104,6 +104,7 @@ interface AdminState {
   isAlarmPlaying: boolean;
   isStoreOpen: boolean;
   storeName: string;
+  branchName: string | null;
   branding: any | null;
   newOrderIds: string[];
   isLoading: boolean;
@@ -145,6 +146,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
   isAlarmPlaying: false,
   isStoreOpen: true,
   storeName: 'Portal Operasional',
+  branchName: null,
   branding: null,
   tenantSlug: null,
   newOrderIds: [],
@@ -253,6 +255,7 @@ export const useAdminStore = create<AdminState>((set, get) => ({
       set({
         isStoreOpen: res.isOpen ?? true,
         storeName: res.name || 'Portal Operasional',
+        branchName: res.branchName || null,
         branding: res.branding || null,
         ...(slug ? { tenantSlug: slug } : {}),
       });
