@@ -42,41 +42,9 @@ export async function getProductionPlanAction(branchId?: string, dateStr?: strin
 
     let plan = existingPlans[0];
 
-    // 2. If no plan exists for today, auto-seed with tenant's menu items
+    // 2. If no plan exists for this date, return empty list (no auto-seeding)
     if (!plan) {
-      const menus = await db
-        .select()
-        .from(schema.menuItems)
-        .where(eq(schema.menuItems.tenantId, tenant.id))
-        .limit(10);
-
-      const branchVal = branchId && branchId !== "all" ? branchId : null;
-      const [newPlan] = await db
-        .insert(schema.productionPlans)
-        .values({
-          tenantId: tenant.id,
-          branchId: branchVal,
-          planDate: todayStr,
-          status: "in_progress",
-          notes: `Rencana Produksi Dapur Harian - ${todayStr}`,
-        })
-        .returning();
-
-      plan = {
-        ...newPlan,
-        branchName: "Cabang Utama",
-      };
-
-      if (menus.length > 0) {
-        const itemValues = menus.map(m => ({
-          planId: newPlan.id,
-          menuItemId: m.id,
-          targetQuantity: 30,
-          actualQuantity: 0,
-          status: "pending",
-        }));
-        await db.insert(schema.productionPlanItems).values(itemValues);
-      }
+      return { success: true, data: [] };
     }
 
     // 3. Fetch production plan items joined with menuItems
