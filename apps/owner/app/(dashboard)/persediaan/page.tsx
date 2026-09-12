@@ -49,6 +49,7 @@ function parseCostNumber(val: any): number {
 
 function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
 
   const presets = [
@@ -56,12 +57,12 @@ function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: s
     { value: "kg", label: "Kilogram" },
     { value: "ml", label: "Mililiter" },
     { value: "l", label: "Liter" },
-    { value: "pcs", label: "Pieces" },
-    { value: "butir", label: "Butir" },
+    { value: "pcs", label: "Pieces (Buah)" },
+    { value: "butir", label: "Butir (Telur)" },
     { value: "sdm", label: "Sendok Makan" },
     { value: "sdt", label: "Sendok Teh" },
-    { value: "slice", label: "Irisan" },
-    { value: "pack", label: "Kemasan" },
+    { value: "slice", label: "Irisan (Slice)" },
+    { value: "pack", label: "Kemasan (Pack)" },
     { value: "botol", label: "Botol" },
     { value: "kaleng", label: "Kaleng" },
     { value: "ikat", label: "Ikat" },
@@ -72,6 +73,7 @@ function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: s
     const handleClickOutside = (event: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setOpen(false);
+        setSearchTerm("");
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -80,27 +82,38 @@ function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: s
     };
   }, []);
 
-  const filtered = presets.filter(
-    p => p.value.toLowerCase().includes((value || "").toLowerCase()) || p.label.toLowerCase().includes((value || "").toLowerCase())
-  );
+  const filtered = searchTerm.trim() !== ""
+    ? presets.filter(
+        p => p.value.toLowerCase().includes(searchTerm.toLowerCase()) || p.label.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+    : presets;
 
   return (
-    <div ref={containerRef} className="relative w-full">
+    <div ref={containerRef} className={`relative w-full ${open ? 'z-30' : 'z-10'}`}>
       <div className="relative flex items-center">
         <input
           type="text"
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          onFocus={() => setOpen(true)}
+          value={open && searchTerm ? searchTerm : value}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            onChange(e.target.value);
+          }}
+          onFocus={() => {
+            setOpen(true);
+            setSearchTerm("");
+          }}
           placeholder="gr/ml"
-          className="w-full text-xs px-2.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500"
+          className="w-full text-xs px-2.5 py-2 pr-7 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 focus:outline-none focus:border-orange-500 font-medium"
           required
         />
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => setOpen(!open)}
-          className="absolute right-2 text-[9px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+          onClick={() => {
+            setOpen(!open);
+            setSearchTerm("");
+          }}
+          className="absolute right-2 text-[10px] text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5 cursor-pointer"
         >
           ▼
         </button>
@@ -109,7 +122,7 @@ function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: s
       {open && (
         <div
           onWheel={(e) => e.stopPropagation()}
-          className="absolute left-full top-0 ml-1.5 z-50 w-44 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-[128px] overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800 animate-fade-in"
+          className="absolute top-full left-0 mt-1 z-[100] w-52 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-[200px] overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800 animate-fade-in"
         >
           {filtered.length > 0 ? (
             filtered.map((item) => (
@@ -119,16 +132,22 @@ function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: s
                 onMouseDown={(e) => {
                   e.preventDefault();
                   onChange(item.value);
+                  setSearchTerm("");
                   setOpen(false);
                 }}
-                className="w-full text-left px-2.5 py-1.5 text-xs flex items-center justify-between text-slate-700 dark:text-slate-200 hover:bg-orange-50 dark:hover:bg-orange-950/40 hover:text-orange-600 dark:hover:text-orange-400 transition-colors"
+                className={`w-full text-left px-2.5 py-1.5 text-xs flex items-center justify-between transition-colors ${
+                  value === item.value
+                    ? "bg-orange-50 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400 font-bold"
+                    : "text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+                }`}
               >
-                <span className="font-bold text-slate-800 dark:text-slate-100">{item.value}</span>
+                <span className="font-mono font-bold text-slate-800 dark:text-slate-100">{item.value}</span>
                 <span className="text-[10px] text-slate-400 font-normal">{item.label}</span>
+                {value === item.value && <span className="text-orange-600 text-[10px]">✓</span>}
               </button>
             ))
           ) : (
-            <div className="px-2.5 py-1.5 text-[11px] text-slate-400">
+            <div className="px-2.5 py-2 text-[11px] text-slate-400">
               Gunakan kustom: <span className="font-semibold text-slate-700 dark:text-slate-200">"{value}"</span>
             </div>
           )}
