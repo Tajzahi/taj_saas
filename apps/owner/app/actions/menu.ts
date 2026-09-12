@@ -9,7 +9,31 @@ export async function getMenuItemsAction() {
   try {
     const { tenant } = await requireTenantPermission("menu:read", { expectedApp: "owner" });
     const items = await db.select().from(schema.menuItems).where(eq(schema.menuItems.tenantId, tenant.id));
-    return { success: true, data: items };
+
+    // Calculate actual recipe HPP from recipe ingredients in database
+    const allRecipes = await db
+      .select({
+        menuItemId: schema.recipes.menuItemId,
+        quantity: schema.recipeIngredients.quantity,
+        costPerUnit: schema.recipeIngredients.costPerUnit,
+      })
+      .from(schema.recipes)
+      .innerJoin(schema.recipeIngredients, eq(schema.recipeIngredients.recipeId, schema.recipes.id))
+      .where(eq(schema.recipes.tenantId, tenant.id));
+
+    const recipeCostMap = new Map<string, number>();
+    for (const r of allRecipes) {
+      const q = parseFloat(r.quantity) || 0;
+      const c = parseFloat(r.costPerUnit || "0") || 0;
+      recipeCostMap.set(r.menuItemId, (recipeCostMap.get(r.menuItemId) || 0) + (q * c));
+    }
+
+    const itemsWithCost = items.map(item => ({
+      ...item,
+      cost: recipeCostMap.has(item.id) ? recipeCostMap.get(item.id) : undefined,
+    }));
+
+    return { success: true, data: itemsWithCost };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
       return { success: false, error: error.message };
