@@ -156,7 +156,7 @@ function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: s
       {open && (
         <div
           onWheel={(e) => e.stopPropagation()}
-          className="absolute top-full left-full ml-3 mt-1 z-[100] w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-[128px] overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800 animate-fade-in"
+          className="absolute -top-[31px] left-full ml-3 z-[100] w-48 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-[128px] overflow-y-auto overscroll-contain divide-y divide-slate-100 dark:divide-slate-800 animate-fade-in"
         >
           {filtered.length > 0 ? (
             filtered.map((item) => (
