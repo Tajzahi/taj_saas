@@ -310,11 +310,12 @@ export default function ExecutiveCockpit() {
     };
 
     loadDashboardData();
+    // Refresh hemat kuota: hanya setiap 10 menit jika tab aktif, plus otomatis saat tab kembali difokuskan
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && !document.hidden) {
         loadDashboardData();
       }
-    }, 30000);
+    }, 600000);
     window.addEventListener("focus", loadDashboardData);
     return () => {
       clearInterval(interval);

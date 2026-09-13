@@ -1,7 +1,7 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and, desc, inArray, or, isNull } from "drizzle-orm";
+import { eq, and, desc, inArray, or, isNull, gte } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import {
@@ -41,7 +41,17 @@ export async function getOrdersAction() {
   try {
     const { tenant, profile } = await requireTenantPermission("orders:read", { expectedApp: "admin" });
 
-    const orderConditions = [eq(schema.orders.tenantId, tenant.id)];
+    // Filter hemat kuota database: Muat pesanan aktif (received/processing/ready) ATAU pesanan hari ini (maks 50)
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+
+    const orderConditions = [
+      eq(schema.orders.tenantId, tenant.id),
+      or(
+        inArray(schema.orders.status, ["received", "processing", "ready"]),
+        gte(schema.orders.createdAt, startOfDay)
+      ),
+    ];
     if (profile?.branchId) {
       orderConditions.push(eq(schema.orders.branchId, profile.branchId));
     }
@@ -50,7 +60,8 @@ export async function getOrdersAction() {
       .select()
       .from(schema.orders)
       .where(and(...orderConditions))
-      .orderBy(desc(schema.orders.createdAt));
+      .orderBy(desc(schema.orders.createdAt))
+      .limit(50);
 
     if (dbOrders.length === 0) {
       return { success: true, orders: [] };

@@ -99,7 +99,8 @@ export default function Dashboard({ onLogout, username, tenantSlug, initialBranc
     return () => {
       unsubscribeFromOrders();
     };
-  }, [fetchOrders, fetchStoreSettings, subscribeToOrders, unsubscribeFromOrders, fetchActiveShift, tenantSlug]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantSlug]);
 
   const [showMobileDetail, setShowMobileDetail] = useState(false);
   const [isMuted, setIsMuted] = useState(false);

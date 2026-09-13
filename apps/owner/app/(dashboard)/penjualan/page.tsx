@@ -126,11 +126,12 @@ export default function Penjualan() {
     };
 
     loadSalesData();
+    // Refresh hemat kuota: hanya setiap 10 menit jika tab aktif, plus otomatis saat tab kembali difokuskan
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && !document.hidden) {
         loadSalesData();
       }
-    }, 30000);
+    }, 600000);
     window.addEventListener("focus", loadSalesData);
     return () => {
       clearInterval(interval);

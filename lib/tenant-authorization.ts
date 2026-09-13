@@ -295,6 +295,15 @@ export async function resolveTenantFromRequestHost(
  * Validates the session and ensures the user belongs to the resolved tenant.
  * Zero-trust: profile MUST exist for the resolved tenant.
  */
+interface CachedSessionData {
+  tenant: typeof schema.tenants.$inferSelect;
+  user: any;
+  profile: typeof schema.profiles.$inferSelect;
+  expiresAt: number;
+}
+const _sessionCache = new Map<string, CachedSessionData>();
+const SESSION_CACHE_TTL_MS = 60_000;
+
 export async function requireTenantSession(options?: {
   expectedApp?: 'customer' | 'admin' | 'owner';
 }) {
@@ -309,6 +318,32 @@ export async function requireTenantSession(options?: {
   if (!session || !session.user) {
     throw new AuthorizationError('UNAUTHORIZED', 401, 'Sesi autentikasi diperlukan');
   }
+
+  // 1.5. Cek cache in-memory untuk menghemat query DB ke Neon saat navigasi/action beruntun
+  const cacheKey = `${session.user.id}:${host}:${options?.expectedApp || 'default'}`;
+  const cached = _sessionCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) {
+    return {
+      tenant: cached.tenant,
+      user: session.user,
+      profile: cached.profile,
+    };
+  }
+
+  // Helper untuk menyimpan ke cache sebelum return
+  const cacheAndReturn = (tenantData: typeof schema.tenants.$inferSelect, profileData: typeof schema.profiles.$inferSelect) => {
+    _sessionCache.set(cacheKey, {
+      tenant: tenantData,
+      user: session.user,
+      profile: profileData,
+      expiresAt: Date.now() + SESSION_CACHE_TTL_MS,
+    });
+    return {
+      tenant: tenantData,
+      user: session.user,
+      profile: profileData,
+    };
+  };
 
   // 2. Pada Cloud Run / Staging / Shared Host (*.a.run.app, *.run.app, localhost),
   // nama hostname adalah domain platform bersama (mall), bukan domain pribadi tenant.
@@ -336,11 +371,7 @@ export async function requireTenantSession(options?: {
         .limit(1);
 
       if (actualTenant && actualTenant.isActive) {
-        return {
-          tenant: actualTenant,
-          user: session.user,
-          profile: userProfileResult[0],
-        };
+        return cacheAndReturn(actualTenant, userProfileResult[0]);
       }
     }
   }
@@ -385,11 +416,7 @@ export async function requireTenantSession(options?: {
           .limit(1);
 
         if (actualTenantResult.length > 0) {
-          return {
-            tenant: actualTenantResult[0],
-            user: session.user,
-            profile: userProfileResult[0],
-          };
+          return cacheAndReturn(actualTenantResult[0], userProfileResult[0]);
         }
       }
     }
@@ -401,11 +428,7 @@ export async function requireTenantSession(options?: {
     );
   }
 
-  return {
-    tenant,
-    user: session.user,
-    profile,
-  };
+  return cacheAndReturn(tenant, profile);
 }
 
 export async function requireTenantPermission(
