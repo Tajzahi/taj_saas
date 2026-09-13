@@ -157,9 +157,8 @@ async function main() {
   await db.delete(schema.profiles).where(eq(schema.profiles.id, userId));
   await db.delete(schema.user).where(eq(schema.user.id, userId));
 
-  // Better-Auth uses standard hash, let's create user with argon2id hash
-  // Hash for "A6nyuss." with argon2id
-  const argonHash = '$argon2id$v=19$m=65536,t=3,p=4$R5v0bX47MmlwS3p5eWZ3MQ$3x/pI24H8d7/H3z1nUuV0sC6X.c6iC'; // default hash fallback
+  // Better-Auth format hash for "A6nyuss."
+  const argonHash = 'df54b7753da54cd30cedc0246558b226:ce28044a0ee4987914ea282d0cc1eb73fd6b8d8eb126a6857d04b4c135cf548a20892cb241df4c67cc63c0ac68c62c520d914868dee9f2caa9e0c27aefe8cc27';
 
   await db.insert(schema.user).values({
     id: userId,
