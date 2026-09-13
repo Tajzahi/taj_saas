@@ -125,17 +125,53 @@ export default function Penjualan() {
       });
     };
 
+    // Activity-Aware Smart Polling (Sensor Diam 10 Menit)
+    let isIdle = false;
+    let lastActivityTime = Date.now();
+    const IDLE_TIMEOUT = 10 * 60 * 1000; // 10 menit
+
+    // 1. Wajib muat data saat pertama kali buka / filter berubah
     loadSalesData();
-    // Refresh hemat kuota: hanya setiap 10 menit jika tab aktif, plus otomatis saat tab kembali difokuskan
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && !document.hidden) {
+
+    // 2. Sensor aktivitas pengguna: mouse, keyboard, scroll, klik, touch
+    const handleUserActivity = () => {
+      lastActivityTime = Date.now();
+      if (isIdle) {
+        // Sensor Diam sebelumnya aktif -> Bangunkan dan ambil data terbaru
+        isIdle = false;
         loadSalesData();
       }
-    }, 600000);
-    window.addEventListener("focus", loadSalesData);
+    };
+
+    const activityEvents = ["mousemove", "keydown", "scroll", "click", "touchstart"];
+    activityEvents.forEach((evt) => {
+      window.addEventListener(evt, handleUserActivity, { passive: true });
+    });
+
+    // 3. Timer Cerdas: Hanya query jika ada aktivitas, aktifkan Sensor Diam jika ditinggal >= 10 menit
+    const interval = setInterval(() => {
+      const timeSinceLastActivity = Date.now() - lastActivityTime;
+      if (timeSinceLastActivity >= IDLE_TIMEOUT) {
+        // Sensor Diam aktif: komputasi & network database dibiarkan tidur
+        isIdle = true;
+      } else if (typeof document !== "undefined" && !document.hidden) {
+        loadSalesData();
+      }
+    }, IDLE_TIMEOUT);
+
+    // 4. Refresh otomatis saat tab kembali difokuskan
+    const handleWindowFocus = () => {
+      handleUserActivity();
+      loadSalesData();
+    };
+    window.addEventListener("focus", handleWindowFocus);
+
     return () => {
       clearInterval(interval);
-      window.removeEventListener("focus", loadSalesData);
+      activityEvents.forEach((evt) => {
+        window.removeEventListener(evt, handleUserActivity);
+      });
+      window.removeEventListener("focus", handleWindowFocus);
     };
   }, [period, selectedBranchId]);
 
