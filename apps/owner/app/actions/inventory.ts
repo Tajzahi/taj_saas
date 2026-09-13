@@ -1,7 +1,7 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, desc } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
 
@@ -55,7 +55,9 @@ export async function getInventoryTransactionsAction() {
     const transactions = await db
       .select()
       .from(schema.inventoryTransactions)
-      .where(eq(schema.inventoryTransactions.tenantId, tenant.id));
+      .where(eq(schema.inventoryTransactions.tenantId, tenant.id))
+      .orderBy(desc(schema.inventoryTransactions.createdAt))
+      .limit(100);
     return { success: true, data: transactions };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {

@@ -27,7 +27,7 @@ import { authClient } from "@/lib/authClient";
 import { useOwnerStore } from "@/store/ownerStore";
 import { getBranchesAction } from "@/app/actions/branches";
 import { getApprovalsAction } from "@/app/actions/approvals";
-import { getTenantSettingsAction } from "@/app/actions/settings";
+import { getTenantMetaAction } from "@/app/actions/settings";
 import { Button } from "@/components/ui/Button";
 import toast from "react-hot-toast";
 
@@ -142,7 +142,7 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
   const datePickerRef = useRef<HTMLDivElement>(null);
 
   const fetchTenantSettings = () => {
-    getTenantSettingsAction().then(res => {
+    getTenantMetaAction().then(res => {
       if (res.success && res.data) {
         if (res.data.slug) setTenantSlug(res.data.slug);
         if (res.data.domain) setTenantDomain(res.data.domain);
@@ -193,7 +193,7 @@ export default function Topbar({ onToggleSidebar, isDark, onToggleDark, sidebarC
       document.removeEventListener("mousedown", handleClickOutside);
       window.removeEventListener("branch-updated", handleBranchEvent);
     };
-  }, [pathname]);
+  }, []);
 
   useEffect(() => {
     if (showMobileFilter || showNotif) {

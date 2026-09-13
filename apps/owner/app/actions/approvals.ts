@@ -67,7 +67,8 @@ export async function getApprovalsAction() {
       .from(schema.approvals)
       .leftJoin(schema.branches, eq(schema.approvals.branchId, schema.branches.id))
       .where(eq(schema.approvals.tenantId, tenant.id))
-      .orderBy(desc(schema.approvals.requestedAt));
+      .orderBy(desc(schema.approvals.requestedAt))
+      .limit(50);
 
     return { success: true, data: list };
   } catch (error: unknown) {

@@ -22,7 +22,7 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
 
@@ -35,11 +35,12 @@ export async function getBranchesAction() {
       .from(schema.branches)
       .where(eq(schema.branches.tenantId, tenant.id));
 
-    // Fetch completed and paid orders for branch revenue aggregations
-    const orders = await db
+    // SQL Aggregation: Database engine computes SUM and COUNT per branch (returns 1 row per branch instead of thousands)
+    const branchAggregates = await db
       .select({
         branchId: schema.orders.branchId,
-        totalPrice: schema.orders.totalPrice,
+        revenue: sql<string>`coalesce(sum(${schema.orders.totalPrice}), 0)`,
+        orders: sql<number>`count(${schema.orders.id})`,
       })
       .from(schema.orders)
       .where(
@@ -48,21 +49,25 @@ export async function getBranchesAction() {
           eq(schema.orders.status, "completed"),
           eq(schema.orders.paymentStatus, "paid")
         )
-      );
+      )
+      .groupBy(schema.orders.branchId);
 
-    // Fetch employee profiles for actual labor costs
-    const profiles = await db
-      .select()
+    // SQL Aggregation: Compute total labor salary in database (returns 1 scalar value)
+    const [laborResult] = await db
+      .select({
+        total: sql<string>`coalesce(sum(cast(nullif(${schema.profiles.salary}, '') as numeric)), 0)`
+      })
       .from(schema.profiles)
       .where(eq(schema.profiles.tenantId, tenant.id));
-    const totalLaborSalaries = profiles.reduce((sum, p) => sum + (parseFloat(p.salary || "0") || 0), 0);
+    const totalLaborSalaries = parseFloat(laborResult?.total || "0") || 0;
 
     const agg: Record<string, { revenue: number; orders: number }> = {};
-    orders.forEach((o) => {
-      if (o.branchId) {
-        if (!agg[o.branchId]) agg[o.branchId] = { revenue: 0, orders: 0 };
-        agg[o.branchId].revenue += parseFloat(o.totalPrice) || 0;
-        agg[o.branchId].orders += 1;
+    branchAggregates.forEach((row) => {
+      if (row.branchId) {
+        agg[row.branchId] = {
+          revenue: parseFloat(row.revenue) || 0,
+          orders: Number(row.orders) || 0,
+        };
       }
     });
 

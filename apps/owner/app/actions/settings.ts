@@ -115,15 +115,31 @@ const TenantBrandingSchema = z.object({
   })).optional(),
 }).strict();
 
+export async function getTenantMetaAction() {
+  try {
+    const { tenant } = await requireTenantPermission("settings:read", { expectedApp: "owner" });
+    return {
+      success: true,
+      data: {
+        id: tenant.id,
+        slug: tenant.slug,
+        domain: tenant.domain,
+        name: tenant.name,
+      },
+    };
+  } catch (error: unknown) {
+    if (error instanceof AuthorizationError) {
+      return { success: false, error: error.message };
+    }
+    return { success: false, error: "Terjadi kesalahan sistem" };
+  }
+}
+
 export async function getTenantSettingsAction() {
   try {
     const { tenant } = await requireTenantPermission("settings:read", { expectedApp: "owner" });
-    const [tenantData] = await db
-      .select()
-      .from(schema.tenants)
-      .where(eq(schema.tenants.id, tenant.id))
-      .limit(1);
-    return { success: true, data: tenantData };
+    // Use tenant object already resolved and cached in memory by requireTenantPermission
+    return { success: true, data: tenant };
   } catch (error: unknown) {
     if (error instanceof AuthorizationError) {
       return { success: false, error: error.message };

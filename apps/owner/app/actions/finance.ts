@@ -22,8 +22,8 @@
 "use server";
 
 import { db, schema } from "@taj-saas/db";
-import { eq, and, gte } from "drizzle-orm";
-import { requireTenantPermission, AuthorizationError } from "@lib/tenant-authorization";
+import { eq, and, gte, sql } from "drizzle-orm";
+import { requireTenantPermission, writeAuditEvent, AuthorizationError } from "@lib/tenant-authorization";
 
 function getStartDateFromRange(dateRange?: string): Date | null {
   if (!dateRange || dateRange === "all") return null;
@@ -94,11 +94,13 @@ export async function getPnLAction(dateRange?: string, branchId?: string) {
       profileConditions.push(eq(schema.profiles.branchId, branchId));
     }
 
-    const profiles = await db
-      .select()
+    const [laborResult] = await db
+      .select({
+        total: sql<string>`coalesce(sum(cast(nullif(${schema.profiles.salary}, '') as numeric)), 0)`
+      })
       .from(schema.profiles)
       .where(and(...profileConditions));
-    const monthlyLaborCost = profiles.reduce((sum, p) => sum + (parseFloat(p.salary || "0") || 0), 0);
+    const monthlyLaborCost = parseFloat(laborResult?.total || "0") || 0;
 
     // Calculate revenue by branch
     const branchRevenueMap: Record<string, { branchId: string; branchName: string; revenue: number }> = {};
@@ -221,11 +223,13 @@ export async function getCashflowAction(dateRange?: string, branchId?: string) {
       profileConditions.push(eq(schema.profiles.branchId, branchId));
     }
 
-    const profiles = await db
-      .select()
+    const [laborResult] = await db
+      .select({
+        total: sql<string>`coalesce(sum(cast(nullif(${schema.profiles.salary}, '') as numeric)), 0)`
+      })
       .from(schema.profiles)
       .where(and(...profileConditions));
-    const monthlyLaborCost = profiles.reduce((sum, p) => sum + (parseFloat(p.salary || "0") || 0), 0);
+    const monthlyLaborCost = parseFloat(laborResult?.total || "0") || 0;
 
     const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
     const grouped: Record<
