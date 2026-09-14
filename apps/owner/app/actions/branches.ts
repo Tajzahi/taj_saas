@@ -55,7 +55,7 @@ export async function getBranchesAction() {
     // SQL Aggregation: Compute total labor salary in database (returns 1 scalar value)
     const [laborResult] = await db
       .select({
-        total: sql<string>`coalesce(sum(cast(nullif(${schema.profiles.salary}, '') as numeric)), 0)`
+        total: sql<string>`coalesce(sum(${schema.profiles.salary}), 0)`
       })
       .from(schema.profiles)
       .where(eq(schema.profiles.tenantId, tenant.id));

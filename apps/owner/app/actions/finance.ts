@@ -96,7 +96,7 @@ export async function getPnLAction(dateRange?: string, branchId?: string) {
 
     const [laborResult] = await db
       .select({
-        total: sql<string>`coalesce(sum(cast(nullif(${schema.profiles.salary}, '') as numeric)), 0)`
+        total: sql<string>`coalesce(sum(${schema.profiles.salary}), 0)`
       })
       .from(schema.profiles)
       .where(and(...profileConditions));
@@ -225,7 +225,7 @@ export async function getCashflowAction(dateRange?: string, branchId?: string) {
 
     const [laborResult] = await db
       .select({
-        total: sql<string>`coalesce(sum(cast(nullif(${schema.profiles.salary}, '') as numeric)), 0)`
+        total: sql<string>`coalesce(sum(${schema.profiles.salary}), 0)`
       })
       .from(schema.profiles)
       .where(and(...profileConditions));
