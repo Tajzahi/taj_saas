@@ -13,7 +13,7 @@ interface AdminClientPageProps {
   initialBranchName?: string | null;
 }
 
-const ALLOWED_ADMIN_ROLES = ['owner', 'manager', 'kasir', 'kitchen', 'staf'];
+const ALLOWED_ADMIN_ROLES = ['owner', 'manager', 'kasir', 'kitchen', 'staf', 'staff'];
 
 export default function AdminClientPage({
   tenantId,

@@ -30,6 +30,8 @@ function getDbInstance(): NeonDatabase<typeof schema> {
 
     _poolInstance = new Pool({
       connectionString: databaseUrl || 'postgresql://placeholder-user:placeholder-pass@placeholder-host.tld/neondb',
+      idleTimeoutMillis: 10000,
+      max: 10,
     });
     _dbInstance = drizzle(_poolInstance, { schema });
   }

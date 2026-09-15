@@ -150,6 +150,18 @@ export const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'orders:create-pos',
     'shifts:manage-own',
   ],
+  staff: [
+    'menu:read',
+    'orders:read',
+    'orders:create-pos',
+    'orders:manage-status',
+    'orders:update-status',
+    'orders:verify-payment',
+    'shifts:manage-own',
+    'store:read-operation',
+    'store:manage-operation',
+    'reports:export',
+  ],
 };
 
 // ─── HOST & TENANT RESOLUTION HELPERS ────────────────────────────────────────

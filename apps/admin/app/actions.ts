@@ -605,13 +605,24 @@ export async function getMenuItemsAction() {
   try {
     const { tenant } = await requireTenantPermission("menu:read", { expectedApp: "admin" });
 
+    // Optimalisasi Kuota & Bandwidth: Ambil hanya kolom yang dibutuhkan kasir (hindari SELECT * yang menarik 9.5MB base64 image_url)
     const dbItems = await db
-      .select()
+      .select({
+        id: schema.menuItems.id,
+        name: schema.menuItems.name,
+        slug: schema.menuItems.slug,
+        price: schema.menuItems.price,
+        isAvailable: schema.menuItems.isAvailable,
+        categoryId: schema.menuItems.categoryId,
+      })
       .from(schema.menuItems)
       .where(eq(schema.menuItems.tenantId, tenant.id));
 
     const dbCategories = await db
-      .select()
+      .select({
+        id: schema.categories.id,
+        name: schema.categories.name,
+      })
       .from(schema.categories)
       .where(eq(schema.categories.tenantId, tenant.id));
 
@@ -667,7 +678,11 @@ export async function getToppingsAction() {
     const { tenant } = await requireTenantPermission("menu:read", { expectedApp: "admin" });
 
     const dbToppings = await db
-      .select()
+      .select({
+        id: schema.toppings.id,
+        name: schema.toppings.name,
+        isAvailable: schema.toppings.isAvailable,
+      })
       .from(schema.toppings)
       .where(eq(schema.toppings.tenantId, tenant.id));
 
@@ -840,12 +855,29 @@ export async function getStoreSettingsAction() {
       branchName = "Kantor Pusat";
     }
 
+    const rawB = (tenant.branding || {}) as Record<string, any>;
+    const minimalBranding = {
+      brandName: rawB.brandName || tenant.name,
+      businessName: rawB.businessName || tenant.name,
+      receiptHeader: rawB.receiptHeader || null,
+      receiptFooter: rawB.receiptFooter || null,
+      storeAddress: rawB.storeAddress || null,
+      storeCity: rawB.storeCity || null,
+      whatsappNumber: rawB.whatsappNumber || null,
+      taxRate: rawB.taxRate,
+      taxRateBps: rawB.taxRateBps,
+      serviceChargeRate: rawB.serviceChargeRate,
+      serviceChargeRateBps: rawB.serviceChargeRateBps,
+      storeOpen: rawB.storeOpen,
+      logoUrl: rawB.logoUrl || rawB.logo || null,
+    };
+
     return {
       success: true,
       isOpen,
       name: storeName,
       branchName,
-      branding: tenant.branding,
+      branding: minimalBranding,
       slug: tenant.slug,
     };
   } catch (err: unknown) {

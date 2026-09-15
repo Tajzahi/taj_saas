@@ -60,7 +60,19 @@ export default async function Page() {
         .from(schema.tenants)
         .where(eq(schema.tenants.id, tenantId))
         .limit(1);
-      if (t) tenantInfo = t;
+      if (t) {
+        const rawB = (t.branding || {}) as Record<string, any>;
+        tenantInfo = {
+          name: t.name,
+          branding: {
+            brandName: rawB.brandName || t.name,
+            receiptHeader: rawB.receiptHeader || null,
+            storeAddress: rawB.storeAddress || null,
+            storeCity: rawB.storeCity || null,
+            logoUrl: rawB.logoUrl || rawB.logo || null,
+          },
+        };
+      }
     } catch (err) {
       console.warn("Could not load tenant branding in Admin Page:", err);
     }
