@@ -40,6 +40,7 @@ import {
   getInventoryIngredientsAction
 } from "@/app/actions/menu";
 import { getMenuEngineeringAction } from "@/app/actions/analytics";
+import { uploadImageAction } from "@/app/actions/upload";
 import VariantBuilder from "./VariantBuilder";
 
 const statusColors: Record<string, string> = {
@@ -194,6 +195,8 @@ function UnitInputCustom({ value, onChange }: { value: string; onChange: (val: s
 export default function MenuResep() {
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
+  const [selectedFilter, setSelectedFilter] = useState("all");
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedMenu, setSelectedMenu] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"list" | "engineering">("list");
   const [menuItems, setMenuItems] = useState<any[]>([]);
@@ -942,9 +945,9 @@ export default function MenuResep() {
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    {editImageUrl && editImageUrl.startsWith("data:image") ? (
+                    {editImageUrl && (editImageUrl.startsWith("data:image") || editImageUrl.startsWith("http")) ? (
                       <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
-                        <span className="flex items-center gap-1">✓ Foto Terunggah (HD Base64)</span>
+                        <span className="flex items-center gap-1">✓ Foto Terunggah</span>
                         <button
                           type="button"
                           onClick={() => setEditImageUrl("")}
@@ -963,23 +966,33 @@ export default function MenuResep() {
                       />
                     )}
                     <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
-                      📁 Pilih Gambar Baru (PNG, JPG, WebP)
+                      {isUploadingImage ? "⏳ Mengunggah..." : "📁 Pilih Gambar Baru (PNG, JPG, WebP)"}
                       <input
                         type="file"
                         accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
                         className="hidden"
-                        onChange={e => {
+                        onChange={async e => {
                           const file = e.target.files?.[0];
                           if (file) {
                             if (file.size > 5 * 1024 * 1024) {
                               alert("Ukuran file maksimal 5 MB.");
                               return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              if (typeof reader.result === 'string') setEditImageUrl(reader.result);
-                            };
-                            reader.readAsDataURL(file);
+                            setIsUploadingImage(true);
+                            try {
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              const res = await uploadImageAction(formData);
+                              if (res.success && res.url) {
+                                setEditImageUrl(res.url);
+                              } else {
+                                alert("Gagal upload: " + (res.error || "Terjadi kesalahan"));
+                              }
+                            } catch (err: any) {
+                              alert("Error: " + err.message);
+                            } finally {
+                              setIsUploadingImage(false);
+                            }
                           }
                         }}
                       />
@@ -1082,9 +1095,9 @@ export default function MenuResep() {
                     )}
                   </div>
                   <div className="flex-1 space-y-1">
-                    {addImageUrl && addImageUrl.startsWith("data:image") ? (
+                    {addImageUrl && (addImageUrl.startsWith("data:image") || addImageUrl.startsWith("http")) ? (
                       <div className="flex items-center justify-between px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-[11px] text-emerald-700 dark:text-emerald-300 font-medium">
-                        <span className="flex items-center gap-1">✓ Foto Terunggah (HD Base64)</span>
+                        <span className="flex items-center gap-1">✓ Foto Terunggah</span>
                         <button
                           type="button"
                           onClick={() => setAddImageUrl("")}
@@ -1103,23 +1116,33 @@ export default function MenuResep() {
                       />
                     )}
                     <label className="cursor-pointer inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 dark:text-orange-400 hover:underline">
-                      📁 Pilih Gambar Baru (PNG, JPG, WebP)
+                      {isUploadingImage ? "⏳ Mengunggah..." : "📁 Pilih Gambar Baru (PNG, JPG, WebP)"}
                       <input
                         type="file"
                         accept="image/png, image/jpeg, image/jpg, image/webp, image/*"
                         className="hidden"
-                        onChange={e => {
+                        onChange={async e => {
                           const file = e.target.files?.[0];
                           if (file) {
                             if (file.size > 5 * 1024 * 1024) {
                               alert("Ukuran file maksimal 5 MB.");
                               return;
                             }
-                            const reader = new FileReader();
-                            reader.onload = () => {
-                              if (typeof reader.result === 'string') setAddImageUrl(reader.result);
-                            };
-                            reader.readAsDataURL(file);
+                            setIsUploadingImage(true);
+                            try {
+                              const formData = new FormData();
+                              formData.append("file", file);
+                              const res = await uploadImageAction(formData);
+                              if (res.success && res.url) {
+                                setAddImageUrl(res.url);
+                              } else {
+                                alert("Gagal upload: " + (res.error || "Terjadi kesalahan"));
+                              }
+                            } catch (err: any) {
+                              alert("Error: " + err.message);
+                            } finally {
+                              setIsUploadingImage(false);
+                            }
                           }
                         }}
                       />
