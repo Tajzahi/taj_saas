@@ -26,6 +26,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { db, schema } from "@taj-saas/db";
+import { eq } from "drizzle-orm";
 
 // [BARIS 25-28]: Validasi kunci rahasia server (Wajib diset di .env atau GCP Secret Manager)
 if (!process.env.BETTER_AUTH_SECRET) {
@@ -75,14 +76,32 @@ export const auth = betterAuth({
   emailAndPassword: { enabled: true },
   
   // [BARIS 53-62]: Domain terpercaya yang diizinkan melakukan request API Auth
-  trustedOrigins: [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "https://*.a.run.app",
-    "https://*.run.app",
-    ...(process.env.TRUSTED_ORIGINS ? process.env.TRUSTED_ORIGINS.split(',').map(s => s.trim()) : []),
-  ],
+  trustedOrigins: async () => {
+    const origins = [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "https://*.a.run.app",
+      "https://*.run.app",
+      "https://*.a6nyusss.com",
+      "https://a6nyusss.com",
+      ...(process.env.TRUSTED_ORIGINS ? process.env.TRUSTED_ORIGINS.split(',').map(s => s.trim()) : []),
+    ];
+    try {
+      const activeTenants = await db
+        .select({ domain: schema.tenants.domain })
+        .from(schema.tenants)
+        .where(eq(schema.tenants.isActive, true));
+      for (const t of activeTenants) {
+        if (t.domain) {
+          origins.push(`https://${t.domain}`, `https://*.${t.domain}`);
+        }
+      }
+    } catch (err) {
+      console.error("[auth] failed to load tenant domains for trustedOrigins:", err);
+    }
+    return origins;
+  },
   
   // [BARIS 64-73]: Atribut tambahan pada tabel user (Menyimpan Role: owner/manager/kasir)
   user: {
