@@ -6,6 +6,7 @@ import FloatingButtons from "@/components/FloatingButtons";
 import ToastProvider from "@/components/ToastProvider";
 
 import { Suspense } from "react";
+import Script from "next/script";
 import { getStoreSettings } from "@/lib/db/menuService";
 
 export const metadata: Metadata = {
@@ -47,6 +48,8 @@ export default async function RootLayout({
     tagline: settings?.tagline || "",
   };
 
+  const gaId = settings?.google_analytics_id || process.env.NEXT_PUBLIC_GA_ID || "G-50XR0NBF8S";
+
   return (
     <html
       lang="id"
@@ -63,6 +66,24 @@ export default async function RootLayout({
         `}</style>
       </head>
       <body className="min-h-full flex flex-col bg-[#fffdf9] text-[#1c1917] dark:bg-stone-950 dark:text-stone-100 min-w-[320px]">
+        {/* Google Analytics (gtag.js) */}
+        {gaId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="google-analytics" strategy="afterInteractive">
+              {`
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+
+                gtag('config', '${gaId}');
+              `}
+            </Script>
+          </>
+        )}
         <ToastProvider />
         <Suspense fallback={null}>
           <Header settings={layoutSettings} />
