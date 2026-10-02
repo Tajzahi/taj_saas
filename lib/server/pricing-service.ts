@@ -337,27 +337,19 @@ export async function calculateOrderPricing(
     const bLng = Number(selectedBranch.outletLng);
     distanceKm = calculateHaversineDistanceKm(bLat, bLng, customerLat, customerLng);
 
-    const zones = selectedBranch.deliveryZones || [];
-    if (zones.length > 0) {
-      const maxAllowedDistance = Math.max(...zones.map((z) => z.maxDistanceKm));
-      if (distanceKm > maxAllowedDistance) {
-        throw new Error(
-          `Lokasi pengiriman (${distanceKm} km) melebihi jangkauan maksimal layanan cabang (${maxAllowedDistance} km).`
-        );
-      }
+    // Kalkulasi Ongkir: 0-1 km: Rp 0, setiap 1 km tambahan: Rp 5.000, maksimal 8 km
+    const MAX_DELIVERY_RADIUS_KM = 8;
+    if (distanceKm > MAX_DELIVERY_RADIUS_KM) {
+      throw new Error(
+        `Lokasi pengiriman (${distanceKm.toFixed(2)} km) melebihi batas maksimal pengiriman (maks. ${MAX_DELIVERY_RADIUS_KM} km) dari Cabang ${selectedBranch.name}.`
+      );
+    }
 
-      const matchingZone = zones.find((z) => distanceKm! <= z.maxDistanceKm);
-      if (matchingZone) {
-        deliveryFee = matchingZone.baseFee + Math.round(distanceKm * matchingZone.perKmFee);
-      } else {
-        throw new Error(`Tidak ditemukan zona pengiriman yang sesuai untuk jarak ${distanceKm} km.`);
-      }
+    if (distanceKm <= 1) {
+      deliveryFee = 0;
     } else {
-      // Flat delivery configured on tenant (Strict radius max 10 km)
-      if (distanceKm > 10) {
-        throw new Error(`Lokasi pengiriman (${distanceKm} km) melebihi radius maksimal toko (10 km).`);
-      }
-      deliveryFee = Number(branding.flatDeliveryFee || 10000);
+      const additionalKm = Math.ceil(distanceKm - 1);
+      deliveryFee = additionalKm * 5000;
     }
   }
 

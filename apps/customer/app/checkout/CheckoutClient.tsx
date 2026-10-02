@@ -40,6 +40,14 @@ export default function CheckoutClient() {
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [storeSettingsState, setStoreSettingsState] = useState<any>(null);
 
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
+  const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('takeaway');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [addressNote, setAddressNote] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'qris'>('cod');
+
   useEffect(() => {
     setMounted(true);
     fetch('/api/settings')
@@ -47,6 +55,10 @@ export default function CheckoutClient() {
       .then((settings) => {
         setIsStoreOpen(settings.is_open);
         setStoreSettingsState(settings);
+        if (settings.branches && settings.branches.length > 0) {
+          const primary = settings.branches.find((b: any) => b.isPrimary) || settings.branches[0];
+          setSelectedBranchId((prev) => prev || primary.id);
+        }
       })
       .catch((err) => {
         console.error('Error fetching store settings:', err);
@@ -64,16 +76,10 @@ export default function CheckoutClient() {
         if (parsed.addressNote) setAddressNote(parsed.addressNote);
         if (parsed.orderType) setOrderType(parsed.orderType);
         if (parsed.paymentMethod) setPaymentMethod(parsed.paymentMethod);
+        if (parsed.selectedBranchId) setSelectedBranchId(parsed.selectedBranchId);
       }
     } catch {}
   }, []);
-
-  const [orderType, setOrderType] = useState<'dine_in' | 'takeaway' | 'delivery'>('takeaway');
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [address, setAddress] = useState('');
-  const [addressNote, setAddressNote] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'cod' | 'qris'>('cod');
 
   // Auto-save draft on change so refreshing never loses customer input
   useEffect(() => {
@@ -86,9 +92,10 @@ export default function CheckoutClient() {
         addressNote,
         orderType,
         paymentMethod,
+        selectedBranchId,
       }));
     } catch {}
-  }, [name, phone, address, addressNote, orderType, paymentMethod, mounted]);
+  }, [name, phone, address, addressNote, orderType, paymentMethod, selectedBranchId, mounted]);
   const [agreed, setAgreed] = useState(false);
   const [agreedCancel, setAgreedCancel] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -185,6 +192,11 @@ export default function CheckoutClient() {
     router.push('/tracking?new=true');
   };
 
+  const branches = (storeSettingsState?.branches || []) as any[];
+  const selectedBranch = branches.find((b) => b.id === selectedBranchId) || branches[0];
+  const outletLat = selectedBranch?.outletLat ? Number(selectedBranch.outletLat) : storeSettingsState?.outlet_lat;
+  const outletLng = selectedBranch?.outletLng ? Number(selectedBranch.outletLng) : storeSettingsState?.outlet_lng;
+
   const subtotal = getTotalPrice();
   const deliveryFee = orderType === 'delivery' ? (mapResult && !mapResult.isOutOfRange ? mapResult.fee : 0) : 0;
   // Gunakan diskon yang dikonfirmasi server — bukan kalkulasi client-side
@@ -238,7 +250,7 @@ export default function CheckoutClient() {
     if (orderType === 'delivery') {
       if (!address.trim()) newErrors.address = 'Alamat pengiriman wajib diisi';
       if (!mapResult) newErrors.mapLocation = 'Silakan tandai lokasi Anda di peta terlebih dahulu';
-      if (mapResult?.isOutOfRange) newErrors.mapLocation = 'Lokasi Anda berada di luar jangkauan pengiriman (maks. 10 km)';
+      if (mapResult?.isOutOfRange) newErrors.mapLocation = 'Lokasi Anda berada di luar jangkauan pengiriman (maks. 8 km)';
     }
     if (!agreed) newErrors.agreed = 'Harap setujui Syarat & Ketentuan';
     if (!agreedCancel) newErrors.agreedCancel = 'Harap setujui kebijakan pembatalan pesanan';
@@ -288,6 +300,7 @@ export default function CheckoutClient() {
         customerName: name,
         customerPhone: phone,
         orderType,
+        branchId: selectedBranch?.id || undefined,
         deliveryAddress: fullAddress,
         customerLat: mapResult?.lat,
         customerLng: mapResult?.lng,
@@ -440,6 +453,69 @@ export default function CheckoutClient() {
             </div>
           </div>
 
+          {/* Branch Selection */}
+          {branches.length > 0 && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-gray-800 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-[#8E0E0E]" />
+                  {orderType === 'delivery'
+                    ? 'Pilih Cabang Pengiriman'
+                    : orderType === 'takeaway'
+                    ? 'Pilih Cabang Pengambilan'
+                    : 'Pilih Cabang Outlet'}
+                </h3>
+                <span className="text-xs bg-red-50 text-[#8E0E0E] font-bold px-2.5 py-0.5 rounded-full border border-red-100">
+                  {branches.length} Cabang Tersedia
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 mb-4">
+                {orderType === 'delivery'
+                  ? 'Pesanan Anda akan disiapkan dan dikirim dari cabang yang Anda pilih. Ongkir dihitung berdasarkan jarak dari cabang ini ke rumah Anda.'
+                  : 'Pilih gerai outlet tempat Anda mengambil atau menikmati pesanan martabak.'}
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {branches.map((b: any) => {
+                  const isSelected = (selectedBranchId || branches[0]?.id) === b.id;
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedBranchId(b.id);
+                        setErrors((p) => ({ ...p, mapLocation: '' }));
+                      }}
+                      className={`p-4 rounded-xl border-2 text-left transition-all relative ${
+                        isSelected
+                          ? 'border-[#8E0E0E] bg-red-50/40 shadow-sm ring-1 ring-[#8E0E0E]'
+                          : 'border-gray-200 hover:border-gray-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <p className="font-bold text-gray-900 text-sm">
+                          Cabang {b.name} {b.isPrimary ? '(Pusat)' : ''}
+                        </p>
+                        {isSelected ? (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#8E0E0E] bg-white border border-[#8E0E0E]/30 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#8E0E0E]" /> Dipilih
+                          </span>
+                        ) : (
+                          <span className="text-[11px] font-semibold text-gray-400">Pilih</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 line-clamp-2 mb-1.5">{b.address}</p>
+                      {b.openingHours && (
+                        <p className="text-[11px] text-gray-500 flex items-center gap-1 font-medium">
+                          🕒 Buka: {b.openingHours}
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* Customer Info */}
           <div className="bg-white rounded-2xl p-5 shadow-sm">
             <h3 className="font-bold text-gray-800 mb-4">Data Pemesan</h3>
@@ -513,8 +589,9 @@ export default function CheckoutClient() {
                       onLocationSelect={handleMapLocationSelect}
                       onAddressResolved={handleAddressResolved}
                       searchAddress={address}
-                      outletLat={storeSettingsState?.outlet_lat}
-                      outletLng={storeSettingsState?.outlet_lng}
+                      outletLat={outletLat}
+                      outletLng={outletLng}
+                      outletName={selectedBranch?.name}
                     />
                     {errors.mapLocation && (
                       <p className="text-red-500 text-xs mt-2 flex items-center gap-1">
