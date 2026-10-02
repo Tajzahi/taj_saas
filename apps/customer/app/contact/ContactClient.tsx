@@ -16,42 +16,57 @@ interface BranchInfo {
   embedUrl: string;
 }
 
-const BRANCHES: BranchInfo[] = [
-  {
-    id: 'demak',
-    name: 'Cabang Demak (Pusat)',
-    shortName: 'Cabang Demak',
-    area: 'Kec. Krembangan',
-    address: 'Depan Mess DITPOLARIUD POLDA JATIM SURABAYA, Jl. Demak No.253, Dupak, Kec. Krembangan, Kota Surabaya, Jawa Timur 60179',
-    landmark: 'Patokan: Depan Mess DITPOLARIUD POLDA JATIM SURABAYA',
-    hours: '16:00 - 23:00 WIB',
-    whatsapp: '087811123482',
-    mapsUrl: 'https://maps.app.goo.gl/x96PqX7NpC8SWVzR7',
-    embedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid',
-  },
-  {
-    id: 'tidar',
-    name: 'Cabang Tidar (Sawahan)',
-    shortName: 'Cabang Tidar',
-    area: 'Kec. Sawahan',
-    address: 'Jl. Tidar No.81, Sawahan, Kec. Sawahan, Kota Surabaya, Jawa Timur 60251',
-    landmark: 'Patokan: Jl. Tidar No.81, Sawahan, Surabaya',
-    hours: '16:00 - 23:00 WIB',
-    whatsapp: '082230306801',
-    mapsUrl: 'https://maps.app.goo.gl/2tti83qFw8aDaWibA',
-    embedUrl: 'https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d494.7322038148574!2d112.7272232!3d-7.2570394!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f938db8f863d%3A0x74d6c39870f095d9!2sMartabak%20dan%20Terang%20Bulan%20a6%20nyuss!5e0!3m2!1sid!2sid!4v1790923894315!5m2!1sid!2sid',
-  },
-];
-
 export default function ContactClient() {
   const [settings, setSettings] = useState<DbStoreSettings | null>(null);
-  const [selectedBranchId, setSelectedBranchId] = useState<string>('demak');
+  const [selectedBranchId, setSelectedBranchId] = useState<string>('');
 
   useEffect(() => {
     fetch('/api/settings').then(res => res.json()).then(res => setSettings(res)).catch(() => {});
   }, []);
 
-  const activeBranch = BRANCHES.find(b => b.id === selectedBranchId) || BRANCHES[0];
+  const branches: BranchInfo[] = (settings?.branches && settings.branches.length > 0)
+    ? settings.branches.map((b: any) => ({
+        id: b.id,
+        name: `Cabang ${b.name}${b.is_primary || b.isPrimary ? ' (Pusat)' : ''}`,
+        shortName: `Cabang ${b.name}`,
+        area: b.address.includes('Krembangan') ? 'Kec. Krembangan' : b.address.includes('Sawahan') ? 'Kec. Sawahan' : b.city || 'Surabaya',
+        address: b.address,
+        landmark: `Patokan: ${b.address.split(',')[0]}`,
+        hours: b.operational_hours || b.operationalHours || '16:00 - 23:00 WIB',
+        whatsapp: b.phone || settings?.whatsapp_number || '082230306801',
+        mapsUrl: b.google_maps_url || b.googleMapsUrl || `https://maps.google.com/?q=${b.outlet_lat || -7.2432537},${b.outlet_lng || 112.7206275}`,
+        embedUrl: (b.name || '').toLowerCase().includes('tidar')
+          ? 'https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d494.7322038148574!2d112.7272232!3d-7.2570394!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f938db8f863d%3A0x74d6c39870f095d9!2sMartabak%20dan%20Terang%20Bulan%20a6%20nyuss!5e0!3m2!1sid!2sid!4v1790923894315!5m2!1sid!2sid'
+          : 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid',
+      }))
+    : [
+        {
+          id: 'demak',
+          name: 'Cabang Demak (Pusat)',
+          shortName: 'Cabang Demak',
+          area: 'Kec. Krembangan',
+          address: 'Depan Mess DITPOLARIUD POLDA JATIM SURABAYA, Jl. Demak No.253, Dupak, Kec. Krembangan, Kota Surabaya, Jawa Timur 60179',
+          landmark: 'Patokan: Depan Mess DITPOLARIUD POLDA JATIM SURABAYA',
+          hours: '16:00 - 23:00 WIB',
+          whatsapp: '082230306801',
+          mapsUrl: 'https://maps.app.goo.gl/x96PqX7NpC8SWVzR7',
+          embedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid',
+        },
+        {
+          id: 'tidar',
+          name: 'Cabang Tidar (Sawahan)',
+          shortName: 'Cabang Tidar',
+          area: 'Kec. Sawahan',
+          address: 'Jl. Tidar No.81, Sawahan, Kec. Sawahan, Kota Surabaya, Jawa Timur 60251',
+          landmark: 'Patokan: Jl. Tidar No.81, Sawahan, Surabaya',
+          hours: '16:00 - 23:00 WIB',
+          whatsapp: '082230306801',
+          mapsUrl: 'https://maps.app.goo.gl/2tti83qFw8aDaWibA',
+          embedUrl: 'https://www.google.com/maps/embed?pb=!1m14!1m8!1m3!1d494.7322038148574!2d112.7272232!3d-7.2570394!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f938db8f863d%3A0x74d6c39870f095d9!2sMartabak%20dan%20Terang%20Bulan%20a6%20nyuss!5e0!3m2!1sid!2sid!4v1790923894315!5m2!1sid!2sid',
+        },
+      ];
+
+  const activeBranch = branches.find(b => b.id === selectedBranchId) || branches[0];
 
   const getCurrentStatus = () => {
     if (settings && typeof settings.is_open === 'boolean') {
@@ -137,7 +152,7 @@ export default function ContactClient() {
           </div>
 
           <div className="grid grid-cols-2 gap-3 p-1.5 bg-gray-200/70 rounded-2xl">
-            {BRANCHES.map((b) => {
+            {branches.map((b) => {
               const isSelected = b.id === selectedBranchId;
               return (
                 <button
@@ -222,7 +237,7 @@ export default function ContactClient() {
 
         {/* Ringkasan Kontak Cepat Kedua Gerai */}
         <div className="grid sm:grid-cols-2 gap-4">
-          {BRANCHES.map((b) => (
+          {branches.map((b) => (
             <div key={b.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between mb-2">

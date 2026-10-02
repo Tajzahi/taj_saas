@@ -209,7 +209,6 @@ export default async function RootLayout({
                     "https://maps.app.goo.gl/2tti83qFw8aDaWibA",
                     "https://instagram.com/a6nyuss",
                     "https://tiktok.com/@a6nyuss",
-                    "https://www.facebook.com/profile.php?id=61590278828752",
                   ],
                 },
                 {
@@ -218,7 +217,7 @@ export default async function RootLayout({
                   "name": "Martabak & Terang Bulan A6 Nyuss - Cabang Demak",
                   "parentOrganization": { "@id": "https://a6nyusss.com/#organization" },
                   "image": "https://a6nyusss.com/assets/banner_red.png",
-                  "telephone": "+6287811123482",
+                  "telephone": "+6282230306801",
                   "priceRange": "Rp 20.000 - Rp 50.000",
                   "servesCuisine": ["Martabak", "Terang Bulan", "Indonesian Street Food"],
                   "address": {

@@ -85,6 +85,7 @@ export interface DbStoreSettings {
   max_delivery_radius_km?: number;
   delivery_zones?: { name: string; maxKm: number; fee: number }[];
   social_links?: { instagram?: string; facebook?: string; tiktok?: string; youtube?: string };
+  branches?: any[];
 }
 
 // Fallback topping variant structures for Terang Bulan items
@@ -246,6 +247,18 @@ export async function getStoreSettings(): Promise<DbStoreSettings> {
       youtube: branding.socialYoutube || '',
     },
   };
+
+  try {
+    const dbBranches = await db
+      .select()
+      .from(schema.branches)
+      .where(and(eq(schema.branches.tenantId, tenant.id), eq(schema.branches.status, 'active')))
+      .orderBy(desc(schema.branches.isPrimary));
+    result.branches = dbBranches || [];
+  } catch (err) {
+    console.error("[menuService] Error fetching branches for settings:", err);
+    result.branches = [];
+  }
 
   setToCache(cacheKey, result, SETTINGS_CACHE_TTL_MS);
   return result;
