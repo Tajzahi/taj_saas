@@ -26,7 +26,7 @@ const BRANCHES: BranchInfo[] = [
     landmark: 'Patokan: Depan Mess DITPOLARIUD POLDA JATIM SURABAYA',
     hours: '16:00 - 23:00 WIB',
     whatsapp: '087811123482',
-    mapsUrl: 'https://maps.google.com/?q=-7.2432537,112.7206275',
+    mapsUrl: 'https://maps.app.goo.gl/x96PqX7NpC8SWVzR7',
     embedUrl: 'https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3957.9787806389904!2d112.72062749999999!3d-7.243253699999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2dd7f96790ef97d9%3A0x4e9b27e564abc301!2sMartabak%20%26%20Terang%20Bulan%20A6%20Nyuss!5e0!3m2!1sid!2sid!4v1780307482136!5m2!1sid!2sid',
   },
   {
@@ -77,9 +77,13 @@ export default function ContactClient() {
 
   const status = getCurrentStatus();
   const brandName = settings?.store_name || "Martabak & Terang Bulan A6 Nyuss";
-  const email = settings?.email || settings?.store_email || "kontak@a6nyusss.com";
-  const instagramHandle = settings?.instagram ? (settings.instagram.startsWith('@') ? settings.instagram : `@${settings.instagram}`) : '@a6nyusss';
-  const instagramLink = settings?.instagram ? (settings.instagram.startsWith('http') ? settings.instagram : `https://instagram.com/${settings.instagram.replace(/^@/, '')}`) : 'https://instagram.com/a6nyusss';
+  const email = settings?.email || settings?.store_email || "martabaka6nyusss@gmail.com";
+  const instagramHandle = settings?.instagram ? (settings.instagram.startsWith('@') ? settings.instagram : `@${settings.instagram}`) : '@a6nyuss';
+  const instagramLink = settings?.instagram ? (settings.instagram.startsWith('http') ? settings.instagram : `https://instagram.com/${settings.instagram.replace(/^@/, '')}`) : 'https://instagram.com/a6nyuss';
+  const facebookHandle = settings?.facebook || "Martabak Nyuss";
+  const facebookLink = settings?.facebook?.startsWith('http') ? settings.facebook : `https://facebook.com/search/top?q=${encodeURIComponent(facebookHandle)}`;
+  const tiktokHandle = settings?.tiktok ? (settings.tiktok.startsWith('@') ? settings.tiktok : `@${settings.tiktok}`) : '@a6nyuss';
+  const tiktokLink = `https://tiktok.com/${tiktokHandle.startsWith('@') ? tiktokHandle : `@${tiktokHandle}`}`;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
@@ -273,8 +277,8 @@ export default function ContactClient() {
 
         {/* Social Media Links */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-          <p className="font-bold text-gray-900 mb-3 text-sm">Ikuti Media Sosial Resmi Martabak A6 Nyuss</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <p className="font-bold text-gray-900 mb-3 text-sm">Ikuti Media Sosial & Peta Resmi Martabak A6 Nyuss</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             {[
               {
                 platform: 'Instagram',
@@ -283,20 +287,30 @@ export default function ContactClient() {
                 link: instagramLink,
               },
               {
+                platform: 'Facebook',
+                handle: facebookHandle,
+                icon: (
+                  <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
+                  </svg>
+                ),
+                link: facebookLink,
+              },
+              {
                 platform: 'TikTok',
-                handle: '@a6nyusss',
+                handle: tiktokHandle,
                 icon: (
                   <svg className="w-5 h-5 text-black flex-shrink-0" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-2.88 2.5 2.89 2.89 0 01-2.89-2.89 2.89 2.89 0 012.89-2.89c.28 0 .54.04.79.1V9.01a6.27 6.27 0 00-.79-.05 6.34 6.34 0 00-6.34 6.34 6.34 6.34 0 006.34 6.34 6.34 6.34 0 006.33-6.34V8.69a8.18 8.18 0 004.78 1.52V6.74a4.85 4.85 0 01-1.01-.05z" />
                   </svg>
                 ),
-                link: 'https://tiktok.com/@a6nyusss',
+                link: tiktokLink,
               },
               {
                 platform: 'Maps Demak',
                 handle: 'Cabang Demak',
                 icon: <MapPin className="w-5 h-5 text-red-500 flex-shrink-0" />,
-                link: 'https://maps.google.com/?q=-7.2432537,112.7206275',
+                link: 'https://maps.app.goo.gl/x96PqX7NpC8SWVzR7',
               },
               {
                 platform: 'Maps Tidar',

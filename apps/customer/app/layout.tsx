@@ -203,9 +203,12 @@ export default async function RootLayout({
                   ],
                   "url": "https://a6nyusss.com",
                   "logo": "https://a6nyusss.com/logo.png",
+                  "email": "martabaka6nyusss@gmail.com",
                   "sameAs": [
+                    "https://maps.app.goo.gl/x96PqX7NpC8SWVzR7",
                     "https://maps.app.goo.gl/2tti83qFw8aDaWibA",
-                    "https://maps.google.com/?q=-7.2432537,112.7206275",
+                    "https://instagram.com/a6nyuss",
+                    "https://tiktok.com/@a6nyuss",
                   ],
                 },
                 {
@@ -230,7 +233,7 @@ export default async function RootLayout({
                     "latitude": -7.2432537,
                     "longitude": 112.7206275,
                   },
-                  "hasMap": "https://maps.google.com/?q=-7.2432537,112.7206275",
+                  "hasMap": "https://maps.app.goo.gl/x96PqX7NpC8SWVzR7",
                   "openingHoursSpecification": [
                     {
                       "@type": "OpeningHoursSpecification",
