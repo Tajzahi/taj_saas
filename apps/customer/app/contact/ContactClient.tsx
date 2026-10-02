@@ -78,18 +78,17 @@ export default function ContactClient() {
   const status = getCurrentStatus();
   const brandName = settings?.store_name || "Martabak & Terang Bulan A6 Nyuss";
   const email = settings?.email || settings?.store_email || "martabaka6nyusss@gmail.com";
-  
-  const rawIg = settings?.social_links?.instagram || settings?.instagram || "a6nyuss";
-  const instagramHandle = rawIg.startsWith('@') ? rawIg : `@${rawIg.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}`;
-  const instagramLink = rawIg.startsWith('http') ? rawIg : `https://instagram.com/${rawIg.replace(/^@/, '')}`;
+  const instagramRaw = settings?.social_links?.instagram || settings?.instagram || 'a6nyuss';
+  const instagramHandle = instagramRaw.startsWith('@') ? instagramRaw : `@${instagramRaw}`;
+  const instagramLink = instagramRaw.startsWith('http') ? instagramRaw : `https://instagram.com/${instagramRaw.replace(/^@/, '')}`;
 
-  const rawFb = settings?.social_links?.facebook || settings?.facebook || "https://www.facebook.com/profile.php?id=61590278828752";
-  const facebookLink = rawFb.startsWith('http') ? rawFb : `https://facebook.com/search/top?q=${encodeURIComponent(rawFb)}`;
-  const facebookHandle = "Martabak Nyuss";
+  const facebookValue = settings?.social_links?.facebook || settings?.facebook || "Martabak Nyuss";
+  const facebookHandle = facebookValue.startsWith('http') ? (brandName || 'Martabak Nyuss') : facebookValue;
+  const facebookLink = facebookValue.startsWith('http') ? facebookValue : `https://facebook.com/search/top?q=${encodeURIComponent(facebookValue)}`;
 
-  const rawTiktok = settings?.social_links?.tiktok || settings?.tiktok || "a6nyuss";
-  const tiktokHandle = rawTiktok.startsWith('@') ? rawTiktok : `@${rawTiktok.replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/, '').replace(/\/$/, '')}`;
-  const tiktokLink = rawTiktok.startsWith('http') ? rawTiktok : `https://tiktok.com/@${rawTiktok.replace(/^@/, '')}`;
+  const tiktokRaw = settings?.social_links?.tiktok || settings?.tiktok || 'a6nyuss';
+  const tiktokHandle = tiktokRaw.startsWith('@') ? tiktokRaw : `@${tiktokRaw}`;
+  const tiktokLink = tiktokRaw.startsWith('http') ? tiktokRaw : `https://tiktok.com/${tiktokHandle}`;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
