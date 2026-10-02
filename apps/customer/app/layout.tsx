@@ -209,6 +209,7 @@ export default async function RootLayout({
                     "https://maps.app.goo.gl/2tti83qFw8aDaWibA",
                     "https://instagram.com/a6nyuss",
                     "https://tiktok.com/@a6nyuss",
+                    "https://www.facebook.com/profile.php?id=61590278828752",
                   ],
                 },
                 {

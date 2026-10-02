@@ -78,12 +78,18 @@ export default function ContactClient() {
   const status = getCurrentStatus();
   const brandName = settings?.store_name || "Martabak & Terang Bulan A6 Nyuss";
   const email = settings?.email || settings?.store_email || "martabaka6nyusss@gmail.com";
-  const instagramHandle = settings?.instagram ? (settings.instagram.startsWith('@') ? settings.instagram : `@${settings.instagram}`) : '@a6nyuss';
-  const instagramLink = settings?.instagram ? (settings.instagram.startsWith('http') ? settings.instagram : `https://instagram.com/${settings.instagram.replace(/^@/, '')}`) : 'https://instagram.com/a6nyuss';
-  const facebookHandle = settings?.facebook || "Martabak Nyuss";
-  const facebookLink = settings?.facebook?.startsWith('http') ? settings.facebook : `https://facebook.com/search/top?q=${encodeURIComponent(facebookHandle)}`;
-  const tiktokHandle = settings?.tiktok ? (settings.tiktok.startsWith('@') ? settings.tiktok : `@${settings.tiktok}`) : '@a6nyuss';
-  const tiktokLink = `https://tiktok.com/${tiktokHandle.startsWith('@') ? tiktokHandle : `@${tiktokHandle}`}`;
+  
+  const rawIg = settings?.social_links?.instagram || settings?.instagram || "a6nyuss";
+  const instagramHandle = rawIg.startsWith('@') ? rawIg : `@${rawIg.replace(/^https?:\/\/(www\.)?instagram\.com\//, '').replace(/\/$/, '')}`;
+  const instagramLink = rawIg.startsWith('http') ? rawIg : `https://instagram.com/${rawIg.replace(/^@/, '')}`;
+
+  const rawFb = settings?.social_links?.facebook || settings?.facebook || "https://www.facebook.com/profile.php?id=61590278828752";
+  const facebookLink = rawFb.startsWith('http') ? rawFb : `https://facebook.com/search/top?q=${encodeURIComponent(rawFb)}`;
+  const facebookHandle = "Martabak Nyuss";
+
+  const rawTiktok = settings?.social_links?.tiktok || settings?.tiktok || "a6nyuss";
+  const tiktokHandle = rawTiktok.startsWith('@') ? rawTiktok : `@${rawTiktok.replace(/^https?:\/\/(www\.)?tiktok\.com\/@?/, '').replace(/\/$/, '')}`;
+  const tiktokLink = rawTiktok.startsWith('http') ? rawTiktok : `https://tiktok.com/@${rawTiktok.replace(/^@/, '')}`;
 
   return (
     <div className="min-h-screen bg-gray-50 pt-16">
