@@ -247,10 +247,11 @@ export default function CheckoutClient() {
     if (!phone.trim() || !/^(08|\+62)\d{8,12}$/.test(phone.replace(/\s/g, ''))) {
       newErrors.phone = 'Format nomor HP tidak valid (contoh: 081234567890)';
     }
+    const maxRadius = storeSettingsState?.max_delivery_radius_km || 8;
     if (orderType === 'delivery') {
       if (!address.trim()) newErrors.address = 'Alamat pengiriman wajib diisi';
       if (!mapResult) newErrors.mapLocation = 'Silakan tandai lokasi Anda di peta terlebih dahulu';
-      if (mapResult?.isOutOfRange) newErrors.mapLocation = 'Lokasi Anda berada di luar jangkauan pengiriman (maks. 8 km)';
+      if (mapResult?.isOutOfRange) newErrors.mapLocation = `Lokasi Anda berada di luar jangkauan pengiriman (maks. ${maxRadius} km)`;
     }
     if (!agreed) newErrors.agreed = 'Harap setujui Syarat & Ketentuan';
     if (!agreedCancel) newErrors.agreedCancel = 'Harap setujui kebijakan pembatalan pesanan';
@@ -592,6 +593,7 @@ export default function CheckoutClient() {
                       outletLat={outletLat}
                       outletLng={outletLng}
                       outletName={selectedBranch?.name}
+                      maxRadiusKm={storeSettingsState?.max_delivery_radius_km || 8}
                     />
                     {errors.mapLocation && (
                       <p className="text-red-500 text-xs mt-2 flex items-center gap-1">

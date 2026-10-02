@@ -144,6 +144,8 @@ interface DeliveryMapProps {
   outletLng?: number;
   /** Custom outlet name (e.g. Demak or Tidar) */
   outletName?: string;
+  /** Custom max delivery radius (default 8 km) */
+  maxRadiusKm?: number;
 }
 
 export default function DeliveryMap({
@@ -153,6 +155,7 @@ export default function DeliveryMap({
   outletLat,
   outletLng,
   outletName,
+  maxRadiusKm = 8,
 }: DeliveryMapProps) {
   const resolvedOutletLat = outletLat ?? DEFAULT_OUTLET_LAT;
   const resolvedOutletLng = outletLng ?? DEFAULT_OUTLET_LNG;
@@ -264,15 +267,25 @@ export default function DeliveryMap({
   const placeMarker = useCallback(
     async (lat: number, lng: number, L: any, resolveAddress = true) => {
       const distanceM = haversineDistance(resolvedOutletLat, resolvedOutletLng, lat, lng);
-      const rate = calculateDeliveryRate(distanceM);
+      const distanceKm = distanceM / 1000;
+      const isOutOfRange = distanceKm > maxRadiusKm;
+      let fee = 0;
+      let zoneName = '0 - 1 km (Gratis Ongkir)';
+      if (isOutOfRange) {
+        zoneName = `Di luar jangkauan (Maks. ${maxRadiusKm} km)`;
+      } else if (distanceKm > 1) {
+        const additionalKm = Math.ceil(distanceKm - 1);
+        fee = additionalKm * 5000;
+        zoneName = `Ongkir Rp ${fee.toLocaleString('id-ID')} (${distanceKm.toFixed(1)} km)`;
+      }
 
       const result: DeliveryMapResult = {
         lat,
         lng,
-        distanceKm: rate.distanceKm,
-        zoneName: rate.zoneName,
-        fee: rate.fee,
-        isOutOfRange: rate.isOutOfRange,
+        distanceKm,
+        zoneName,
+        fee,
+        isOutOfRange,
       };
 
       // Remove old customer marker
@@ -282,7 +295,7 @@ export default function DeliveryMap({
         html: `
           <div style="
             width: 36px; height: 36px; border-radius: 50%;
-            background: ${rate.isOutOfRange ? '#ef4444' : rate.fee === 0 ? '#16a34a' : '#2563eb'};
+            background: ${isOutOfRange ? '#ef4444' : fee === 0 ? '#16a34a' : '#2563eb'};
             border: 3px solid white;
             box-shadow: 0 2px 12px rgba(0,0,0,0.4);
             display: flex; align-items: center; justify-content: center;
@@ -293,9 +306,9 @@ export default function DeliveryMap({
         iconAnchor: [18, 18],
       });
 
-      const popup = rate.isOutOfRange
-        ? `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <b>Di luar jangkauan</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${rate.distanceKm.toFixed(2)} km</b><br/><span style="color:#ef4444">Maksimal pengiriman 8 km</span></div>`
-        : `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"></polyline></svg> <b>${rate.fee === 0 ? 'Gratis Ongkir!' : `Ongkir: Rp ${rate.fee.toLocaleString('id-ID')}`}</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${rate.distanceKm.toFixed(2)} km</b><br/>${rate.distanceKm <= 1 ? '<span style="color:#16a34a">0-1 km Gratis</span>' : `Tarif: Rp 5.000 / km tambahan`}</div>`;
+      const popup = isOutOfRange
+        ? `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <b>Di luar jangkauan</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${distanceKm.toFixed(2)} km</b><br/><span style="color:#ef4444">Maksimal pengiriman ${maxRadiusKm} km</span></div>`
+        : `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"></polyline></svg> <b>${fee === 0 ? 'Gratis Ongkir!' : `Ongkir: Rp ${fee.toLocaleString('id-ID')}`}</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${distanceKm.toFixed(2)} km</b><br/>${distanceKm <= 1 ? '<span style="color:#16a34a">0-1 km Gratis</span>' : `Tarif: Rp 5.000 / km tambahan`}</div>`;
 
       const marker = L.marker([lat, lng], { icon: customerIcon })
         .addTo(mapRef.current)
@@ -348,10 +361,10 @@ export default function DeliveryMap({
         .addAttribution('© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a>')
         .addTo(map);
 
-      // Radius circles: 8 km (batas maksimal) & 1 km (gratis)
-      const c8 = L.circle([resolvedOutletLat, resolvedOutletLng], { radius: 8000, color: '#ef4444', fillColor: '#fef2f2', fillOpacity: 0.14, weight: 2, dashArray: '8 4' }).addTo(map);
+      // Radius circles: max radius (outer) & 1 km (gratis)
+      const cMax = L.circle([resolvedOutletLat, resolvedOutletLng], { radius: maxRadiusKm * 1000, color: '#ef4444', fillColor: '#fef2f2', fillOpacity: 0.14, weight: 2, dashArray: '8 4' }).addTo(map);
       const c1 = L.circle([resolvedOutletLat, resolvedOutletLng], { radius: 1000, color: '#22c55e', fillColor: '#f0fdf4', fillOpacity: 0.28, weight: 2 }).addTo(map);
-      circlesRef.current = [c8, c1];
+      circlesRef.current = [cMax, c1];
 
       // Outlet marker
       const outletIcon = L.divIcon({
@@ -577,11 +590,11 @@ export default function DeliveryMap({
           </div>
           <div className="text-center p-2 rounded-lg bg-red-50 border border-red-200">
             <p className="text-[11px] font-bold text-red-700">Maksimal Radius</p>
-            <p className="text-xs font-extrabold text-red-800">8 km</p>
+            <p className="text-xs font-extrabold text-red-800">{maxRadiusKm} km</p>
           </div>
         </div>
         <p className="text-[10px] text-gray-500 mt-2 text-center">
-          Pengiriman dilayani hingga radius maksimal 8 km dari Cabang {outletName || 'Toko'}.
+          Pengiriman dilayani hingga radius maksimal {maxRadiusKm} km dari Cabang {outletName || 'Toko'}.
         </p>
       </div>
 
@@ -594,7 +607,7 @@ export default function DeliveryMap({
               <div>
                 <p className="font-bold text-red-700 text-sm">Lokasi di Luar Jangkauan</p>
                 <p className="text-red-600 text-xs">
-                  Jarak <strong>{selectedResult.distanceKm.toFixed(2)} km</strong> dari Cabang {outletName || 'Toko'} — melebihi batas maksimal 8 km.
+                  Jarak <strong>{selectedResult.distanceKm.toFixed(2)} km</strong> dari Cabang {outletName || 'Toko'} — melebihi batas maksimal {maxRadiusKm} km.
                 </p>
               </div>
             </div>
