@@ -33,6 +33,8 @@ Thumbs.db
 
 # Test & Debug Artifacts
 *.png
+!apps/**/public/**
+!apps/**/app/**
 login-failure.png
 check_login.js
 cloud_run_*.png

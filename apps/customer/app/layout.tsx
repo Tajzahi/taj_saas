@@ -71,6 +71,15 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "https://a6nyusss.com",
   },
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
   openGraph: {
     title: "Martabak & Terang Bulan A6 Nyuss Surabaya | Cabang Demak & Tidar",
     description:
