@@ -23,7 +23,7 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Kalkulasi Ongkir Skema A: 0-0.5 km: Rp 5.000, 0.5-1 km: Rp 8.000, lalu naik Rp 8.000 setiap 0.5 km
+// Kalkulasi Ongkir: 0-0.5 km: Rp 5.000, 0.5-1 km: Rp 8.000, >1 km: +Rp 3.000 per km
 export function calculateDeliveryRate(distanceM: number, maxRadiusKm: number = 8) {
   const distanceKm = distanceM / 1000;
   const isOutOfRange = distanceKm > maxRadiusKm;
@@ -39,8 +39,8 @@ export function calculateDeliveryRate(distanceM: number, maxRadiusKm: number = 8
     fee = 8000;
     zoneName = 'Radius 0.5 - 1 km (Rp 8.000)';
   } else {
-    const additionalBlocks = Math.ceil((distanceKm - 1.0) / 0.5);
-    fee = 8000 + additionalBlocks * 8000;
+    const additionalKm = Math.ceil(distanceKm - 1.0);
+    fee = 8000 + additionalKm * 3000;
     zoneName = `Ongkir Rp ${fee.toLocaleString('id-ID')} (${distanceKm.toFixed(2)} km)`;
   }
 
