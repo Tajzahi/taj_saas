@@ -209,9 +209,10 @@ export const useOrderStore = create<OrderState>()(
 import { generateOrderCode } from '@/lib/utils/format';
 export { generateOrderCode };
 
-export const DELIVERY_FEE = 0;
+export const DELIVERY_FEE = 5000;
 export const MAX_DELIVERY_RADIUS_KM = 8;
 export const DELIVERY_ZONES: { name: string; fee: number }[] = [
-  { name: '0 - 1 km (Gratis)', fee: 0 },
-  { name: '+1 km Tambahan', fee: 5000 },
+  { name: '0 - 0.5 km', fee: 5000 },
+  { name: '0.5 - 1.0 km', fee: 8000 },
+  { name: 'Tiap +0.5 km', fee: 8000 },
 ];

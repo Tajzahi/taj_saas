@@ -337,7 +337,7 @@ export async function calculateOrderPricing(
     const bLng = Number(selectedBranch.outletLng);
     distanceKm = calculateHaversineDistanceKm(bLat, bLng, customerLat, customerLng);
 
-    // Kalkulasi Ongkir: 0-1 km: Rp 0, setiap 1 km tambahan: Rp 5.000, maksimal radius dinamis dari DB/Web Owner
+    // Kalkulasi Ongkir Skema A: 0-0.5 km: Rp 5.000, 0.5-1 km: Rp 8.000, lalu naik Rp 8.000 setiap 0.5 km
     const MAX_DELIVERY_RADIUS_KM =
       typeof branding.maxDeliveryRadiusKm === "number" && Number(branding.maxDeliveryRadiusKm) > 0
         ? Number(branding.maxDeliveryRadiusKm)
@@ -348,11 +348,13 @@ export async function calculateOrderPricing(
       );
     }
 
-    if (distanceKm <= 1) {
-      deliveryFee = 0;
+    if (distanceKm <= 0.5) {
+      deliveryFee = 5000;
+    } else if (distanceKm <= 1.0) {
+      deliveryFee = 8000;
     } else {
-      const additionalKm = Math.ceil(distanceKm - 1);
-      deliveryFee = additionalKm * 5000;
+      const additionalBlocks = Math.ceil((distanceKm - 1.0) / 0.5);
+      deliveryFee = 8000 + additionalBlocks * 8000;
     }
   }
 

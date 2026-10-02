@@ -23,19 +23,27 @@ function haversineDistance(lat1: number, lng1: number, lat2: number, lng2: numbe
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-// Kalkulasi Ongkir: 0-1 km: Rp 0, setiap 1 km tambahan: Rp 5.000, maksimal 8 km
-export function calculateDeliveryRate(distanceM: number) {
+// Kalkulasi Ongkir Skema A: 0-0.5 km: Rp 5.000, 0.5-1 km: Rp 8.000, lalu naik Rp 8.000 setiap 0.5 km
+export function calculateDeliveryRate(distanceM: number, maxRadiusKm: number = 8) {
   const distanceKm = distanceM / 1000;
-  const isOutOfRange = distanceKm > 8;
+  const isOutOfRange = distanceKm > maxRadiusKm;
   let fee = 0;
-  let zoneName = '0 - 1 km (Gratis Ongkir)';
+  let zoneName = '';
+
   if (isOutOfRange) {
-    zoneName = 'Di luar jangkauan (Maks. 8 km)';
-  } else if (distanceKm > 1) {
-    const additionalKm = Math.ceil(distanceKm - 1);
-    fee = additionalKm * 5000;
-    zoneName = `Ongkir Rp ${fee.toLocaleString('id-ID')} (${distanceKm.toFixed(1)} km)`;
+    zoneName = `Di luar jangkauan (Maks. ${maxRadiusKm} km)`;
+  } else if (distanceKm <= 0.5) {
+    fee = 5000;
+    zoneName = 'Radius 0 - 0.5 km (Rp 5.000)';
+  } else if (distanceKm <= 1.0) {
+    fee = 8000;
+    zoneName = 'Radius 0.5 - 1 km (Rp 8.000)';
+  } else {
+    const additionalBlocks = Math.ceil((distanceKm - 1.0) / 0.5);
+    fee = 8000 + additionalBlocks * 8000;
+    zoneName = `Ongkir Rp ${fee.toLocaleString('id-ID')} (${distanceKm.toFixed(2)} km)`;
   }
+
   return { fee, distanceKm, isOutOfRange, zoneName };
 }
 
@@ -267,25 +275,15 @@ export default function DeliveryMap({
   const placeMarker = useCallback(
     async (lat: number, lng: number, L: any, resolveAddress = true) => {
       const distanceM = haversineDistance(resolvedOutletLat, resolvedOutletLng, lat, lng);
-      const distanceKm = distanceM / 1000;
-      const isOutOfRange = distanceKm > maxRadiusKm;
-      let fee = 0;
-      let zoneName = '0 - 1 km (Gratis Ongkir)';
-      if (isOutOfRange) {
-        zoneName = `Di luar jangkauan (Maks. ${maxRadiusKm} km)`;
-      } else if (distanceKm > 1) {
-        const additionalKm = Math.ceil(distanceKm - 1);
-        fee = additionalKm * 5000;
-        zoneName = `Ongkir Rp ${fee.toLocaleString('id-ID')} (${distanceKm.toFixed(1)} km)`;
-      }
+      const rate = calculateDeliveryRate(distanceM, maxRadiusKm);
 
       const result: DeliveryMapResult = {
         lat,
         lng,
-        distanceKm,
-        zoneName,
-        fee,
-        isOutOfRange,
+        distanceKm: rate.distanceKm,
+        zoneName: rate.zoneName,
+        fee: rate.fee,
+        isOutOfRange: rate.isOutOfRange,
       };
 
       // Remove old customer marker
@@ -295,7 +293,7 @@ export default function DeliveryMap({
         html: `
           <div style="
             width: 36px; height: 36px; border-radius: 50%;
-            background: ${isOutOfRange ? '#ef4444' : fee === 0 ? '#16a34a' : '#2563eb'};
+            background: ${rate.isOutOfRange ? '#ef4444' : '#2563eb'};
             border: 3px solid white;
             box-shadow: 0 2px 12px rgba(0,0,0,0.4);
             display: flex; align-items: center; justify-content: center;
@@ -306,9 +304,9 @@ export default function DeliveryMap({
         iconAnchor: [18, 18],
       });
 
-      const popup = isOutOfRange
-        ? `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <b>Di luar jangkauan</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${distanceKm.toFixed(2)} km</b><br/><span style="color:#ef4444">Maksimal pengiriman ${maxRadiusKm} km</span></div>`
-        : `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"></polyline></svg> <b>${fee === 0 ? 'Gratis Ongkir!' : `Ongkir: Rp ${fee.toLocaleString('id-ID')}`}</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${distanceKm.toFixed(2)} km</b><br/>${distanceKm <= 1 ? '<span style="color:#16a34a">0-1 km Gratis</span>' : `Tarif: Rp 5.000 / km tambahan`}</div>`;
+      const popup = rate.isOutOfRange
+        ? `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg> <b>Di luar jangkauan</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${rate.distanceKm.toFixed(2)} km</b><br/><span style="color:#ef4444">Maksimal pengiriman ${maxRadiusKm} km</span></div>`
+        : `<div style="font-size:13px;text-align:center"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="display:inline;vertical-align:middle;margin-right:4px"><polyline points="20 6 9 17 4 12"></polyline></svg> <b>Ongkir: Rp ${rate.fee.toLocaleString('id-ID')}</b><br/>Jarak dari Cabang ${outletName || 'Toko'}: <b>${rate.distanceKm.toFixed(2)} km</b></div>`;
 
       const marker = L.marker([lat, lng], { icon: customerIcon })
         .addTo(mapRef.current)
@@ -580,17 +578,17 @@ export default function DeliveryMap({
       <div className="bg-gray-50 rounded-xl p-3.5 border border-gray-200">
         <p className="text-xs font-bold text-gray-600 mb-2 uppercase tracking-wide">Tarif Ongkos Kirim</p>
         <div className="grid grid-cols-3 gap-2">
-          <div className="text-center p-2 rounded-lg bg-green-50 border border-green-200">
-            <p className="text-[11px] font-bold text-green-700">0 - 1 km</p>
-            <p className="text-xs font-extrabold text-green-800">Rp 0 (Gratis)</p>
+          <div className="text-center p-2 rounded-lg bg-blue-50 border border-blue-200">
+            <p className="text-[11px] font-bold text-blue-700">0 - 0.5 km</p>
+            <p className="text-xs font-extrabold text-blue-800">Rp 5.000</p>
+          </div>
+          <div className="text-center p-2 rounded-lg bg-indigo-50 border border-indigo-200">
+            <p className="text-[11px] font-bold text-indigo-700">0.5 - 1.0 km</p>
+            <p className="text-xs font-extrabold text-indigo-800">Rp 8.000</p>
           </div>
           <div className="text-center p-2 rounded-lg bg-amber-50 border border-amber-200">
-            <p className="text-[11px] font-bold text-amber-700">+1 km Tambahan</p>
-            <p className="text-xs font-extrabold text-amber-800">+Rp 5.000 / km</p>
-          </div>
-          <div className="text-center p-2 rounded-lg bg-red-50 border border-red-200">
-            <p className="text-[11px] font-bold text-red-700">Maksimal Radius</p>
-            <p className="text-xs font-extrabold text-red-800">{maxRadiusKm} km</p>
+            <p className="text-[11px] font-bold text-amber-700">Tiap +0.5 km</p>
+            <p className="text-xs font-extrabold text-amber-800">+Rp 8.000</p>
           </div>
         </div>
         <p className="text-[10px] text-gray-500 mt-2 text-center">
@@ -600,7 +598,7 @@ export default function DeliveryMap({
 
       {/* Result card */}
       {selectedResult && (
-        <div className={`rounded-xl p-4 border-2 transition-all ${selectedResult.isOutOfRange ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-300'}`}>
+        <div className={`rounded-xl p-4 border-2 transition-all ${selectedResult.isOutOfRange ? 'bg-red-50 border-red-300' : 'bg-blue-50 border-blue-300'}`}>
           {selectedResult.isOutOfRange ? (
             <div className="flex items-center gap-3">
               <XCircle className="w-6 h-6 text-red-500 shrink-0" />
@@ -614,12 +612,12 @@ export default function DeliveryMap({
           ) : (
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <CheckCircle2 className="w-6 h-6 text-green-500 shrink-0" />
+                <CheckCircle2 className="w-6 h-6 text-blue-600 shrink-0" />
                 <div>
-                  <p className="font-bold text-green-800 text-sm">
-                    {selectedResult.fee === 0 ? '🎉 Gratis Ongkos Kirim!' : 'Lokasi Terjangkau'}
+                  <p className="font-bold text-blue-900 text-sm">
+                    {selectedResult.zoneName}
                   </p>
-                  <p className="text-green-700 text-xs">
+                  <p className="text-blue-700 text-xs">
                     Jarak dari Cabang {outletName || 'Toko'}: <strong>{selectedResult.distanceKm.toFixed(2)} km</strong>
                   </p>
                 </div>
@@ -627,7 +625,7 @@ export default function DeliveryMap({
               <div className="text-right">
                 <p className="text-xs text-gray-500">Ongkir</p>
                 <p className="font-black text-[#8E0E0E] text-lg">
-                  {selectedResult.fee === 0 ? 'GRATIS' : `Rp ${selectedResult.fee.toLocaleString('id-ID')}`}
+                  Rp {selectedResult.fee.toLocaleString('id-ID')}
                 </p>
               </div>
             </div>
