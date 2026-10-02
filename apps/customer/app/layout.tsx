@@ -10,11 +10,102 @@ import Script from "next/script";
 import { getStoreSettings } from "@/lib/db/menuService";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://a6nyusss.com"),
   title: {
-    default: "Online Store & Order System",
-    template: "%s | Online Store",
+    default: "Martabak & Terang Bulan A6 Nyuss Surabaya | Cabang Demak & Tidar",
+    template: "%s | Martabak & Terang Bulan A6 Nyuss Surabaya",
   },
-  description: "Pesan menu favorit pilihan Anda secara praktis, cepat, dan aman melalui website pemesanan resmi.",
+  description:
+    "Pusat martabak telur daging sapi gurih dan terang bulan manis legendaris di Surabaya. Nikmati kelezatan Martabak & Terang Bulan A6 Nyuss (a6nyuss, a6 nyus, a6nyusss, a6) Cabang Demak & Tidar. Pesan online resmi cepat & praktis!",
+  keywords: [
+    // Branded & Typos
+    "martabak a6nyusss",
+    "martabak a6nyuss",
+    "martabak a6nyus",
+    "a6nyusss",
+    "a6nyuss",
+    "a6nyus",
+    "a6 nyusss",
+    "a6 nyuss",
+    "a6 nyus",
+    "martabak a6",
+    "a6",
+    "terang bulan a6 nyusss",
+    "terang bulan a6 nyuss",
+    "terang bulan a6 nyus",
+    "terang bulan a6",
+    "martabak dan terang bulan a6 nyuss",
+    // Cabang Tidar
+    "martabak tidar surabaya",
+    "martabak tidar",
+    "terang bulan tidar surabaya",
+    "martabak sawahan surabaya",
+    "kuliner tidar surabaya",
+    "kuliner sawahan surabaya",
+    // Cabang Demak
+    "martabak demak surabaya",
+    "martabak jalan demak",
+    "terang bulan demak surabaya",
+    "martabak krembangan surabaya",
+    "kuliner krembangan surabaya",
+    // Surabaya General & High-Intent
+    "martabak surabaya",
+    "martabak enak di surabaya",
+    "martabak terdekat di surabaya",
+    "terang bulan surabaya",
+    "terang bulan enak surabaya",
+    "martabak manis surabaya",
+    "martabak telur surabaya",
+    "martabak daging sapi surabaya",
+    "kuliner malam surabaya",
+    "pesan martabak online surabaya",
+    "delivery martabak surabaya",
+  ],
+  authors: [{ name: "Martabak dan Terang Bulan A6 Nyuss", url: "https://a6nyusss.com" }],
+  creator: "Martabak dan Terang Bulan A6 Nyuss",
+  publisher: "Martabak dan Terang Bulan A6 Nyuss",
+  formatDetection: {
+    telephone: true,
+    address: true,
+  },
+  alternates: {
+    canonical: "https://a6nyusss.com",
+  },
+  openGraph: {
+    title: "Martabak & Terang Bulan A6 Nyuss Surabaya | Cabang Demak & Tidar",
+    description:
+      "Pusat martabak telur daging sapi & terang bulan manis istimewa di Surabaya. Pesan online langsung dari gerai resmi Cabang Demak & Tidar.",
+    url: "https://a6nyusss.com",
+    siteName: "Martabak & Terang Bulan A6 Nyuss",
+    images: [
+      {
+        url: "/assets/banner_red.png",
+        width: 1200,
+        height: 630,
+        alt: "Martabak dan Terang Bulan A6 Nyuss Surabaya",
+      },
+    ],
+    locale: "id_ID",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Martabak & Terang Bulan A6 Nyuss Surabaya",
+    description:
+      "Pesan Martabak Telur & Terang Bulan A6 Nyuss Cabang Demak & Tidar Surabaya secara online.",
+    images: ["/assets/banner_red.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default async function RootLayout({
@@ -84,6 +175,123 @@ export default async function RootLayout({
             </Script>
           </>
         )}
+        {/* Schema.org Structured Data (Multi-Location Restaurant & Organization) */}
+        <Script
+          id="schema-org-jsonld"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@graph": [
+                {
+                  "@type": "Organization",
+                  "@id": "https://a6nyusss.com/#organization",
+                  "name": "Martabak dan Terang Bulan A6 Nyuss",
+                  "alternateName": [
+                    "A6 Nyuss",
+                    "a6nyusss",
+                    "a6nyuss",
+                    "a6nyus",
+                    "a6 nyusss",
+                    "a6 nyuss",
+                    "a6 nyus",
+                    "Martabak A6",
+                    "a6",
+                  ],
+                  "url": "https://a6nyusss.com",
+                  "logo": "https://a6nyusss.com/logo.png",
+                  "sameAs": [
+                    "https://maps.app.goo.gl/2tti83qFw8aDaWibA",
+                    "https://maps.google.com/?q=-7.2432537,112.7206275",
+                  ],
+                },
+                {
+                  "@type": "FastFoodRestaurant",
+                  "@id": "https://a6nyusss.com/#cabang-demak",
+                  "name": "Martabak & Terang Bulan A6 Nyuss - Cabang Demak",
+                  "parentOrganization": { "@id": "https://a6nyusss.com/#organization" },
+                  "image": "https://a6nyusss.com/assets/banner_red.png",
+                  "telephone": "+6287811123482",
+                  "priceRange": "Rp 20.000 - Rp 50.000",
+                  "servesCuisine": ["Martabak", "Terang Bulan", "Indonesian Street Food"],
+                  "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": "Jl. Demak No.253, Dupak (Depan Mess DITPOLARIUD)",
+                    "addressLocality": "Kec. Krembangan, Kota Surabaya",
+                    "addressRegion": "Jawa Timur",
+                    "postalCode": "60179",
+                    "addressCountry": "ID",
+                  },
+                  "geo": {
+                    "@type": "GeoCoordinates",
+                    "latitude": -7.2432537,
+                    "longitude": 112.7206275,
+                  },
+                  "hasMap": "https://maps.google.com/?q=-7.2432537,112.7206275",
+                  "openingHoursSpecification": [
+                    {
+                      "@type": "OpeningHoursSpecification",
+                      "dayOfWeek": [
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                        "Sunday",
+                      ],
+                      "opens": "16:00",
+                      "closes": "23:00",
+                    },
+                  ],
+                  "hasMenu": "https://a6nyusss.com/menu",
+                },
+                {
+                  "@type": "FastFoodRestaurant",
+                  "@id": "https://a6nyusss.com/#cabang-tidar",
+                  "name": "Martabak & Terang Bulan A6 Nyuss - Cabang Tidar",
+                  "parentOrganization": { "@id": "https://a6nyusss.com/#organization" },
+                  "image": "https://a6nyusss.com/assets/banner_red.png",
+                  "telephone": "+6282230306801",
+                  "priceRange": "Rp 20.000 - Rp 50.000",
+                  "servesCuisine": ["Martabak", "Terang Bulan", "Indonesian Street Food"],
+                  "address": {
+                    "@type": "PostalAddress",
+                    "streetAddress": "Jl. Tidar No.81, Sawahan",
+                    "addressLocality": "Kec. Sawahan, Kota Surabaya",
+                    "addressRegion": "Jawa Timur",
+                    "postalCode": "60251",
+                    "addressCountry": "ID",
+                  },
+                  "geo": {
+                    "@type": "GeoCoordinates",
+                    "latitude": -7.257158467336688,
+                    "longitude": 112.72766308228695,
+                  },
+                  "hasMap": "https://maps.app.goo.gl/2tti83qFw8aDaWibA",
+                  "openingHoursSpecification": [
+                    {
+                      "@type": "OpeningHoursSpecification",
+                      "dayOfWeek": [
+                        "Monday",
+                        "Tuesday",
+                        "Wednesday",
+                        "Thursday",
+                        "Friday",
+                        "Saturday",
+                        "Sunday",
+                      ],
+                      "opens": "16:00",
+                      "closes": "23:00",
+                    },
+                  ],
+                  "hasMenu": "https://a6nyusss.com/menu",
+                },
+              ],
+            }),
+          }}
+        />
         <ToastProvider />
         <Suspense fallback={null}>
           <Header settings={layoutSettings} />

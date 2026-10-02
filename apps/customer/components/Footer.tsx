@@ -74,23 +74,24 @@ export default function Footer({ settings }: { settings?: LayoutSettings }) {
               Dibuat dengan bahan pilihan dan dedikasi terbaik untuk pelanggan setia kami.
             </p>
             <div className="space-y-2">
-              {address && (
-                <div className="text-sm text-gray-300 flex items-start gap-2">
-                  <MapPin className="w-4 h-4 shrink-0 mt-0.5" style={{ color: secondaryColor }} />
-                  <div>
-                    <p className="text-white font-medium">{address}</p>
-                  </div>
+              <div className="text-sm text-gray-300 flex items-start gap-2">
+                <MapPin className="w-4 h-4 shrink-0 mt-0.5" style={{ color: secondaryColor }} />
+                <div className="space-y-1">
+                  <p className="text-white font-medium text-xs sm:text-sm">
+                    <span className="text-[#E05009] font-bold">Cabang Demak:</span> Jl. Demak No.253, Krembangan, Surabaya
+                  </p>
+                  <p className="text-white font-medium text-xs sm:text-sm">
+                    <span className="text-[#E05009] font-bold">Cabang Tidar:</span> Jl. Tidar No.81, Sawahan, Surabaya
+                  </p>
                 </div>
-              )}
-              {hours && (
-                <p className="text-sm text-gray-300 flex items-center gap-2">
-                  <Clock className="text-[#E05009] w-4 h-4 shrink-0" />
-                  <span>{hours}</span>
-                </p>
-              )}
+              </div>
+              <p className="text-sm text-gray-300 flex items-center gap-2">
+                <Clock className="text-[#E05009] w-4 h-4 shrink-0" />
+                <span>Buka Setiap Hari: 16:00 – 23:00 WIB</span>
+              </p>
               <p className="text-sm text-gray-300 flex items-center gap-2">
                 <img src="/Halal logo.jfif" alt="Halal" className="w-5 h-5 object-contain rounded bg-white p-0.5" />
-                <span>Halal Certified</span>
+                <span>100% Bersertifikat Halal</span>
               </p>
             </div>
           </div>

@@ -1,8 +1,18 @@
+import type { Metadata } from "next";
 import MenuClient from "./MenuClient";
 import { getStoreSettings, getMenuItems, getCategories } from "@/lib/db/menuService";
 import { categories as staticCategories } from "@/data/menu";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Daftar Menu Martabak Telur & Terang Bulan",
+  description:
+    "Lihat daftar lengkap menu Martabak Telur Daging Sapi gurih dan Terang Bulan aneka rasa istimewa di Martabak A6 Nyuss Surabaya. Pesan online langsung siap diantar!",
+  alternates: {
+    canonical: "https://a6nyusss.com/menu",
+  },
+};
 
 export default async function MenuPage() {
   // Fetch paralel dengan fallback individual — jika salah satu gagal, page tetap tampil
