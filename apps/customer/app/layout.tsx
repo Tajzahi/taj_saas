@@ -155,26 +155,28 @@ export default async function RootLayout({
             --secondary-color: ${secondaryColor};
           }
         `}</style>
-      </head>
-      <body className="min-h-full flex flex-col bg-[#fffdf9] text-[#1c1917] dark:bg-stone-950 dark:text-stone-100 min-w-[320px]">
-        {/* Google Analytics (gtag.js) */}
+        {/* Google Analytics (gtag.js) in <head> for Google Search Console verification */}
         {gaId && (
           <>
-            <Script
+            <script
+              async
               src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
-              strategy="afterInteractive"
             />
-            <Script id="google-analytics" strategy="afterInteractive">
-              {`
-                window.dataLayer = window.dataLayer || [];
-                function gtag(){dataLayer.push(arguments);}
-                gtag('js', new Date());
-
-                gtag('config', '${gaId}');
-              `}
-            </Script>
+            <script
+              id="google-analytics"
+              dangerouslySetInnerHTML={{
+                __html: `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}');
+                `,
+              }}
+            />
           </>
         )}
+      </head>
+      <body className="min-h-full flex flex-col bg-[#fffdf9] text-[#1c1917] dark:bg-stone-950 dark:text-stone-100 min-w-[320px]">
         {/* Schema.org Structured Data (Multi-Location Restaurant & Organization) */}
         <Script
           id="schema-org-jsonld"
