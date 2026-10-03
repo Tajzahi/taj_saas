@@ -214,5 +214,5 @@ export const MAX_DELIVERY_RADIUS_KM = 8;
 export const DELIVERY_ZONES: { name: string; fee: number }[] = [
   { name: '0 - 0.5 km', fee: 5000 },
   { name: '0.5 - 1.0 km', fee: 8000 },
-  { name: 'Tiap +0.5 km', fee: 8000 },
+  { name: '> 1.0 km (+Rp 3.000/km)', fee: 11000 },
 ];

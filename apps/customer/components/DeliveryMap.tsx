@@ -587,8 +587,8 @@ export default function DeliveryMap({
             <p className="text-xs font-extrabold text-indigo-800">Rp 8.000</p>
           </div>
           <div className="text-center p-2 rounded-lg bg-amber-50 border border-amber-200">
-            <p className="text-[11px] font-bold text-amber-700">Tiap +0.5 km</p>
-            <p className="text-xs font-extrabold text-amber-800">+Rp 8.000</p>
+            <p className="text-[11px] font-bold text-amber-700">&gt; 1.0 km</p>
+            <p className="text-xs font-extrabold text-amber-800">+Rp 3.000 / km</p>
           </div>
         </div>
         <p className="text-[10px] text-gray-500 mt-2 text-center">
