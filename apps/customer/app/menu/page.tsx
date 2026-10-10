@@ -3,16 +3,25 @@ import MenuClient from "./MenuClient";
 import { getStoreSettings, getMenuItems, getCategories } from "@/lib/db/menuService";
 import { categories as staticCategories } from "@/data/menu";
 
+import { resolveSeoTenant } from "@/lib/seo/tenant-host";
+
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Daftar Menu Martabak Telur & Terang Bulan",
-  description:
-    "Lihat daftar lengkap menu Martabak Telur Daging Sapi gurih dan Terang Bulan aneka rasa istimewa di Martabak A6 Nyuss Surabaya. Pesan online langsung siap diantar!",
-  alternates: {
-    canonical: "https://a6nyusss.com/menu",
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const context = await resolveSeoTenant();
+  const isA6 = context?.tenant?.slug === "martabak-terang-bulan-a6-nyusss";
+  const storeName = context?.tenant?.name || "Martabak & Terang Bulan A6 Nyuss";
+
+  return {
+    title: isA6 ? "Daftar Menu Martabak Telur & Terang Bulan" : `Daftar Menu Pilihan | ${storeName}`,
+    description: isA6
+      ? "Lihat daftar lengkap menu Martabak Telur Daging Sapi gurih dan Terang Bulan aneka rasa istimewa di Martabak A6 Nyuss Surabaya. Pesan online langsung siap diantar!"
+      : `Lihat daftar lengkap aneka menu lezat dan hidangan spesial dari ${storeName}. Pesan online hangat langsung diantar!`,
+    alternates: {
+      canonical: "/menu",
+    },
+  };
+}
 
 export default async function MenuPage() {
   // Fetch paralel dengan fallback individual — jika salah satu gagal, page tetap tampil

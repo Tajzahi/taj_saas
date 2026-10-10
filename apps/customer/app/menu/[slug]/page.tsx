@@ -112,30 +112,59 @@ export default async function MenuDetailPage({
           dangerouslySetInnerHTML={{
             __html: JSON.stringify({
               "@context": "https://schema.org",
-              "@type": "Product",
-              "name": initialItem.name,
-              "image": imageUrl,
-              "description":
-                initialItem.description ||
-                `Nikmati hidangan istimewa ${initialItem.name} dari ${storeName}. Dibuat hangat dan segar dengan bahan berkualitas.`,
-              "brand": {
-                "@type": "Brand",
-                "name": storeName,
-              },
-              "offers": {
-                "@type": "Offer",
-                "priceCurrency": "IDR",
-                "price": initialItem.price,
-                "availability":
-                  initialItem.badge === "habis"
-                    ? "https://schema.org/OutOfStock"
-                    : "https://schema.org/InStock",
-                "url": `${baseUrl}/menu/${cleanSlug}`,
-                "seller": {
-                  "@type": "Organization",
-                  "name": storeName,
+              "@graph": [
+                {
+                  "@type": "Product",
+                  "@id": `${baseUrl}/menu/${cleanSlug}#product`,
+                  "name": initialItem.name,
+                  "image": imageUrl,
+                  "description":
+                    initialItem.description ||
+                    `Nikmati hidangan istimewa ${initialItem.name} dari ${storeName}. Dibuat hangat dan segar dengan bahan berkualitas.`,
+                  "brand": {
+                    "@type": "Brand",
+                    "name": storeName,
+                  },
+                  "offers": {
+                    "@type": "Offer",
+                    "priceCurrency": "IDR",
+                    "price": initialItem.price,
+                    "availability":
+                      initialItem.badge === "habis"
+                        ? "https://schema.org/OutOfStock"
+                        : "https://schema.org/InStock",
+                    "url": `${baseUrl}/menu/${cleanSlug}`,
+                    "seller": {
+                      "@type": "Organization",
+                      "name": storeName,
+                    },
+                  },
                 },
-              },
+                {
+                  "@type": "BreadcrumbList",
+                  "@id": `${baseUrl}/menu/${cleanSlug}#breadcrumb`,
+                  "itemListElement": [
+                    {
+                      "@type": "ListItem",
+                      "position": 1,
+                      "name": "Beranda",
+                      "item": baseUrl,
+                    },
+                    {
+                      "@type": "ListItem",
+                      "position": 2,
+                      "name": "Daftar Menu",
+                      "item": `${baseUrl}/menu`,
+                    },
+                    {
+                      "@type": "ListItem",
+                      "position": 3,
+                      "name": initialItem.name,
+                      "item": `${baseUrl}/menu/${cleanSlug}`,
+                    },
+                  ],
+                },
+              ],
             }),
           }}
         />
