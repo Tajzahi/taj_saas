@@ -51,3 +51,7 @@ playwright-report/
 /scratch/
 scratch/
 apps/*/tests/
+/packages/db/data/
+/packages/db/scripts/seed_from_snapshot.*
+/packages/db/scripts/dump_live_db.*
+/asset/
