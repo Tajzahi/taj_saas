@@ -125,6 +125,16 @@ function resolveMenuItemVariants(
   return undefined;
 }
 
+async function isSharedDevHost(): Promise<boolean> {
+  try {
+    const h = await headers();
+    const host = (h.get("x-forwarded-host") || h.get("host") || "").toLowerCase();
+    return host.includes("localhost") || host.includes("127.0.0.1") || host.includes(".run.app");
+  } catch {
+    return false;
+  }
+}
+
 async function getTenantBySlug(slug: string) {
   const cacheKey = `tenant:${slug}`;
   const cached = getFromCache<any>(cacheKey);
@@ -134,15 +144,21 @@ async function getTenantBySlug(slug: string) {
     const result = await db.select().from(schema.tenants).where(eq(schema.tenants.slug, slug)).limit(1);
     let tenant = result[0] || null;
 
-    // Fallback cerdas: jika slug target tidak ditemukan, ambil tenant pertama yang aktif dari DB
-    if (!tenant) {
+    // Fallback hanya untuk Cloud Run / localhost (staging & development).
+    // Di domain produksi, slug yang tidak dikenal TIDAK boleh jatuh ke tenant lain:
+    // itu akan membuat satu brand tampil (dan terindeks) dengan data brand lain.
+    if (!tenant && (await isSharedDevHost())) {
       const fallbackResult = await db.select().from(schema.tenants).where(eq(schema.tenants.isActive, true)).limit(1);
       if (fallbackResult.length > 0) {
         tenant = fallbackResult[0];
       }
     }
 
-    setToCache(cacheKey, tenant);
+    // Hanya cache kecocokan slug langsung. Instance Cloud Run yang sama melayani
+    // *.run.app DAN domain kustom, jadi hasil fallback tidak boleh ikut ter-cache.
+    if (result[0]) {
+      setToCache(cacheKey, tenant);
+    }
     return tenant;
   } catch (err) {
     console.error("[menuService] Error fetching tenant by slug:", err);
@@ -324,8 +340,8 @@ export async function getCategories(): Promise<{ id: MenuCategory; label: string
   }
 }
 
-export async function getMenuItems(): Promise<MenuItem[]> {
-  const slug = await getTenantSlugFromHeaders();
+export async function getMenuItems(slugOverride?: string): Promise<MenuItem[]> {
+  const slug = slugOverride || (await getTenantSlugFromHeaders());
   const cacheKey = `items:${slug}`;
   const cached = getFromCache<MenuItem[]>(cacheKey);
   if (cached) return cached;
